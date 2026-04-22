@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a new feature or control lever.
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work? Where does it live (substrate / firmware / telemetry / pair / replay)?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: discipline
+    attributes:
+      label: Reproducibility & control discipline
+      options:
+        - label: Defaults are off-by-default until sweep-validated (if this is a control lever).
+        - label: Telemetry / replay outputs remain read-only relative to live control.
+        - label: No change to manifold determinism, or determinism changes are scoped explicitly.

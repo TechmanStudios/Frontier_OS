@@ -1,0 +1,16 @@
+# Normalize line endings
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Mark binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.pdf binary
+
+# --- Git LFS: only retained PDFs (working_data/ is gitignored) ---
+Exciton-MoA/working_mind/**/*.pdf filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,36 @@
+name: Research question / sweep hypothesis
+description: Open a research-style question, sweep proposal, or paper-handoff candidate.
+labels: ["research", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for hypothesis-style work: new diagnostics, sweep proposals, paper bridges, or open uncertainties surfaced by the bounded paper workflow.
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question / hypothesis
+      description: What are you trying to learn or rule out?
+    validations:
+      required: true
+  - type: textarea
+    id: signal
+    attributes:
+      label: Telemetry / replay signal
+      description: Which fields, sweep artifacts, or replay summaries support the question?
+  - type: textarea
+    id: sweep
+    attributes:
+      label: Proposed sweep / experiment
+      description: Concrete CLI invocation, preset, seed range, and expected artifacts.
+      render: shell
+  - type: textarea
+    id: paper
+    attributes:
+      label: Paper bridge (if applicable)
+      description: |
+        Existing applied summary, DOI, or planned `sol-paper-finder` handoff. See `Exciton-MoA/working_mind/sweep-to-paper-runbook.md`.
+  - type: textarea
+    id: success
+    attributes:
+      label: How will we know this is answered?

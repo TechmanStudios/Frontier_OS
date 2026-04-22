@@ -1,0 +1,14 @@
+# Exciton-MoA (Frontier OS) Dependencies
+# Python 3.10+ Recommended
+
+# Core Tensor & Statistical Physics
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Topological Manifold & Graph Operations
+networkx>=3.0
+
+# (Optional) Backend API Server for Edge/Browser Streaming
+fastapi>=0.100.0
+uvicorn>=0.23.0
+websockets>=11.0.3

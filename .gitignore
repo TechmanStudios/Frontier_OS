@@ -1,0 +1,64 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+pip-wheel-metadata/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs / temp ---
+*.log
+*.tmp
+*.bak
+
+# --- Secrets (defense in depth) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*_token*
+*_secret*
+*credentials*
+
+# --- Paywalled / non-redistributable references (kept local only) ---
+# arXiv 1208.0045 (CC) is allowed; APS, Nature Physics, NAP are not.
+Exciton-MoA/working_mind/synchronization/PhysRevLett.80.2109.pdf
+Exciton-MoA/working_mind/basin-stability/nphys2516.pdf
+references/FrontiersInMassiveDataAnalysis.pdf
+references/Regarding_self_organizing_logos.pdf
+references/SOL_mathFoundation*.pdf
+references/grokConvos/
+
+# --- Notebook / large transient artifacts ---
+*.ipynb_checkpoints/
+
+# --- Reproducibility artifacts (local-only; regenerate via --runtime-preset) ---
+# 15+ GB of sweep outputs, hippocampal bursts, and per-variant artifacts.
+# See Exciton-MoA/working_data/README.md for how to regenerate.
+Exciton-MoA/working_data/*
+!Exciton-MoA/working_data/README.md
+

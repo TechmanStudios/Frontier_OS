@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: "Frontier_OS: A Research Operating System for Manifold-Native Agentic AI"
+message: "If you use Frontier_OS or Exciton-MoA in academic work, please cite it using these metadata."
+type: software
+authors:
+  - name: "Techman Studios"
+    website: "https://github.com/TechmanStudios"
+repository-code: "https://github.com/TechmanStudios/Frontier_OS"
+url: "https://github.com/TechmanStudios/Frontier_OS"
+license: AGPL-3.0-or-later
+keywords:
+  - agentic-ai
+  - mixture-of-agents
+  - non-euclidean-geometry
+  - manifold-learning
+  - complex-systems
+  - synchronization
+  - reproducibility
+version: "0.1.0"
+date-released: "2026-04-22"

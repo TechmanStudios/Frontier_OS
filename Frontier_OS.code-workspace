@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../.github"
+		},
+		{
+			"path": "../.git"
+		},
+		{
+			"path": "../../../../aiProjects/openclaw-main"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "Frontier_OS"
+	}
+}

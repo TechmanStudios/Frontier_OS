@@ -1,0 +1,47 @@
+[project]
+name = "frontier-os"
+version = "0.1.0"
+description = "A research operating system for manifold-native agentic AI."
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+requires-python = ">=3.11"
+authors = [{ name = "Techman Studios" }]
+keywords = [
+    "agentic-ai",
+    "mixture-of-agents",
+    "non-euclidean",
+    "manifold-learning",
+    "complex-systems",
+    "synchronization",
+    "research-os",
+]
+
+[project.urls]
+Homepage = "https://github.com/TechmanStudios/Frontier_OS"
+Issues = "https://github.com/TechmanStudios/Frontier_OS/issues"
+Discussions = "https://github.com/TechmanStudios/Frontier_OS/discussions"
+Commercial = "https://github.com/TechmanStudios/Frontier_OS/blob/main/COMMERCIAL.md"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = [
+    ".venv",
+    "Exciton-MoA/working_data",
+    "references",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = [
+    "E501", # line length handled by formatter
+    "B008", # default arg call (FastAPI / argparse patterns)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["Exciton-MoA/blank_manifold/pre_check_tests"]
+addopts = "-q"
