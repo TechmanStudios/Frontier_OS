@@ -6,7 +6,7 @@ numpy>=1.24.0
 scipy>=1.10.0
 
 # Topological Manifold & Graph Operations
-networkx>=3.0
+networkx>=3.6.1
 
 # (Optional) Backend API Server for Edge/Browser Streaming
 fastapi>=0.100.0
