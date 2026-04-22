@@ -21,6 +21,7 @@ jobs:
         uses: contributor-assistant/github-action@v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           path-to-signatures: 'legal/cla-signatures.json'
           path-to-document: 'https://github.com/TechmanStudios/Frontier_OS/blob/main/legal/CLA.md'
