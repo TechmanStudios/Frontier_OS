@@ -116,6 +116,15 @@ def default_state() -> dict[str, Any]:
         "policy_probe_alternation": 0,
         "msf_ab_alternation": 0,
         "last_msf_ab_arm": None,
+        # Cross-consumer additive fields. Listed here so that load_state's
+        # default-state allowlist preserves them across reads. Defaults are
+        # "absent" sentinels so decide_next_config's `state.get(...)` checks
+        # remain semantically equivalent to "not yet written".
+        "paper_basin_fragility_delta": None,
+        "best_pocket_tilt": None,
+        "safety_clamp": None,
+        "safety_clamp_incident_id": None,
+        "advisory_lesson_clamp": None,
         "history_window": 8,
         "updated_utc": None,
     }
@@ -183,6 +192,70 @@ class NextConfig:
     regime: str
     rationale: str
     flags: tuple[str, ...]  # extra named flags applied (for the report)
+    explore_loc_a_override: tuple[float, ...] | None = None
+    explore_loc_b_override: tuple[float, ...] | None = None
+    explore_drift_override: tuple[float, ...] | None = None
+
+
+def _parse_pocket_key(key: str) -> dict[str, float] | None:
+    """Parse a pocket key like ``"locA=0.5,locB=0.57,drift=0.06"``.
+
+    Returns ``None`` on any parse failure so callers can skip silently.
+    """
+    parts: dict[str, float] = {}
+    for chunk in str(key).split(","):
+        if "=" not in chunk:
+            return None
+        name, _, raw = chunk.partition("=")
+        try:
+            parts[name.strip()] = float(raw)
+        except ValueError:
+            return None
+    if not {"locA", "locB", "drift"}.issubset(parts):
+        return None
+    return parts
+
+
+def _apply_lesson_clamp(
+    loc_a: Sequence[float],
+    loc_b: Sequence[float],
+    drifts: Sequence[float],
+    clamp: dict[str, Any],
+) -> tuple[tuple[float, ...], tuple[float, ...], tuple[float, ...], str]:
+    """Filter explore axes by an advisory lesson clamp.
+
+    Returns ``(loc_a_filtered, loc_b_filtered, drifts_filtered, status)``
+    where ``status`` is one of ``"applied"``, ``"skipped:empty_intersection"``,
+    ``"skipped:no_pockets"``, or ``"skipped:malformed_clamp"``. When the
+    intersection on any axis is empty the originals are returned untouched —
+    advisory lessons must never starve the runner of variants.
+    """
+    pockets = clamp.get("applicable_pockets") or []
+    contras = set(clamp.get("contraindicated_pockets") or [])
+    if not isinstance(pockets, (list, tuple)) or not pockets:
+        return tuple(loc_a), tuple(loc_b), tuple(drifts), "skipped:no_pockets"
+    keep_a: set[float] = set()
+    keep_b: set[float] = set()
+    keep_d: set[float] = set()
+    saw_any = False
+    for raw in pockets:
+        if raw in contras:
+            continue
+        parsed = _parse_pocket_key(raw)
+        if parsed is None:
+            continue
+        keep_a.add(parsed["locA"])
+        keep_b.add(parsed["locB"])
+        keep_d.add(parsed["drift"])
+        saw_any = True
+    if not saw_any:
+        return tuple(loc_a), tuple(loc_b), tuple(drifts), "skipped:malformed_clamp"
+    filt_a = tuple(v for v in loc_a if v in keep_a)
+    filt_b = tuple(v for v in loc_b if v in keep_b)
+    filt_d = tuple(v for v in drifts if v in keep_d)
+    if not filt_a or not filt_b or not filt_d:
+        return tuple(loc_a), tuple(loc_b), tuple(drifts), "skipped:empty_intersection"
+    return filt_a, filt_b, filt_d, "applied"
 
 
 def decide_next_config(
@@ -296,8 +369,47 @@ def decide_next_config(
         else:
             rationale_parts.append("msf_ab: control (--no-enable-msf-guard)")
 
+    # Advisory lesson clamp — if the lesson_advisory_writer consumer has
+    # populated ``state.advisory_lesson_clamp`` with high-confidence pockets,
+    # narrow the explore neighbor lists to that intersection. Empty
+    # intersections fall back to the full allowlist (logged in rationale).
+    explore_loc_a_override: tuple[float, ...] | None = None
+    explore_loc_b_override: tuple[float, ...] | None = None
+    explore_drift_override: tuple[float, ...] | None = None
+    clamp = state.get("advisory_lesson_clamp")
+    if (
+        isinstance(clamp, dict)
+        and tier == "daily"
+        and regime == "explore"
+        and (force_size in (None, "auto") or force_size == "medium")
+    ):
+        filt_a, filt_b, filt_d, status = _apply_lesson_clamp(
+            EXPLORE_LOC_A_NEIGHBORS,
+            EXPLORE_LOC_B_NEIGHBORS,
+            EXPLORE_DRIFT_NEIGHBORS,
+            clamp,
+        )
+        if status == "applied":
+            explore_loc_a_override = filt_a
+            explore_loc_b_override = filt_b
+            explore_drift_override = filt_d
+            rationale_parts.append(
+                f"lesson_clamp: applied (loc_a={len(filt_a)}, loc_b={len(filt_b)}, drift={len(filt_d)})"
+            )
+        else:
+            rationale_parts.append(f"lesson_clamp: {status}")
+
     rationale = "; ".join(rationale_parts)
-    return NextConfig(tier=tier, size=size, regime=regime, rationale=rationale, flags=tuple(flags))
+    return NextConfig(
+        tier=tier,
+        size=size,
+        regime=regime,
+        rationale=rationale,
+        flags=tuple(flags),
+        explore_loc_a_override=explore_loc_a_override,
+        explore_loc_b_override=explore_loc_b_override,
+        explore_drift_override=explore_drift_override,
+    )
 
 
 def _is_rising(values: Sequence[int]) -> bool:
@@ -374,6 +486,12 @@ def build_engine_argv(config: NextConfig, run_dir: Path) -> list[str]:
             loc_b = list(EXPLORE_LOC_B_NEIGHBORS)
             drifts = list(EXPLORE_DRIFT_NEIGHBORS)
             seeds = list(EXPLORE_SEEDS)
+            if config.explore_loc_a_override is not None:
+                loc_a = list(config.explore_loc_a_override)
+            if config.explore_loc_b_override is not None:
+                loc_b = list(config.explore_loc_b_override)
+            if config.explore_drift_override is not None:
+                drifts = list(config.explore_drift_override)
         else:
             loc_a = [BEST_LOC_A]
             loc_b = [BEST_LOC_B, 0.58]

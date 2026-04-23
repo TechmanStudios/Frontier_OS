@@ -631,3 +631,159 @@ def test_apply_results_does_not_increment_msf_alt_on_hold_or_pulse():
         argv=["--sweep"],
     )
     assert s2["msf_ab_alternation"] == 0
+
+
+# ---------------------------------------------------------------------------
+# W3: Advisory lesson clamp on explore neighbor lists
+# ---------------------------------------------------------------------------
+
+
+def test_apply_lesson_clamp_filters_intersection():
+    clamp = {
+        "applicable_pockets": [
+            "locA=0.50,locB=0.57,drift=0.06",
+            "locA=0.51,locB=0.58,drift=0.06",
+        ],
+        "contraindicated_pockets": [],
+    }
+    a, b, d, status = snowball_experiment._apply_lesson_clamp(
+        snowball_experiment.EXPLORE_LOC_A_NEIGHBORS,
+        snowball_experiment.EXPLORE_LOC_B_NEIGHBORS,
+        snowball_experiment.EXPLORE_DRIFT_NEIGHBORS,
+        clamp,
+    )
+    assert status == "applied"
+    assert a == (0.50, 0.51)
+    assert b == (0.57, 0.58)
+    assert d == (0.06,)
+
+
+def test_apply_lesson_clamp_excludes_contraindicated_pockets():
+    clamp = {
+        "applicable_pockets": [
+            "locA=0.50,locB=0.57,drift=0.06",
+            "locA=0.49,locB=0.58,drift=0.08",
+        ],
+        "contraindicated_pockets": ["locA=0.49,locB=0.58,drift=0.08"],
+    }
+    a, b, d, status = snowball_experiment._apply_lesson_clamp(
+        snowball_experiment.EXPLORE_LOC_A_NEIGHBORS,
+        snowball_experiment.EXPLORE_LOC_B_NEIGHBORS,
+        snowball_experiment.EXPLORE_DRIFT_NEIGHBORS,
+        clamp,
+    )
+    assert status == "applied"
+    assert a == (0.50,)
+    assert b == (0.57,)
+    assert d == (0.06,)
+
+
+def test_apply_lesson_clamp_empty_intersection_falls_back():
+    clamp = {
+        "applicable_pockets": ["locA=0.99,locB=0.99,drift=0.99"],
+        "contraindicated_pockets": [],
+    }
+    a, b, d, status = snowball_experiment._apply_lesson_clamp(
+        snowball_experiment.EXPLORE_LOC_A_NEIGHBORS,
+        snowball_experiment.EXPLORE_LOC_B_NEIGHBORS,
+        snowball_experiment.EXPLORE_DRIFT_NEIGHBORS,
+        clamp,
+    )
+    assert status == "skipped:empty_intersection"
+    assert a == snowball_experiment.EXPLORE_LOC_A_NEIGHBORS
+    assert b == snowball_experiment.EXPLORE_LOC_B_NEIGHBORS
+    assert d == snowball_experiment.EXPLORE_DRIFT_NEIGHBORS
+
+
+def test_apply_lesson_clamp_no_pockets_skips():
+    a, b, d, status = snowball_experiment._apply_lesson_clamp(
+        snowball_experiment.EXPLORE_LOC_A_NEIGHBORS,
+        snowball_experiment.EXPLORE_LOC_B_NEIGHBORS,
+        snowball_experiment.EXPLORE_DRIFT_NEIGHBORS,
+        {"applicable_pockets": []},
+    )
+    assert status == "skipped:no_pockets"
+    assert a == snowball_experiment.EXPLORE_LOC_A_NEIGHBORS
+
+
+def test_apply_lesson_clamp_malformed_pocket_skips():
+    a, b, d, status = snowball_experiment._apply_lesson_clamp(
+        snowball_experiment.EXPLORE_LOC_A_NEIGHBORS,
+        snowball_experiment.EXPLORE_LOC_B_NEIGHBORS,
+        snowball_experiment.EXPLORE_DRIFT_NEIGHBORS,
+        {"applicable_pockets": ["this is not a pocket key"]},
+    )
+    assert status == "skipped:malformed_clamp"
+
+
+def test_decide_explore_applies_lesson_clamp_to_overrides():
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": [
+            "locA=0.50,locB=0.57,drift=0.06",
+            "locA=0.51,locB=0.58,drift=0.06",
+        ],
+        "contraindicated_pockets": [],
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.regime == "explore"
+    assert cfg.explore_loc_a_override == (0.50, 0.51)
+    assert cfg.explore_drift_override == (0.06,)
+    assert "lesson_clamp: applied" in cfg.rationale
+
+
+def test_decide_explore_lesson_clamp_empty_intersection_logs_skip(tmp_path):
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": ["locA=0.99,locB=0.99,drift=0.99"],
+        "contraindicated_pockets": [],
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.explore_loc_a_override is None
+    assert "lesson_clamp: skipped:empty_intersection" in cfg.rationale
+    # Engine still gets the full allowlist.
+    argv = snowball_experiment.build_engine_argv(cfg, tmp_path / "runs/x")
+    assert "0.49" in argv  # untouched EXPLORE_LOC_A_NEIGHBORS sentinel
+
+
+def test_decide_hold_ignores_lesson_clamp():
+    state = snowball_experiment.default_state()
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": ["locA=0.50,locB=0.57,drift=0.06"],
+        "contraindicated_pockets": [],
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.regime == "hold"
+    assert cfg.explore_loc_a_override is None
+    assert "lesson_clamp" not in cfg.rationale
+
+
+def test_build_engine_argv_explore_uses_clamp_overrides(tmp_path):
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": ["locA=0.50,locB=0.57,drift=0.06"],
+        "contraindicated_pockets": [],
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(cfg, tmp_path / "runs/x")
+    # The engine must NOT see the pruned-out neighbor values in the explore axes.
+    a_idx = argv.index("--sweep-embedding-a-locs")
+    b_idx = argv.index("--sweep-embedding-b-locs")
+    d_idx = argv.index("--sweep-embedding-drifts")
+    s_idx = argv.index("--sweep-seeds")
+    a_vals = argv[a_idx + 1 : b_idx]
+    b_vals = argv[b_idx + 1 : d_idx]
+    d_vals = argv[d_idx + 1 : s_idx]
+    assert a_vals == ["0.5"]
+    assert b_vals == ["0.57"]
+    assert d_vals == ["0.06"]

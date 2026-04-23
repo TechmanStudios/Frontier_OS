@@ -291,3 +291,239 @@ def test_main_cli_returns_zero_on_dry_run(umbrella_world, capsys, monkeypatch):
     assert rc == 0
     out = capsys.readouterr().out
     assert '"status"' in out
+
+
+# ---------------------------------------------------------------------------
+# W3: lesson_advisory_writer (high-confidence lesson -> advisory clamp)
+# ---------------------------------------------------------------------------
+
+
+lesson_advisory_writer = importlib.import_module("lesson_advisory_writer")
+snowball_experiment = importlib.import_module("snowball_experiment")
+
+
+def _seed_lessons_bundle(consumers_root: Path, token: str, lessons: list[dict]) -> Path:
+    base = consumers_root / lesson_compiler.CONSUMER_NAME / token
+    base.mkdir(parents=True, exist_ok=True)
+    bundle = {
+        "schema_versions": {"knowledge_lesson": 1},
+        "generated_utc": "2026-04-23T00:00:00Z",
+        "lessons": lessons,
+    }
+    path = base / "lessons.json"
+    path.write_text(json.dumps(bundle, sort_keys=True, indent=2), encoding="utf-8")
+    return path
+
+
+def _patch_state_path(monkeypatch, tmp_path):
+    state_path = tmp_path / "state.json"
+    lock_path = tmp_path / "state.lock"
+    monkeypatch.setattr(snowball_experiment, "STATE_PATH", state_path)
+    monkeypatch.setattr(lesson_advisory_writer, "STATE_LOCK_PATH", lock_path)
+
+    # load_state/save_state bind STATE_PATH as a *default argument* at def
+    # time, so re-pointing the module-level constant doesn't reach them.
+    # Patch the function references the writer imported, with our state_path
+    # baked into a fresh closure.
+    def _load(state_path_arg=state_path):
+        return snowball_experiment.load_state(state_path=state_path_arg)
+
+    def _save(state, state_path_arg=state_path):
+        snowball_experiment.save_state(state, state_path=state_path_arg)
+
+    monkeypatch.setattr(lesson_advisory_writer, "load_state", _load)
+    monkeypatch.setattr(lesson_advisory_writer, "save_state", _save)
+    return state_path
+
+
+def _w3_lesson(corro: int, pockets: list[str], contras: list[str] | None = None) -> dict:
+    return {
+        "schema_version": 1,
+        "lesson_type": "entrainment_stability",
+        "corroboration_count": corro,
+        "evidence_run_dirs": ["runs/daily/A", "runs/daily/B"],
+        "key_findings": "Synthetic lesson",
+        "applicable_constraints": pockets,
+        "contraindications": contras or [],
+        "generated_utc": "2026-04-23T00:00:00Z",
+    }
+
+
+def test_advisory_writer_noop_when_no_bundle(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "noop"
+    assert "no lesson_compiler bundle" in outcome["reason"]
+
+
+def test_advisory_writer_noop_when_no_qualifying_lessons(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [_w3_lesson(corro=2, pockets=["locA=0.50,locB=0.57,drift=0.06"])],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "noop"
+    assert "corroboration_count >= 3" in outcome["reason"]
+
+
+def test_advisory_writer_excludes_lessons_with_contraindications(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [
+            _w3_lesson(
+                corro=4,
+                pockets=["locA=0.50,locB=0.57,drift=0.06"],
+                contras=["locA=0.49,locB=0.57,drift=0.06"],
+            ),
+        ],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "noop"
+
+
+def test_advisory_writer_dry_run_emits_clamp_payload(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [
+            _w3_lesson(
+                corro=3,
+                pockets=[
+                    "locA=0.50,locB=0.57,drift=0.06",
+                    "locA=0.51,locB=0.58,drift=0.06",
+                ],
+            ),
+        ],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        dry_run=True,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "dry_run"
+    clamp = outcome["payload"]["clamp"]
+    assert clamp["applicable_pockets"] == [
+        "locA=0.50,locB=0.57,drift=0.06",
+        "locA=0.51,locB=0.58,drift=0.06",
+    ]
+    assert clamp["lesson_count"] == 1
+    assert clamp["source_lesson_token"] == "20260423T000000Z"
+
+
+def test_advisory_writer_writes_state_clamp(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    state_path = _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [
+            _w3_lesson(
+                corro=3,
+                pockets=["locA=0.50,locB=0.57,drift=0.06"],
+            ),
+        ],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "ok"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    clamp = state["advisory_lesson_clamp"]
+    assert clamp["schema_version"] == 1
+    assert clamp["applicable_pockets"] == ["locA=0.50,locB=0.57,drift=0.06"]
+    assert clamp["lesson_count"] == 1
+
+
+def test_advisory_writer_clears_clamp_when_no_qualifying_lessons(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    state_path = _patch_state_path(monkeypatch, tmp_path)
+    # Seed a stale clamp.
+    state = snowball_experiment.default_state()
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": ["locA=0.50,locB=0.57,drift=0.06"],
+        "contraindicated_pockets": [],
+        "source_lesson_token": "old",
+        "source_lesson_types": [],
+        "lesson_count": 1,
+        "updated_utc": "2026-04-22T00:00:00Z",
+    }
+    snowball_experiment.save_state(state, state_path=state_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [_w3_lesson(corro=1, pockets=["locA=0.50,locB=0.57,drift=0.06"])],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "noop"
+    state_after = json.loads(state_path.read_text(encoding="utf-8"))
+    cleared = state_after["advisory_lesson_clamp"]
+    assert cleared["applicable_pockets"] == []
+    assert cleared["lesson_count"] == 0
+    assert cleared.get("cleared_reason") == "no_qualifying_lessons"
+
+
+def test_advisory_writer_picks_latest_bundle_token(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260101T000000Z",
+        [_w3_lesson(corro=5, pockets=["locA=0.49,locB=0.57,drift=0.06"])],
+    )
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [_w3_lesson(corro=5, pockets=["locA=0.51,locB=0.58,drift=0.08"])],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        dry_run=True,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "dry_run"
+    assert outcome["payload"]["clamp"]["source_lesson_token"] == "20260423T000000Z"
+    assert outcome["payload"]["clamp"]["applicable_pockets"] == [
+        "locA=0.51,locB=0.58,drift=0.08",
+    ]
+
+
+def test_advisory_writer_main_cli_returns_zero(tmp_path, monkeypatch, capsys):
+    import snowball_consumer
+
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    monkeypatch.setattr(snowball_consumer, "CONSUMERS_DIR", consumers_root)
+    monkeypatch.setattr(lesson_advisory_writer, "CONSUMERS_DIR", consumers_root)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260423T000000Z",
+        [_w3_lesson(corro=3, pockets=["locA=0.50,locB=0.57,drift=0.06"])],
+    )
+    rc = lesson_advisory_writer.main(["--dry-run", "--min-corroboration", "3"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert '"dry_run"' in out
+
