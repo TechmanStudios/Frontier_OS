@@ -2309,14 +2309,19 @@ def render_sweep_compact_comparison(records: Sequence[dict[str, object]]) -> str
     )
     threshold_ready = _best_ranked_record(
         ranked_records,
-        lambda record: bool(record.get("met_entry_policy", False))
-        and int(record.get("transition_active_to_stabilizer", 0)) == 0,
+        lambda record: (
+            bool(record.get("met_entry_policy", False))
+            and int(record.get("transition_active_to_stabilizer", 0)) == 0
+        ),
     )
     decay_pressure = _best_ranked_record(
         ranked_records,
-        lambda record: int(record.get("transition_active_to_stabilizer", 0)) == 0
-        and (
-            int(record.get("longest_decay_streak", 0)) > 0 or float(record.get("coherence_delta", 0.0)) < 0.0
+        lambda record: (
+            int(record.get("transition_active_to_stabilizer", 0)) == 0
+            and (
+                int(record.get("longest_decay_streak", 0)) > 0
+                or float(record.get("coherence_delta", 0.0)) < 0.0
+            )
         ),
     )
     calm_long_run = _best_ranked_record(
