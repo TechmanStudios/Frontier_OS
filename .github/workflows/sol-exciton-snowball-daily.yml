@@ -1,0 +1,111 @@
+name: SOL Exciton Snowball — Daily
+
+on:
+  schedule:
+    # 07:17 UTC, picked off-peak relative to common scheduled-job storms.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_regime:
+        description: "Override the policy-chosen regime"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - hold
+          - explore
+          - exploit
+          - policy_probe
+      force_size:
+        description: "Override the policy-chosen run size"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - tight
+          - medium
+          - large
+
+concurrency:
+  group: sol-exciton-snowball-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: Exciton-MoA/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Exciton-MoA/requirements.txt
+
+      - name: Run snowball daily
+        working-directory: Exciton-MoA
+        env:
+          FORCE_REGIME: ${{ github.event.inputs.force_regime || 'auto' }}
+          FORCE_SIZE: ${{ github.event.inputs.force_size || 'auto' }}
+        run: |
+          python scripts/snowball_experiment.py \
+            --tier daily \
+            --force-regime "$FORCE_REGIME" \
+            --force-size "$FORCE_SIZE"
+
+      - name: Commit closed-loop state
+        run: |
+          git config user.name "sol-exciton-snowball[bot]"
+          git config user.email "sol-exciton-snowball@users.noreply.github.com"
+          git add Exciton-MoA/working_data/snowball/state.json || true
+          git add Exciton-MoA/working_data/snowball/ledger.jsonl || true
+          git add Exciton-MoA/working_data/snowball/latest_report.md || true
+          if git diff --cached --quiet; then
+            echo "No snowball state changes to commit"
+            exit 0
+          fi
+          git commit -m "snowball(daily): run=${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            if git push; then break; fi
+            echo "Push attempt $attempt failed, rebasing..."
+            git pull --rebase
+          done
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snowball-daily-${{ github.run_id }}
+          path: |
+            Exciton-MoA/working_data/snowball/runs/daily
+            Exciton-MoA/working_data/snowball/latest_report.md
+            Exciton-MoA/working_data/snowball/state.json
+            Exciton-MoA/working_data/snowball/ledger.jsonl
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## SOL Exciton Snowball — Daily" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f Exciton-MoA/working_data/snowball/latest_report.md ]; then
+            cat Exciton-MoA/working_data/snowball/latest_report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No latest_report.md produced." >> "$GITHUB_STEP_SUMMARY"
+          fi

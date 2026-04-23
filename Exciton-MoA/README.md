@@ -70,3 +70,14 @@ target\_coords \= prism.global\_resonance\_broadcast(incoming\_hello\_world\_vec
 excitons.ignite\_excitons(target\_coords)  
 bursts \= orchestrator.scan\_manifold()
 
+## ---
+
+## **Adaptive Experiment Snowball**
+
+The repo runs a continuous, self-tuning entangled-pair experiment via two GitHub Actions that share one closed-loop state under `working_data/snowball/`:
+
+- **Pulse** (`sol-exciton-snowball-pulse.yml`) — every 4h, runs a `tight` single-variant best-pocket probe (~3-5 min).
+- **Daily** (`sol-exciton-snowball-daily.yml`) — `cron: "17 6 * * *"` (07:17 UTC), runs a `medium` 4-8 variant mini-sweep (~15-25 min) and is policy-promoted to `large` (~45-90 min) when yields rise.
+
+Both call `scripts/snowball_experiment.py`, which loads `state.json`, asks `decide_next_config()` for the next regime (`hold` / `explore` / `exploit` / `policy_probe`) using only existing `entangled_manifolds.py` flags, runs the engine, parses sweep paper diagnostics, then commits the updated `state.json`, `ledger.jsonl`, and `latest_report.md` back to `main`. Reports are also exposed in each workflow's job summary. A pulse-only signal cannot promote the regime to `exploit` — that requires daily confirmation. Run the loop locally with `python Exciton-MoA/scripts/snowball_experiment.py --tier pulse --dry-run`.
+

@@ -87,3 +87,7 @@ Once a subject folder reaches the corroboration threshold, the writer also creat
 - `frontier-learning-ledger.md` accumulates repeated subject-folder intakes into reusable Frontier-OS knowledge candidates.
 - `knowledge_notes/` stores promoted subject-level knowledge notes derived from repeated corroborating ingests.
 - `repo-memory-promotions.md` stores the exact repo-memory mirror lines for promoted knowledge candidates.
+
+## Snowball cross-link
+
+The continuous adaptive experiment under `working_data/snowball/` (driven by `scripts/snowball_experiment.py` plus the `sol-exciton-snowball-{daily,pulse}.yml` workflows) is the upstream source of `paper_trigger=synchrony` / `basin_fragility` signals that warrant new `working_mind` intakes. Treat the snowball `latest_report.md` and `ledger.jsonl` as the first place to look when deciding whether a new paper is even justified.
