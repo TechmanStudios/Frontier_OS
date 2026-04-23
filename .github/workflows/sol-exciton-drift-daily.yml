@@ -1,0 +1,88 @@
+name: SOL Exciton Drift Watch — Daily
+
+on:
+  schedule:
+    # 07:07 UTC — between the snowball daily (roughly 06:17) and the
+    # consumers-daily (06:47) so drift_watch observes the freshest ledger
+    # row before replay/counterfactual act on it.
+    - cron: "7 7 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  # Joins the snowball concurrency group so drift_watch never races with
+  # the engine or other consumers on state.json.
+  group: sol-exciton-snowball-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  drift_watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: Exciton-MoA/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Exciton-MoA/requirements.txt
+
+      - name: Run drift-watch consumer
+        working-directory: Exciton-MoA
+        run: |
+          python scripts/drift_watch.py --window 20 --threshold 0.35 | tee drift_watch_outcome.json
+
+      - name: Commit drift-watch artifacts
+        run: |
+          git config user.name "sol-exciton-drift-watch[bot]"
+          git config user.email "sol-exciton-drift-watch@users.noreply.github.com"
+          git add Exciton-MoA/working_data/snowball/consumers/drift_watch || true
+          git add Exciton-MoA/working_data/snowball/state.json || true
+          if git diff --cached --quiet; then
+            echo "No drift-watch state changes to commit"
+            exit 0
+          fi
+          git commit -m "drift_watch(daily): run=${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            if git push; then break; fi
+            echo "Push attempt $attempt failed, rebasing..."
+            git pull --rebase
+          done
+
+      - name: Upload drift-watch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-exciton-drift-watch-${{ github.run_id }}
+          path: |
+            Exciton-MoA/working_data/snowball/consumers/drift_watch
+            Exciton-MoA/drift_watch_outcome.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        working-directory: Exciton-MoA
+        run: |
+          echo "## SOL Exciton Drift Watch — Daily" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f drift_watch_outcome.json ]; then
+            cat drift_watch_outcome.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '{"status":"no_output"}' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

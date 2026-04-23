@@ -216,9 +216,24 @@ def decide_next_config(
     if fragility_delta in (-1, 1):
         rationale_parts.append(f"counterfactual fragility_delta={fragility_delta} (informational)")
 
+    best_pocket_tilt = state.get("best_pocket_tilt")
+    if isinstance(best_pocket_tilt, dict) and best_pocket_tilt:
+        rationale_parts.append(
+            f"pair_tournament best_pocket_tilt confirmed ({len(best_pocket_tilt)} params, informational)"
+        )
+
+    # Safety clamp — drift_watch incident can force the regime to hold. Takes
+    # precedence over automatic promotion but is still beaten by an explicit
+    # force_regime override from the operator.
+    safety_clamp = state.get("safety_clamp")
     if force_regime and force_regime != "auto":
         regime = force_regime
         rationale_parts.append(f"forced regime={force_regime}")
+    elif safety_clamp == "hold":
+        regime = "hold"
+        rationale_parts.append(
+            f"drift_watch safety_clamp=hold (incident={state.get('safety_clamp_incident_id')})"
+        )
     elif diagnosis_label == "low_variance_candidate" and diagnosis_streak >= 3:
         regime = "explore"
         rationale_parts.append(f"low_variance_candidate streak={diagnosis_streak} >=3 -> explore")
