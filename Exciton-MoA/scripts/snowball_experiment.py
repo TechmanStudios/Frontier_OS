@@ -24,6 +24,7 @@ The runner only ever varies parameters and policy flags that already exist on
 ``entangled_manifolds.build_pair_runtime_parser``.  Sizes and parameter
 neighbors are pinned to a hard allowlist so the loop cannot wander off-policy.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,7 +37,7 @@ import sys
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -157,10 +158,8 @@ def state_lock(lock_path: Path):
         except FileExistsError:
             if time.monotonic() > deadline:
                 # Stale lock fallback: take it over.
-                try:
+                with contextlib.suppress(FileNotFoundError):
                     lock_path.unlink()
-                except FileNotFoundError:
-                    pass
                 continue
             time.sleep(0.2)
     try:
@@ -216,24 +215,16 @@ def decide_next_config(
         rationale_parts.append(f"forced regime={force_regime}")
     elif diagnosis_label == "low_variance_candidate" and diagnosis_streak >= 3:
         regime = "explore"
-        rationale_parts.append(
-            f"low_variance_candidate streak={diagnosis_streak} >=3 -> explore"
-        )
+        rationale_parts.append(f"low_variance_candidate streak={diagnosis_streak} >=3 -> explore")
     elif yields_daily and yields_daily[-1] >= 1 and rising:
         regime = "exploit"
-        rationale_parts.append(
-            f"recent daily entry={yields_daily[-1]} with rising yield -> exploit"
-        )
+        rationale_parts.append(f"recent daily entry={yields_daily[-1]} with rising yield -> exploit")
     elif paper_trigger == "synchrony" and coupling == "weak" and weak_synch_streak >= 2:
         regime = "policy_probe"
-        rationale_parts.append(
-            f"synchrony+weak coupling streak={weak_synch_streak} -> policy_probe"
-        )
+        rationale_parts.append(f"synchrony+weak coupling streak={weak_synch_streak} -> policy_probe")
     elif observe_streak >= 3:
         regime = "policy_probe"
-        rationale_parts.append(
-            f"observe-only streak={observe_streak} -> policy_probe (conf/rel relax)"
-        )
+        rationale_parts.append(f"observe-only streak={observe_streak} -> policy_probe (conf/rel relax)")
     else:
         regime = "hold"
         rationale_parts.append("no transition condition met -> hold")
@@ -263,9 +254,7 @@ def decide_next_config(
             rationale_parts.append("probe flag: near-pass-maturity")
     if regime == "policy_probe" and observe_streak >= 3:
         flags.append("__conf_rel_probe__")
-        rationale_parts.append(
-            f"probe thresholds: conf/rel={CONF_REL_PROBE[0]}/{CONF_REL_PROBE[1]}"
-        )
+        rationale_parts.append(f"probe thresholds: conf/rel={CONF_REL_PROBE[0]}/{CONF_REL_PROBE[1]}")
 
     rationale = "; ".join(rationale_parts)
     return NextConfig(tier=tier, size=size, regime=regime, rationale=rationale, flags=tuple(flags))
@@ -275,7 +264,7 @@ def _is_rising(values: Sequence[int]) -> bool:
     tail = list(values)[-3:]
     if len(tail) < 2:
         return False
-    return tail[-1] > tail[0] and all(b >= a for a, b in zip(tail, tail[1:]))
+    return tail[-1] > tail[0] and all(b >= a for a, b in zip(tail, tail[1:], strict=False))
 
 
 # ---------------------------------------------------------------------------
@@ -521,9 +510,7 @@ def apply_results_to_state(
         new_state["last_config_daily"] = list(argv)
 
     if config.regime == "policy_probe" and paper_trigger == "synchrony":
-        new_state["policy_probe_alternation"] = (
-            int(new_state.get("policy_probe_alternation", 0) or 0) + 1
-        )
+        new_state["policy_probe_alternation"] = int(new_state.get("policy_probe_alternation", 0) or 0) + 1
 
     # Cross-tier safety rule: a pulse-only signal cannot leave the regime in
     # "exploit" by itself.  If the policy chose exploit on a pulse run, demote
@@ -573,9 +560,7 @@ def render_report(
     lines.append(f"- natural Stabilizer entries: {results.get('natural_entries', 0)}")
     lines.append(f"- gate passes (sum): {results.get('gate_pass_total', 0)}")
     lines.append(f"- bounded nudges applied (sum): {results.get('nudge_applied_total', 0)}")
-    lines.append(
-        f"- positive forward windows (sum): {results.get('positive_forward_window_total', 0)}"
-    )
+    lines.append(f"- positive forward windows (sum): {results.get('positive_forward_window_total', 0)}")
     lines.append(f"- consensus diagnosis: {results.get('consensus_diagnosis')}")
     lines.append(f"- consensus synchrony basis: {results.get('synchrony_consensus')}")
     lines.append(f"- consensus coupling posture: {results.get('coupling_consensus')}")
@@ -677,11 +662,11 @@ def prune_old_runs(tier: str, *, retention: int, runs_dir: Path = RUNS_DIR) -> l
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _utc_timestamp_token() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def run_snowball(
@@ -697,9 +682,7 @@ def run_snowball(
     lock_path = SNOWBALL_DIR / "state.lock"
     with state_lock(lock_path):
         state_before = load_state()
-    config = decide_next_config(
-        state_before, tier, force_regime=force_regime, force_size=force_size
-    )
+    config = decide_next_config(state_before, tier, force_regime=force_regime, force_size=force_size)
 
     run_token = _utc_timestamp_token()
     run_dir = RUNS_DIR / tier / run_token
@@ -778,12 +761,8 @@ def run_snowball(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=VALID_TIERS, required=True)
-    parser.add_argument(
-        "--force-regime", choices=(*VALID_REGIMES, "auto"), default="auto"
-    )
-    parser.add_argument(
-        "--force-size", choices=(*VALID_SIZES, "auto"), default="auto"
-    )
+    parser.add_argument("--force-regime", choices=(*VALID_REGIMES, "auto"), default="auto")
+    parser.add_argument("--force-size", choices=(*VALID_SIZES, "auto"), default="auto")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 

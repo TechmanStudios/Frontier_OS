@@ -8,6 +8,7 @@ exercised here — that surface is covered by ``test_entangled_manifolds.py``.
 These tests pin the closed-loop policy shape: state schema, decision policy,
 argv translation, result parsing, ledger row, and retention.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -141,18 +142,14 @@ def test_decide_policy_probe_observe_streak_threshold_relax():
 
 def test_decide_force_regime_overrides():
     state = snowball_experiment.default_state()
-    config = snowball_experiment.decide_next_config(
-        state, "daily", force_regime="explore"
-    )
+    config = snowball_experiment.decide_next_config(state, "daily", force_regime="explore")
     assert config.regime == "explore"
     assert "forced regime" in config.rationale
 
 
 def test_decide_force_size_overrides():
     state = snowball_experiment.default_state()
-    config = snowball_experiment.decide_next_config(
-        state, "pulse", force_size="medium"
-    )
+    config = snowball_experiment.decide_next_config(state, "pulse", force_size="medium")
     assert config.size == "medium"
 
 
