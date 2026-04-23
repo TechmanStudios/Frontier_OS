@@ -910,3 +910,231 @@ def test_entangler_msf_guard_disabled_does_not_set_lambda_hat():
     assert gate["nudge_msf_status"] == "disabled"
     assert gate["nudge_applied"] is True  # Unblocked when guard is off.
 
+
+# ---------------------------------------------------------------------------
+# W4: Coupling-posture adaptive gate profiles
+# ---------------------------------------------------------------------------
+
+
+from dataclasses import dataclass, field
+from entangled_manifolds import (
+    CouplingPostureGateProfile,
+    _parse_coupling_posture_profile_args,
+)
+
+
+@dataclass
+class _W4Policy:
+    enabled: bool = True
+    require_armed_status: bool = True
+    confidence_threshold: float = 0.80
+    reliability_threshold: float = 0.80
+    max_age_ticks: int = 2
+    min_samples: int = 1
+    enable_bounded_nudges: bool = True
+    nudge_aperture_max_step: float = 0.02
+    nudge_damping_max_step: float = 0.015
+    nudge_phase_max_step: float = 0.04
+    nudge_reliability_floor: float = 0.0
+    nudge_requires_stability: bool = False
+    nudge_stability_window: int = 1
+    observe_nudge_feedback_scale: float = 0.35
+    enable_near_pass_maturity_nudges: bool = False
+    near_pass_confidence_gap_max: float = 0.10
+    near_pass_reliability_gap_max: float = 0.12
+    near_pass_sample_gap_max: int = 0
+    near_pass_observe_feedback_scale: float = 0.20
+    enable_negative_collapse_stabilize: bool = False
+    enable_msf_guard: bool = True
+    msf_window: int = 4
+    msf_lambda_threshold: float = -1.0  # baseline: very strict (everything is "unstable")
+    msf_min_samples: int = 3
+    coupling_posture_profiles: tuple = ()
+
+
+def _w4_pair_metrics(history, coupling_posture: str = "unknown"):
+    metrics = _msf_pair_metrics(history)
+    metrics["paper_synchrony_coupling_posture"] = coupling_posture
+    # Hint values that fail strict 0.80 thresholds but pass relaxed ones.
+    metrics["candidate_phonon_control_hint"] = {
+        "status": "armed",
+        "recommended_bias": "observe",
+        "confidence": 0.55,
+        "age_ticks": 1,
+    }
+    metrics["phonon_hint_reliability"] = {
+        "recommendation_scores": {
+            "observe": {"reliability_score": 0.58, "sample_count": 4, "provisional": False}
+        }
+    }
+    return metrics
+
+
+def test_parse_coupling_posture_profile_args_round_trips_slots_and_none():
+    profiles = _parse_coupling_posture_profile_args(
+        ["weak:0.45,0.55,none", " permissive:none,none,0.05 ", "  "]
+    )
+    assert len(profiles) == 2
+    assert profiles[0] == CouplingPostureGateProfile(
+        posture_name="weak",
+        confidence_threshold_override=0.45,
+        reliability_threshold_override=0.55,
+        msf_lambda_threshold_override=None,
+    )
+    assert profiles[1].posture_name == "permissive"
+    assert profiles[1].msf_lambda_threshold_override == 0.05
+
+
+def test_parse_coupling_posture_profile_args_rejects_malformed_specs():
+    import pytest
+
+    with pytest.raises(ValueError):
+        _parse_coupling_posture_profile_args(["weak"])
+    with pytest.raises(ValueError):
+        _parse_coupling_posture_profile_args(["weak:0.4,0.5"])
+    with pytest.raises(ValueError):
+        _parse_coupling_posture_profile_args([":0.4,0.5,0.0"])
+
+
+def test_evaluate_hint_gate_records_unknown_posture_when_no_profile_matches():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    policy = _W4Policy()
+    policy.coupling_posture_profiles = (
+        CouplingPostureGateProfile(posture_name="weak", confidence_threshold_override=0.40),
+    )
+    controls.hint_gate_policy = policy
+    metrics = _w4_pair_metrics([0.45, 0.68, 0.82, 0.90], coupling_posture="strained")
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics,
+    )
+    gate = report["hint_gate"]
+    assert gate["coupling_posture"] == "strained"
+    assert gate["coupling_posture_profile_used"] == "none"
+    assert gate["coupling_posture_profiles_active"] is True
+    # Without a matching profile, baseline 0.80 thresholds reject the gate.
+    assert gate["passed"] is False
+    assert gate["rejection_reason"] in {"low_confidence", "low_reliability"}
+    assert gate["confidence_threshold_effective"] == 0.80
+
+
+def test_evaluate_hint_gate_applies_matching_posture_profile_overrides():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    policy = _W4Policy()
+    policy.coupling_posture_profiles = (
+        CouplingPostureGateProfile(
+            posture_name="weak",
+            confidence_threshold_override=0.45,
+            reliability_threshold_override=0.50,
+        ),
+    )
+    controls.hint_gate_policy = policy
+    metrics = _w4_pair_metrics([0.45, 0.68, 0.82, 0.90], coupling_posture="weak")
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics,
+    )
+    gate = report["hint_gate"]
+    assert gate["coupling_posture"] == "weak"
+    assert gate["coupling_posture_profile_used"] == "weak"
+    assert gate["confidence_threshold_effective"] == 0.45
+    assert gate["reliability_threshold_effective"] == 0.50
+    assert gate["passed"] is True
+
+
+def test_evaluate_hint_gate_unknown_posture_skips_profile_lookup_entirely():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    policy = _W4Policy()
+    # Profile would relax thresholds, but posture is unknown so it must NOT apply.
+    policy.coupling_posture_profiles = (
+        CouplingPostureGateProfile(posture_name="unknown", confidence_threshold_override=0.10),
+    )
+    controls.hint_gate_policy = policy
+    metrics = _w4_pair_metrics([0.45, 0.68, 0.82, 0.90], coupling_posture="unknown")
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics,
+    )
+    gate = report["hint_gate"]
+    assert gate["coupling_posture"] == "unknown"
+    assert gate["coupling_posture_profile_used"] == "none"
+    assert gate["confidence_threshold_effective"] == 0.80
+
+
+def test_msf_lambda_threshold_override_relaxes_msf_guard_for_matching_posture():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    policy = _W4Policy()
+    # Relax the gate so it passes; relax MSF threshold via posture profile only.
+    policy.confidence_threshold = 0.0
+    policy.reliability_threshold = 0.0
+    policy.msf_lambda_threshold = 0.0  # baseline strict
+    policy.coupling_posture_profiles = (
+        CouplingPostureGateProfile(posture_name="permissive", msf_lambda_threshold_override=10.0),
+    )
+    controls.hint_gate_policy = policy
+    diverging = [0.90, 0.82, 0.68, 0.45]  # lambda_hat > 0 (unstable under baseline)
+
+    # Posture matches: override raises threshold to 10.0 -> guard reports stable.
+    metrics_match = _w4_pair_metrics(diverging, coupling_posture="permissive")
+    report_match = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics_match,
+    )
+    gate_match = report_match["hint_gate"]
+    assert gate_match["nudge_msf_status"] == "stable"
+    assert gate_match["nudge_applied"] is True
+    assert gate_match["nudge_rejection_reason"] != "msf_unstable"
+
+    # Posture does not match: baseline 0.0 threshold -> guard reports unstable.
+    metrics_miss = _w4_pair_metrics(diverging, coupling_posture="weak")
+    report_miss = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics_miss,
+    )
+    gate_miss = report_miss["hint_gate"]
+    assert gate_miss["nudge_msf_status"] == "unstable"
+    assert gate_miss["nudge_rejection_reason"] == "msf_unstable"
+
+
+def test_no_profiles_configured_marks_inactive_and_keeps_baseline_thresholds():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    policy = _W4Policy()
+    policy.coupling_posture_profiles = ()
+    controls.hint_gate_policy = policy
+    metrics = _w4_pair_metrics([0.45, 0.68, 0.82, 0.90], coupling_posture="weak")
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=metrics,
+    )
+    gate = report["hint_gate"]
+    assert gate["coupling_posture_profiles_active"] is False
+    assert gate["coupling_posture_profile_used"] == "none"
+    assert gate["confidence_threshold_effective"] == 0.80
+
+

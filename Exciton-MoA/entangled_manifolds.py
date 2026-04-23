@@ -61,6 +61,22 @@ class PairRuntimeArgumentParser(argparse.ArgumentParser):
         return super().parse_known_args(args, namespace)
 
 
+@dataclass(frozen=True)
+class CouplingPostureGateProfile:
+    """Per-coupling-posture overrides for hint-gate thresholds.
+
+    When the live ``paper_synchrony_coupling_posture`` for a pair matches
+    ``posture_name`` (e.g. ``"weak"``, ``"strained"``, ``"permissive"``),
+    any non-None override replaces the corresponding policy threshold for
+    that gate evaluation. ``None`` means "keep policy default".
+    """
+
+    posture_name: str
+    confidence_threshold_override: float | None = None
+    reliability_threshold_override: float | None = None
+    msf_lambda_threshold_override: float | None = None
+
+
 @dataclass
 class HintGatingPolicy:
     enabled: bool = False
@@ -93,6 +109,11 @@ class HintGatingPolicy:
     msf_window: int = 4
     msf_lambda_threshold: float = 0.0
     msf_min_samples: int = 3
+    # Coupling-posture adaptive gate profiles. When the live coupling posture
+    # (carried in pair_metrics["paper_synchrony_coupling_posture"]) matches a
+    # profile's ``posture_name``, that profile's non-None overrides replace the
+    # confidence/reliability/MSF lambda thresholds for the gate decision.
+    coupling_posture_profiles: tuple[CouplingPostureGateProfile, ...] = ()
 
 
 @dataclass
@@ -1876,6 +1897,10 @@ def summarize_sweep_variant(
         "msf_window": int(controls.hint_gate_policy.msf_window),
         "msf_lambda_threshold": float(controls.hint_gate_policy.msf_lambda_threshold),
         "msf_min_samples": int(controls.hint_gate_policy.msf_min_samples),
+        "coupling_posture_profiles_active": bool(controls.hint_gate_policy.coupling_posture_profiles),
+        "coupling_posture_profiles": ",".join(
+            sorted({str(p.posture_name) for p in controls.hint_gate_policy.coupling_posture_profiles})
+        ),
         "nudge_reliability_floor": float(controls.hint_gate_policy.nudge_reliability_floor),
         "nudge_requires_stability": bool(controls.hint_gate_policy.nudge_requires_stability),
         "nudge_stability_window": int(controls.hint_gate_policy.nudge_stability_window),
@@ -3070,6 +3095,17 @@ def build_pair_runtime_parser() -> argparse.ArgumentParser:
     parser.add_argument("--msf-window", type=int, default=4)
     parser.add_argument("--msf-lambda-threshold", type=float, default=0.0)
     parser.add_argument("--msf-min-samples", type=int, default=3)
+    parser.add_argument(
+        "--coupling-posture-profile",
+        action="append",
+        default=[],
+        metavar="NAME:CONF,RELIAB,MSF",
+        help=(
+            "Per-coupling-posture override (repeatable). Format: "
+            "'name:conf,reliab,msf'. Use 'none' for any slot to keep the"
+            " policy default. Example: --coupling-posture-profile weak:0.45,0.55,none"
+        ),
+    )
     parser.add_argument("--embedding-a-loc", type=float, default=0.50)
     parser.add_argument("--embedding-b-loc", type=float, default=0.55)
     parser.add_argument("--embedding-scale", type=float, default=0.20)
@@ -3079,6 +3115,51 @@ def build_pair_runtime_parser() -> argparse.ArgumentParser:
     parser.add_argument("--persist-summaries", action=argparse.BooleanOptionalAction, default=True)
     parser.remember_base_defaults()
     return parser
+
+
+def _parse_coupling_posture_profile_args(
+    raw_specs: Sequence[str],
+) -> tuple[CouplingPostureGateProfile, ...]:
+    """Parse ``--coupling-posture-profile`` CLI specs.
+
+    Each spec is ``name:conf,reliab,msf`` where any slot may be the literal
+    ``none`` to keep the corresponding policy default. Empty/whitespace
+    specs are skipped. Raises ``ValueError`` on malformed input.
+    """
+
+    def _parse_slot(token: str) -> float | None:
+        token = token.strip()
+        if not token or token.lower() == "none":
+            return None
+        return float(token)
+
+    profiles: list[CouplingPostureGateProfile] = []
+    for raw in raw_specs:
+        spec = str(raw or "").strip()
+        if not spec:
+            continue
+        if ":" not in spec:
+            raise ValueError(
+                f"--coupling-posture-profile spec must be 'name:conf,reliab,msf' (got {spec!r})"
+            )
+        name_part, _, value_part = spec.partition(":")
+        name = name_part.strip()
+        if not name:
+            raise ValueError(f"--coupling-posture-profile spec missing posture name: {spec!r}")
+        slots = list(value_part.split(","))
+        if len(slots) != 3:
+            raise ValueError(
+                f"--coupling-posture-profile spec must have exactly 3 slots (got {spec!r})"
+            )
+        profiles.append(
+            CouplingPostureGateProfile(
+                posture_name=name,
+                confidence_threshold_override=_parse_slot(slots[0]),
+                reliability_threshold_override=_parse_slot(slots[1]),
+                msf_lambda_threshold_override=_parse_slot(slots[2]),
+            )
+        )
+    return tuple(profiles)
 
 
 def build_controls_from_args(args: argparse.Namespace) -> EntanglementControls:
@@ -3118,6 +3199,9 @@ def build_controls_from_args(args: argparse.Namespace) -> EntanglementControls:
             msf_window=int(args.msf_window),
             msf_lambda_threshold=float(args.msf_lambda_threshold),
             msf_min_samples=int(args.msf_min_samples),
+            coupling_posture_profiles=_parse_coupling_posture_profile_args(
+                getattr(args, "coupling_posture_profile", []) or []
+            ),
         ),
     )
 

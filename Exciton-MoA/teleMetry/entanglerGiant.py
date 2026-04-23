@@ -9,6 +9,25 @@ from typing import Any
 import numpy as np
 
 
+def _select_coupling_posture_profile(gate_policy: Any, coupling_posture: str) -> Any:
+    """Return the matching CouplingPostureGateProfile, or None.
+
+    Match is by exact ``posture_name`` against the live coupling posture.
+    Returns None when no profiles are configured, the policy is missing,
+    or the posture is ``"unknown"``.
+    """
+    if gate_policy is None:
+        return None
+    profiles = getattr(gate_policy, "coupling_posture_profiles", ()) or ()
+    posture = str(coupling_posture or "unknown")
+    if posture == "unknown":
+        return None
+    for profile in profiles:
+        if str(getattr(profile, "posture_name", "")) == posture:
+            return profile
+    return None
+
+
 class EntanglerGiant:
     def __init__(
         self,
@@ -114,6 +133,9 @@ class EntanglerGiant:
             hint_gate=hint_gate,
             coherence_feedback=coherence_feedback,
             recent_phase_coherence=pair_metrics.get("recent_phase_coherence", []),
+            coupling_posture=str(
+                pair_metrics.get("paper_synchrony_coupling_posture", "unknown")
+            ),
         )
         nudge_delta = dict(nudge_summary.get("nudge_delta", {}))
         aperture_target += float(nudge_delta.get("aperture", 0.0))
@@ -265,6 +287,17 @@ class EntanglerGiant:
         reliability_threshold = (
             float(getattr(gate_policy, "reliability_threshold", 0.60)) if gate_policy is not None else 0.60
         )
+        coupling_posture = str(pair_metrics.get("paper_synchrony_coupling_posture", "unknown"))
+        active_profile = _select_coupling_posture_profile(gate_policy, coupling_posture)
+        profile_used = "none"
+        if active_profile is not None:
+            profile_used = str(getattr(active_profile, "posture_name", "none"))
+            conf_override = getattr(active_profile, "confidence_threshold_override", None)
+            if conf_override is not None:
+                confidence_threshold = float(conf_override)
+            rel_override = getattr(active_profile, "reliability_threshold_override", None)
+            if rel_override is not None:
+                reliability_threshold = float(rel_override)
         min_samples = int(getattr(gate_policy, "min_samples", 3)) if gate_policy is not None else 3
         confidence_gap = max(confidence_threshold - confidence, 0.0)
         reliability_gap = max(reliability_threshold - reliability_score, 0.0)
@@ -288,6 +321,13 @@ class EntanglerGiant:
             "sample_gap": sample_gap,
             "near_pass_candidate": False,
             "near_pass_reason": "none",
+            "coupling_posture": coupling_posture,
+            "coupling_posture_profile_used": profile_used,
+            "coupling_posture_profiles_active": bool(
+                getattr(gate_policy, "coupling_posture_profiles", ()) or ()
+            ),
+            "confidence_threshold_effective": confidence_threshold,
+            "reliability_threshold_effective": reliability_threshold,
         }
         if not enabled:
             return evaluation
@@ -348,6 +388,7 @@ class EntanglerGiant:
         hint_gate: dict[str, Any],
         coherence_feedback: dict[str, Any],
         recent_phase_coherence: Sequence[float] | None = None,
+        coupling_posture: str = "unknown",
     ) -> dict[str, Any]:
         gate_policy = getattr(controls, "hint_gate_policy", None)
         nudge_enabled = (
@@ -370,7 +411,17 @@ class EntanglerGiant:
                 1.0,
             )
         )
-        msf_eval = self._evaluate_msf_guard(gate_policy, recent_phase_coherence or [])
+        profile = _select_coupling_posture_profile(gate_policy, coupling_posture)
+        msf_lambda_override = (
+            getattr(profile, "msf_lambda_threshold_override", None)
+            if profile is not None
+            else None
+        )
+        msf_eval = self._evaluate_msf_guard(
+            gate_policy,
+            recent_phase_coherence or [],
+            lambda_threshold_override=msf_lambda_override,
+        )
         result = {
             "nudge_enabled": nudge_enabled,
             "nudge_applied": False,
@@ -541,6 +592,7 @@ class EntanglerGiant:
         self,
         gate_policy: Any,
         recent_phase_coherence: Sequence[float],
+        lambda_threshold_override: float | None = None,
     ) -> dict[str, Any]:
         """Compute the MSFGuard surrogate transverse Lyapunov exponent.
 
@@ -562,7 +614,10 @@ class EntanglerGiant:
             return result
         window = max(int(getattr(gate_policy, "msf_window", 4)), 2)
         min_samples = max(int(getattr(gate_policy, "msf_min_samples", 3)), 2)
-        threshold = float(getattr(gate_policy, "msf_lambda_threshold", 0.0))
+        if lambda_threshold_override is not None:
+            threshold = float(lambda_threshold_override)
+        else:
+            threshold = float(getattr(gate_policy, "msf_lambda_threshold", 0.0))
         history = [float(value) for value in recent_phase_coherence][-window:]
         result["sample_count"] = len(history)
         if len(history) < min_samples:
