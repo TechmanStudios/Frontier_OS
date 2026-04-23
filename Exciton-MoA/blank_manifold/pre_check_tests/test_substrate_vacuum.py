@@ -10,7 +10,6 @@ stable physical substrate to work against.
 """
 
 import networkx as nx
-
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 

@@ -3,10 +3,10 @@
 # See LICENSE in the repository root for details.
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -19,19 +19,23 @@ class ThoughtProjection:
     confidence: float
     entropy: float
     vector_clock: int
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class LatentMediator:
-    def __init__(self, manifold_core, max_entries_per_node: int = 64, state_path: Optional[Path] = None):
+    def __init__(self, manifold_core, max_entries_per_node: int = 64, state_path: Path | None = None):
         self.manifold_core = manifold_core
         self.graph = manifold_core.graph
         self.max_entries_per_node = max_entries_per_node
-        self.state_path = Path(state_path) if state_path is not None else Path(__file__).resolve().parents[1] / "working_data" / "latent_mediator_state.json"
+        self.state_path = (
+            Path(state_path)
+            if state_path is not None
+            else Path(__file__).resolve().parents[1] / "working_data" / "latent_mediator_state.json"
+        )
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._clock = 0
-        self._blackboard: Dict[str, List[ThoughtProjection]] = {}
-        self.loaded_state_metadata: Dict[str, Any] = {
+        self._blackboard: dict[str, list[ThoughtProjection]] = {}
+        self.loaded_state_metadata: dict[str, Any] = {
             "loaded": False,
             "state_path": str(self.state_path),
             "clock_before_load": 0,
@@ -46,7 +50,7 @@ class LatentMediator:
         giant_name: str,
         vector: np.ndarray,
         confidence: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ThoughtProjection:
         normalized = np.asarray(vector, dtype=float).reshape(-1)
         entropy = self._estimate_entropy(normalized)
@@ -70,7 +74,7 @@ class LatentMediator:
         self.graph.nodes[node_id]["latent_projection_count"] = len(node_entries)
         return projection
 
-    def resolve_node(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def resolve_node(self, node_id: str) -> dict[str, Any] | None:
         entries = self._blackboard.get(node_id, [])
         if not entries:
             return None
@@ -94,7 +98,7 @@ class LatentMediator:
             "source_giants": [entry.giant_name for entry in entries],
         }
 
-    def publish_consensus(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def publish_consensus(self, node_id: str) -> dict[str, Any] | None:
         consensus = self.resolve_node(node_id)
         if consensus is None:
             return None
@@ -139,10 +143,10 @@ class LatentMediator:
                 self.graph.nodes[node_id]["latent_projection_count"] = len(self._blackboard[node_id])
                 self.publish_consensus(node_id)
 
-    def get_state_load_metadata(self) -> Dict[str, Any]:
+    def get_state_load_metadata(self) -> dict[str, Any]:
         return dict(self.loaded_state_metadata)
 
-    def _serialize_projection(self, projection: ThoughtProjection) -> Dict[str, Any]:
+    def _serialize_projection(self, projection: ThoughtProjection) -> dict[str, Any]:
         return {
             "giant_name": projection.giant_name,
             "vector": projection.vector.tolist(),
@@ -152,7 +156,7 @@ class LatentMediator:
             "metadata": projection.metadata,
         }
 
-    def _deserialize_projection(self, node_id: str, payload: Dict[str, Any]) -> ThoughtProjection:
+    def _deserialize_projection(self, node_id: str, payload: dict[str, Any]) -> ThoughtProjection:
         return ThoughtProjection(
             node_id=node_id,
             giant_name=payload["giant_name"],

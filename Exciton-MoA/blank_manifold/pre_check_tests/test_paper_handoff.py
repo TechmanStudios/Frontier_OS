@@ -1,9 +1,8 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-from pathlib import Path
-
 import sys
+from pathlib import Path
 
 from paper_handoff import (
     main,
@@ -97,18 +96,36 @@ def test_render_prefilled_paper_intake_handoff_maps_uncertainty_fields(tmp_path:
 
     assert "# PAPER INTAKE HANDOFF" in rendered
     assert "- stable URL: https://example.org/paper.pdf" in rendered
-    assert "- current engineering problem: The pair shows unresolved synchrony uncertainty under repeated blocked and contradictory local evidence." in rendered
-    assert "- why current repo knowledge is not enough yet: Current sweep evidence does not cleanly separate conservative gating from structural synchrony limits." in rendered
-    assert "- most actionable concept: one paper on synchrony-margin diagnostics or conservative gating under ambiguous local evidence" in rendered
-    assert "- nearest telemetry fields: phase_coherence, entangler_coherence_delta, entangler_hint_gate_reason, entangler_nudge_applied" in rendered
-    assert "- nearest replay or sweep signals: coherence trend, hint gate summary, nudge outcome summary, sweep ranking" in rendered
+    assert (
+        "- current engineering problem: The pair shows unresolved synchrony uncertainty under repeated blocked and contradictory local evidence."
+        in rendered
+    )
+    assert (
+        "- why current repo knowledge is not enough yet: Current sweep evidence does not cleanly separate conservative gating from structural synchrony limits."
+        in rendered
+    )
+    assert (
+        "- most actionable concept: one paper on synchrony-margin diagnostics or conservative gating under ambiguous local evidence"
+        in rendered
+    )
+    assert (
+        "- nearest telemetry fields: phase_coherence, entangler_coherence_delta, entangler_hint_gate_reason, entangler_nudge_applied"
+        in rendered
+    )
+    assert (
+        "- nearest replay or sweep signals: coherence trend, hint gate summary, nudge outcome summary, sweep ranking"
+        in rendered
+    )
     assert "- intervention class: control policy" in rendered
     assert "- source status: summary-first-pdf-pending" in rendered
     assert "- subject folder: control-policy" in rendered
     assert f"- working_mind root: {working_mind_root}" in rendered
     assert "- target local paper path: control-policy/example-paper.pdf" in rendered
     assert "- target summary path: control-policy/example-paper.applied-summary.md" in rendered
-    assert "- should this stay manual-first or be queued for future agent rediscovery: automatic bounded intake now; queue wider rediscovery only if the same uncertainty recurs and one paper is no longer enough" in rendered
+    assert (
+        "- should this stay manual-first or be queued for future agent rediscovery: automatic bounded intake now; queue wider rediscovery only if the same uncertainty recurs and one paper is no longer enough"
+        in rendered
+    )
     assert "- retained recommendation rationale: [NONE PROVIDED]" in rendered
 
 
@@ -122,7 +139,10 @@ def test_render_prefilled_paper_intake_handoff_retains_recommendation_rationale(
         recommendation_rationale="This paper best matches the blocked-gate ambiguity while staying narrower than topology-first alternatives.",
     )
 
-    assert "- retained recommendation rationale: This paper best matches the blocked-gate ambiguity while staying narrower than topology-first alternatives." in rendered
+    assert (
+        "- retained recommendation rationale: This paper best matches the blocked-gate ambiguity while staying narrower than topology-first alternatives."
+        in rendered
+    )
 
 
 def test_write_prefilled_paper_intake_handoff_uses_default_output_name(tmp_path: Path):
@@ -200,7 +220,10 @@ def test_paper_handoff_cli_writes_prefilled_intake(tmp_path: Path, monkeypatch, 
     assert output_path.exists()
     assert "- title: Example Paper" in output_path.read_text(encoding="utf-8")
     assert "- subject folder: synchronization" in output_path.read_text(encoding="utf-8")
-    assert "- retained recommendation rationale: Recommended because it directly addresses synchrony-margin ambiguity under conservative gating." in output_path.read_text(encoding="utf-8")
+    assert (
+        "- retained recommendation rationale: Recommended because it directly addresses synchrony-margin ambiguity under conservative gating."
+        in output_path.read_text(encoding="utf-8")
+    )
 
 
 def test_paper_handoff_cli_auto_ingests_working_mind_artifacts(tmp_path: Path, monkeypatch, capsys):

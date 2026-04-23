@@ -44,4 +44,5 @@ indent-style = "space"
 
 [tool.pytest.ini_options]
 testpaths = ["Exciton-MoA/blank_manifold/pre_check_tests"]
+pythonpath = ["Exciton-MoA"]
 addopts = "-q"

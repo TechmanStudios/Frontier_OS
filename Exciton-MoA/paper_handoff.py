@@ -5,10 +5,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from paper_synthesizer import ingest_paper_intake_handoff
-
 
 DEFAULT_WORKING_MIND_ROOT = Path(__file__).resolve().parent / "working_mind"
 DEFAULT_SUBJECT_FOLDER = "synchronization"
@@ -19,11 +17,13 @@ def slugify_folder_name(value: str) -> str:
     return normalized or DEFAULT_SUBJECT_FOLDER
 
 
-def parse_domain_tags(domain_tags: str) -> List[str]:
+def parse_domain_tags(domain_tags: str) -> list[str]:
     return [tag.strip().lower() for tag in str(domain_tags or "").split(",") if tag.strip()]
 
 
-def resolve_subject_folder(*, intervention_class: str, domain_tags: str, subject_folder: Optional[str] = None) -> str:
+def resolve_subject_folder(
+    *, intervention_class: str, domain_tags: str, subject_folder: str | None = None
+) -> str:
     if subject_folder:
         return slugify_folder_name(subject_folder)
 
@@ -45,7 +45,7 @@ def resolve_subject_folder(*, intervention_class: str, domain_tags: str, subject
     return DEFAULT_SUBJECT_FOLDER
 
 
-def derive_source_status(*, source_url: str, local_file_path: str, source_status: Optional[str] = None) -> str:
+def derive_source_status(*, source_url: str, local_file_path: str, source_status: str | None = None) -> str:
     if source_status:
         return str(source_status).strip()
     local_value = str(local_file_path or "").strip()
@@ -72,9 +72,9 @@ def resolve_working_mind_targets(
     domain_tags: str,
     source_url: str = "",
     local_file_path: str = "[UNKNOWN]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-) -> Dict[str, str]:
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+) -> dict[str, str]:
     folder_name = resolve_subject_folder(
         intervention_class=intervention_class,
         domain_tags=domain_tags,
@@ -98,9 +98,9 @@ def resolve_working_mind_targets(
     }
 
 
-def load_markdown_bullets_by_section(path: Path) -> Dict[str, Dict[str, str]]:
-    sections: Dict[str, Dict[str, str]] = {}
-    current_section: Optional[str] = None
+def load_markdown_bullets_by_section(path: Path) -> dict[str, dict[str, str]]:
+    sections: dict[str, dict[str, str]] = {}
+    current_section: str | None = None
     for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line:
@@ -116,7 +116,7 @@ def load_markdown_bullets_by_section(path: Path) -> Dict[str, Dict[str, str]]:
     return sections
 
 
-def parse_paper_recommendation(path: Path) -> Dict[str, str]:
+def parse_paper_recommendation(path: Path) -> dict[str, str]:
     sections = load_markdown_bullets_by_section(Path(path))
     recommendation = sections.get("Selected paper", {})
     return {
@@ -130,11 +130,13 @@ def parse_paper_recommendation(path: Path) -> Dict[str, str]:
         "subject_folder": str(recommendation.get("subject folder", "")).strip() or None,
         "source_status": str(recommendation.get("source status", "")).strip() or None,
         "current_relevance_note": str(recommendation.get("current relevance note", "")).strip() or None,
-        "recommendation_rationale": str(recommendation.get("recommendation rationale", "[NONE PROVIDED]")).strip(),
+        "recommendation_rationale": str(
+            recommendation.get("recommendation rationale", "[NONE PROVIDED]")
+        ).strip(),
     }
 
 
-def suggest_sol_concepts(intervention_class: str) -> List[str]:
+def suggest_sol_concepts(intervention_class: str) -> list[str]:
     normalized = str(intervention_class or "diagnostics").strip().lower()
     if normalized in {"control policy", "topology design", "diagnostics"}:
         return [
@@ -163,11 +165,11 @@ def render_prefilled_paper_intake_handoff(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
-    nearest_sol_concepts: Optional[str] = None,
-    recommendation_rationale: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
+    nearest_sol_concepts: str | None = None,
+    recommendation_rationale: str | None = None,
     working_mind_root: Path = DEFAULT_WORKING_MIND_ROOT,
 ) -> str:
     sections = load_markdown_bullets_by_section(Path(uncertainty_handoff_path))
@@ -179,7 +181,9 @@ def render_prefilled_paper_intake_handoff(
 
     current_problem = uncertainty.get("current bottleneck", "[TO_FILL]")
     repo_gap = uncertainty.get("why current repo knowledge is still insufficient", "[TO_FILL]")
-    stable_uncertainty = uncertainty.get("why this is stable uncertainty rather than a one-off failure", "[TO_FILL]")
+    stable_uncertainty = uncertainty.get(
+        "why this is stable uncertainty rather than a one-off failure", "[TO_FILL]"
+    )
     telemetry_fields = observed.get("key telemetry fields", "[TO_FILL]")
     replay_signals = observed.get("key replay or sweep signals", "[TO_FILL]")
     desired_paper_role = outside.get("desired paper role", "[TO_FILL]")
@@ -269,7 +273,7 @@ def render_prefilled_paper_intake_handoff(
 def write_prefilled_paper_intake_handoff(
     *,
     uncertainty_handoff_path: Path,
-    output_path: Optional[Path],
+    output_path: Path | None,
     source_url: str,
     suggested_filename: str,
     local_file_path: str = "[UNKNOWN]",
@@ -277,14 +281,18 @@ def write_prefilled_paper_intake_handoff(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
-    nearest_sol_concepts: Optional[str] = None,
-    recommendation_rationale: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
+    nearest_sol_concepts: str | None = None,
+    recommendation_rationale: str | None = None,
     working_mind_root: Path = DEFAULT_WORKING_MIND_ROOT,
 ) -> Path:
-    resolved_output = Path(output_path) if output_path is not None else Path(uncertainty_handoff_path).with_name("approved_paper_intake_handoff.md")
+    resolved_output = (
+        Path(output_path)
+        if output_path is not None
+        else Path(uncertainty_handoff_path).with_name("approved_paper_intake_handoff.md")
+    )
     rendered = render_prefilled_paper_intake_handoff(
         uncertainty_handoff_path=uncertainty_handoff_path,
         source_url=source_url,
@@ -306,48 +314,115 @@ def write_prefilled_paper_intake_handoff(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Prefill a paper-intake handoff from a bounded sweep uncertainty handoff.")
-    parser.add_argument("--uncertainty-handoff", type=Path, required=True, help="Path to sweep_uncertainty_paper_handoff.md or a compatible bounded uncertainty handoff.")
-    parser.add_argument("--recommendation-file", type=Path, default=None, help="Optional finder recommendation artifact that supplies paper metadata directly.")
-    parser.add_argument("--output-path", type=Path, default=None, help="Optional output path for the prefilled intake handoff markdown.")
+    parser = argparse.ArgumentParser(
+        description="Prefill a paper-intake handoff from a bounded sweep uncertainty handoff."
+    )
+    parser.add_argument(
+        "--uncertainty-handoff",
+        type=Path,
+        required=True,
+        help="Path to sweep_uncertainty_paper_handoff.md or a compatible bounded uncertainty handoff.",
+    )
+    parser.add_argument(
+        "--recommendation-file",
+        type=Path,
+        default=None,
+        help="Optional finder recommendation artifact that supplies paper metadata directly.",
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        help="Optional output path for the prefilled intake handoff markdown.",
+    )
     parser.add_argument("--source-url", default=None, help="Approved paper source URL.")
-    parser.add_argument("--suggested-filename", default=None, help="Suggested local filename for the approved paper.")
-    parser.add_argument("--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded.")
+    parser.add_argument(
+        "--suggested-filename", default=None, help="Suggested local filename for the approved paper."
+    )
+    parser.add_argument(
+        "--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded."
+    )
     parser.add_argument("--title", default="[TO_FILL]", help="Approved paper title.")
     parser.add_argument("--authors", default="[TO_FILL]", help="Approved paper authors.")
     parser.add_argument("--year", default="[TO_FILL]", help="Approved paper year.")
     parser.add_argument("--domain-tags", default="[TO_FILL]", help="Domain tags for papers-index.md.")
-    parser.add_argument("--subject-folder", default=None, help="Optional canonical subject folder under working_mind.")
-    parser.add_argument("--source-status", default=None, help="Optional source status override: pdf-present, summary-first-pdf-pending, or metadata-only.")
-    parser.add_argument("--current-relevance-note", default=None, help="Optional override for the current relevance note.")
-    parser.add_argument("--nearest-sol-concepts", default=None, help="Optional override for derived SOL concepts or subsystem names.")
-    parser.add_argument("--recommendation-rationale", default=None, help="Optional rationale text from the accepted paper recommendation.")
-    parser.add_argument("--working-mind-root", type=Path, default=DEFAULT_WORKING_MIND_ROOT, help="Root directory for working_mind path resolution.")
-    parser.add_argument("--auto-ingest", action="store_true", help="Immediately write working_mind artifacts after generating the prefilled intake handoff.")
-    parser.add_argument("--ingested-on", default=None, help="Optional ingestion date override for auto-ingest in YYYY-MM-DD form.")
+    parser.add_argument(
+        "--subject-folder", default=None, help="Optional canonical subject folder under working_mind."
+    )
+    parser.add_argument(
+        "--source-status",
+        default=None,
+        help="Optional source status override: pdf-present, summary-first-pdf-pending, or metadata-only.",
+    )
+    parser.add_argument(
+        "--current-relevance-note", default=None, help="Optional override for the current relevance note."
+    )
+    parser.add_argument(
+        "--nearest-sol-concepts",
+        default=None,
+        help="Optional override for derived SOL concepts or subsystem names.",
+    )
+    parser.add_argument(
+        "--recommendation-rationale",
+        default=None,
+        help="Optional rationale text from the accepted paper recommendation.",
+    )
+    parser.add_argument(
+        "--working-mind-root",
+        type=Path,
+        default=DEFAULT_WORKING_MIND_ROOT,
+        help="Root directory for working_mind path resolution.",
+    )
+    parser.add_argument(
+        "--auto-ingest",
+        action="store_true",
+        help="Immediately write working_mind artifacts after generating the prefilled intake handoff.",
+    )
+    parser.add_argument(
+        "--ingested-on",
+        default=None,
+        help="Optional ingestion date override for auto-ingest in YYYY-MM-DD form.",
+    )
     args = parser.parse_args()
 
-    recommendation = parse_paper_recommendation(args.recommendation_file) if args.recommendation_file is not None else {}
+    recommendation = (
+        parse_paper_recommendation(args.recommendation_file) if args.recommendation_file is not None else {}
+    )
     source_url = str(args.source_url or recommendation.get("source_url") or "").strip()
-    suggested_filename = str(args.suggested_filename or recommendation.get("suggested_filename") or "").strip()
+    suggested_filename = str(
+        args.suggested_filename or recommendation.get("suggested_filename") or ""
+    ).strip()
     if not source_url or not suggested_filename:
-        raise SystemExit("source-url and suggested-filename are required unless recommendation-file supplies them")
+        raise SystemExit(
+            "source-url and suggested-filename are required unless recommendation-file supplies them"
+        )
 
     output_path = write_prefilled_paper_intake_handoff(
         uncertainty_handoff_path=args.uncertainty_handoff,
         output_path=args.output_path,
         source_url=source_url,
         suggested_filename=suggested_filename,
-        local_file_path=str(args.local_file_path if args.local_file_path != "[UNKNOWN]" else recommendation.get("local_file_path", "[UNKNOWN]")),
+        local_file_path=str(
+            args.local_file_path
+            if args.local_file_path != "[UNKNOWN]"
+            else recommendation.get("local_file_path", "[UNKNOWN]")
+        ),
         title=str(args.title if args.title != "[TO_FILL]" else recommendation.get("title", "[TO_FILL]")),
-        authors=str(args.authors if args.authors != "[TO_FILL]" else recommendation.get("authors", "[TO_FILL]")),
+        authors=str(
+            args.authors if args.authors != "[TO_FILL]" else recommendation.get("authors", "[TO_FILL]")
+        ),
         year=str(args.year if args.year != "[TO_FILL]" else recommendation.get("year", "[TO_FILL]")),
-        domain_tags=str(args.domain_tags if args.domain_tags != "[TO_FILL]" else recommendation.get("domain_tags", "[TO_FILL]")),
+        domain_tags=str(
+            args.domain_tags
+            if args.domain_tags != "[TO_FILL]"
+            else recommendation.get("domain_tags", "[TO_FILL]")
+        ),
         subject_folder=args.subject_folder or recommendation.get("subject_folder"),
         source_status=args.source_status or recommendation.get("source_status"),
         current_relevance_note=args.current_relevance_note or recommendation.get("current_relevance_note"),
         nearest_sol_concepts=args.nearest_sol_concepts,
-        recommendation_rationale=args.recommendation_rationale or recommendation.get("recommendation_rationale"),
+        recommendation_rationale=args.recommendation_rationale
+        or recommendation.get("recommendation_rationale"),
         working_mind_root=args.working_mind_root,
     )
     print(f"Wrote prefilled paper-intake handoff to {output_path}")

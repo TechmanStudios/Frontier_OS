@@ -5,20 +5,18 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Dict, Optional
 
 from paper_handoff import derive_source_status, load_markdown_bullets_by_section, resolve_subject_folder
-
 
 DEFAULT_RECOMMENDATION_FILENAME = "paper_finder_recommendation.md"
 
 
-def parse_uncertainty_handoff_context(path: Path) -> Dict[str, str]:
+def parse_uncertainty_handoff_context(path: Path) -> dict[str, str]:
     text = Path(path).read_text(encoding="utf-8")
     sections = load_markdown_bullets_by_section(Path(path))
     uncertainty = sections.get("Uncertainty summary", {})
     outside = sections.get("Outside help needed", {})
-    context: Dict[str, str] = {
+    context: dict[str, str] = {
         "selected_variant": "[UNKNOWN]",
         "working_dir": "[UNKNOWN]",
         "current_bottleneck": str(uncertainty.get("current bottleneck", "[TO_FILL]")),
@@ -36,7 +34,7 @@ def parse_uncertainty_handoff_context(path: Path) -> Dict[str, str]:
 def resolve_recommendation_output_path(
     *,
     uncertainty_handoff_path: Path,
-    output_path: Optional[Path] = None,
+    output_path: Path | None = None,
 ) -> Path:
     if output_path is not None:
         return Path(output_path)
@@ -53,9 +51,9 @@ def render_paper_finder_recommendation(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
     recommendation_rationale: str = "[TO_FILL]",
 ) -> str:
     context = parse_uncertainty_handoff_context(Path(uncertainty_handoff_path))
@@ -101,7 +99,7 @@ def render_paper_finder_recommendation(
 def write_paper_finder_recommendation(
     *,
     uncertainty_handoff_path: Path,
-    output_path: Optional[Path] = None,
+    output_path: Path | None = None,
     source_url: str = "",
     suggested_filename: str = "",
     local_file_path: str = "[UNKNOWN]",
@@ -109,9 +107,9 @@ def write_paper_finder_recommendation(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
     recommendation_rationale: str = "[TO_FILL]",
 ) -> Path:
     resolved_output = resolve_recommendation_output_path(
@@ -137,12 +135,25 @@ def write_paper_finder_recommendation(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write a bounded paper finder recommendation artifact next to a sweep uncertainty handoff.")
-    parser.add_argument("--uncertainty-handoff", type=Path, required=True, help="Path to sweep_uncertainty_paper_handoff.md.")
-    parser.add_argument("--output-path", type=Path, default=None, help="Optional output path for paper_finder_recommendation.md.")
+    parser = argparse.ArgumentParser(
+        description="Write a bounded paper finder recommendation artifact next to a sweep uncertainty handoff."
+    )
+    parser.add_argument(
+        "--uncertainty-handoff", type=Path, required=True, help="Path to sweep_uncertainty_paper_handoff.md."
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        help="Optional output path for paper_finder_recommendation.md.",
+    )
     parser.add_argument("--source-url", default="", help="Recommended paper source URL.")
-    parser.add_argument("--suggested-filename", default="", help="Suggested local filename for the recommended paper.")
-    parser.add_argument("--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded.")
+    parser.add_argument(
+        "--suggested-filename", default="", help="Suggested local filename for the recommended paper."
+    )
+    parser.add_argument(
+        "--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded."
+    )
     parser.add_argument("--title", default="[TO_FILL]", help="Recommended paper title.")
     parser.add_argument("--authors", default="[TO_FILL]", help="Recommended paper authors.")
     parser.add_argument("--year", default="[TO_FILL]", help="Recommended paper year.")
@@ -150,7 +161,9 @@ def main() -> None:
     parser.add_argument("--subject-folder", default=None, help="Optional canonical subject folder override.")
     parser.add_argument("--source-status", default=None, help="Optional source status override.")
     parser.add_argument("--current-relevance-note", default=None, help="Optional relevance note override.")
-    parser.add_argument("--recommendation-rationale", default="[TO_FILL]", help="Recommendation rationale text.")
+    parser.add_argument(
+        "--recommendation-rationale", default="[TO_FILL]", help="Recommendation rationale text."
+    )
     args = parser.parse_args()
 
     output_path = write_paper_finder_recommendation(

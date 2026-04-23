@@ -4,7 +4,6 @@
 from pathlib import Path
 
 import numpy as np
-
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from telemetry import OntologicalOrchestrator
@@ -20,7 +19,12 @@ def test_telemetry_panel_records_history_and_renders_latest(tmp_path: Path):
         burst_count=3,
         avg_h=2.7,
         max_h=6.2,
-        bursts=[("node_0001", {"H_total": 6.2, "density_contrib": 0.8, "shear_contrib": 3.9, "vorticity_contrib": 0.7})],
+        bursts=[
+            (
+                "node_0001",
+                {"H_total": 6.2, "density_contrib": 0.8, "shear_contrib": 3.9, "vorticity_contrib": 0.7},
+            )
+        ],
     )
     panel.record_scan(
         "primary",
@@ -28,7 +32,12 @@ def test_telemetry_panel_records_history_and_renders_latest(tmp_path: Path):
         burst_count=5,
         avg_h=3.1,
         max_h=7.4,
-        bursts=[("node_0000", {"H_total": 7.4, "density_contrib": 1.1, "shear_contrib": 4.8, "vorticity_contrib": 0.9})],
+        bursts=[
+            (
+                "node_0000",
+                {"H_total": 7.4, "density_contrib": 1.1, "shear_contrib": 4.8, "vorticity_contrib": 0.9},
+            )
+        ],
     )
 
     rendered = panel.render(
@@ -65,8 +74,14 @@ def test_telemetry_panel_registry_and_comparative_views(tmp_path: Path):
         avg_h=3.1,
         max_h=7.4,
         bursts=[
-            ("node_0000", {"H_total": 7.4, "density_contrib": 1.1, "shear_contrib": 4.8, "vorticity_contrib": 0.9}),
-            ("node_0002", {"H_total": 6.8, "density_contrib": 1.0, "shear_contrib": 4.4, "vorticity_contrib": 0.8}),
+            (
+                "node_0000",
+                {"H_total": 7.4, "density_contrib": 1.1, "shear_contrib": 4.8, "vorticity_contrib": 0.9},
+            ),
+            (
+                "node_0002",
+                {"H_total": 6.8, "density_contrib": 1.0, "shear_contrib": 4.4, "vorticity_contrib": 0.8},
+            ),
         ],
     )
     panel.record_scan(
@@ -76,8 +91,14 @@ def test_telemetry_panel_registry_and_comparative_views(tmp_path: Path):
         avg_h=3.9,
         max_h=8.1,
         bursts=[
-            ("node_0200", {"H_total": 8.1, "density_contrib": 0.9, "shear_contrib": 5.3, "vorticity_contrib": 1.0}),
-            ("node_0201", {"H_total": 7.7, "density_contrib": 0.7, "shear_contrib": 5.1, "vorticity_contrib": 1.1}),
+            (
+                "node_0200",
+                {"H_total": 8.1, "density_contrib": 0.9, "shear_contrib": 5.3, "vorticity_contrib": 1.0},
+            ),
+            (
+                "node_0201",
+                {"H_total": 7.7, "density_contrib": 0.7, "shear_contrib": 5.1, "vorticity_contrib": 1.1},
+            ),
         ],
     )
 
@@ -112,10 +133,29 @@ def test_telemetry_panel_pair_registry_and_comparative_views(tmp_path: Path):
         max_h_cross_domain=7.9,
         bilateral_node_ids=["node_0001"],
         top_events=[
-            {"manifold_id": "primary", "node_id": "node_0001", "h_total": 7.9, "density_contrib": 1.0, "shear_contrib": 4.7, "vorticity_contrib": 0.8},
-            {"manifold_id": "secondary", "node_id": "node_0008", "h_total": 7.3, "density_contrib": 0.9, "shear_contrib": 4.3, "vorticity_contrib": 0.7},
+            {
+                "manifold_id": "primary",
+                "node_id": "node_0001",
+                "h_total": 7.9,
+                "density_contrib": 1.0,
+                "shear_contrib": 4.7,
+                "vorticity_contrib": 0.8,
+            },
+            {
+                "manifold_id": "secondary",
+                "node_id": "node_0008",
+                "h_total": 7.3,
+                "density_contrib": 0.9,
+                "shear_contrib": 4.3,
+                "vorticity_contrib": 0.7,
+            },
         ],
-        shared_locus_summary={"pair_clock": 5, "dominant_channel": "shear", "cross_domain_giant": "Entanglement Locus", "shared_flux_norm": 3.09},
+        shared_locus_summary={
+            "pair_clock": 5,
+            "dominant_channel": "shear",
+            "cross_domain_giant": "Entanglement Locus",
+            "shared_flux_norm": 3.09,
+        },
         entangler_control={
             "pair_clock": 6,
             "entanglement_strength": 0.74,
@@ -123,11 +163,26 @@ def test_telemetry_panel_pair_registry_and_comparative_views(tmp_path: Path):
             "coherence_mode": "Stabilizer",
             "next_coherence_mode": "Stabilizer",
             "coherence_feedback": {"status": "decaying", "delta": -0.09, "error": 0.15, "target": 0.88},
-            "mode_transition": {"changed": True, "previous_mode": "active", "next_mode": "Stabilizer", "reason": "decaying_x2_after_history3", "decay_streak": 2, "improving_streak": 0, "stabilizer_dwell_ticks": 0},
+            "mode_transition": {
+                "changed": True,
+                "previous_mode": "active",
+                "next_mode": "Stabilizer",
+                "reason": "decaying_x2_after_history3",
+                "decay_streak": 2,
+                "improving_streak": 0,
+                "stabilizer_dwell_ticks": 0,
+            },
             "mode_decay_streak": 2,
             "mode_improving_streak": 0,
             "stabilizer_dwell_ticks": 0,
-            "wormhole_weight_summary": {"min_weight": 0.82, "max_weight": 1.44, "top_weighted_wormholes": [{"node_id": "node_0001", "weight": 1.44}, {"node_id": "node_0008", "weight": 1.18}]},
+            "wormhole_weight_summary": {
+                "min_weight": 0.82,
+                "max_weight": 1.44,
+                "top_weighted_wormholes": [
+                    {"node_id": "node_0001", "weight": 1.44},
+                    {"node_id": "node_0008", "weight": 1.18},
+                ],
+            },
             "controls_before": {"aperture": 0.28, "damping": 0.82, "phase_offset": 0.15},
             "controls_after": {"aperture": 0.34, "damping": 0.79, "phase_offset": 0.21},
             "clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
@@ -153,14 +208,20 @@ def test_telemetry_panel_pair_registry_and_comparative_views(tmp_path: Path):
     assert "[PAIR REGISTRY] active_pairs=1" in registry
     assert "- primary-secondary | aperture=0.280 | damping=0.820 | coherence=0.730 | bilateral=4" in registry
     assert "| clock=5 | locus=Entanglement Locus | mode=Stabilizer" in registry
-    assert "| ent=0.740 | ctrl=a0.340/d0.790/p0.210 | w=0.82-1.44 | fb=decaying | gate=off | nudge=off" in registry
+    assert (
+        "| ent=0.740 | ctrl=a0.340/d0.790/p0.210 | w=0.82-1.44 | fb=decaying | gate=off | nudge=off"
+        in registry
+    )
     assert "| ph=none:0.00 | tx=active->Stabilizer" in registry
     assert "transition reason: decaying_x2_after_history3" in registry
     assert "weighted wormholes:" in registry
     assert "node_0001 | weight=1.44" in registry
     assert "primary:node_0001 | H=7.90" in registry
     assert "[PAIR COMPARISON] ranked by bilateral bursts, coherence, flux" in comparative
-    assert "1. primary-secondary | aperture=0.280 | damping=0.820 | coherence=0.730 | bilateral=4 | dominant=shear | clock=5 | mode=Stabilizer | ent=0.740 | ctrl=a0.340/d0.790/p0.210 | w=0.82-1.44 | fb=decaying | gate=off | nudge=off | lph=none:0.00 | hint=observe:0.00" in comparative
+    assert (
+        "1. primary-secondary | aperture=0.280 | damping=0.820 | coherence=0.730 | bilateral=4 | dominant=shear | clock=5 | mode=Stabilizer | ent=0.740 | ctrl=a0.340/d0.790/p0.210 | w=0.82-1.44 | fb=decaying | gate=off | nudge=off | lph=none:0.00 | hint=observe:0.00"
+        in comparative
+    )
     assert "| tx=active->Stabilizer" in comparative
 
 
@@ -181,7 +242,14 @@ def test_telemetry_panel_records_and_renders_phonon_summary(tmp_path: Path):
         max_h_cross_domain=6.4,
         bilateral_node_ids=["node_0001"],
         top_events=[
-            {"manifold_id": "primary", "node_id": "node_0001", "h_total": 6.4, "density_contrib": 0.9, "shear_contrib": 3.8, "vorticity_contrib": 0.6},
+            {
+                "manifold_id": "primary",
+                "node_id": "node_0001",
+                "h_total": 6.4,
+                "density_contrib": 0.9,
+                "shear_contrib": 3.8,
+                "vorticity_contrib": 0.6,
+            },
         ],
         shared_locus_summary={
             "pair_clock": 7,
@@ -208,7 +276,11 @@ def test_telemetry_panel_records_and_renders_phonon_summary(tmp_path: Path):
             "coherence_mode": "active",
             "next_coherence_mode": "active",
             "coherence_feedback": {"status": "stable", "delta": 0.02, "error": 0.09, "target": 0.88},
-            "wormhole_weight_summary": {"min_weight": 0.90, "max_weight": 1.20, "top_weighted_wormholes": [{"node_id": "node_0008", "weight": 1.20}]},
+            "wormhole_weight_summary": {
+                "min_weight": 0.90,
+                "max_weight": 1.20,
+                "top_weighted_wormholes": [{"node_id": "node_0008", "weight": 1.20}],
+            },
             "controls_before": {"aperture": 0.28, "damping": 0.82, "phase_offset": 0.15},
             "controls_after": {"aperture": 0.30, "damping": 0.81, "phase_offset": 0.18},
             "clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
@@ -268,10 +340,18 @@ def test_telemetry_panel_records_and_renders_phonon_summary(tmp_path: Path):
     assert snapshots[-1]["entangler_nudge_applied"] is False
     assert "| gate=off | nudge=off | ph=shear:0.64" in registry
     assert "phonon summary: status=stable | amp=0.310 | stable=0.740 | in=1 | out=1 | next=active" in registry
-    assert "local phonon: tier=local_post_injection | carrier=The Graph Navigator | mode=density:0.58 | amp=0.220 | in=1 | out=0" in registry
-    assert "phonon hint: status=armed | bias=stabilize | conf=0.41 | age=1 | window=6 | why=none | decide=stabilize_pressure_or_low_stability" in registry
+    assert (
+        "local phonon: tier=local_post_injection | carrier=The Graph Navigator | mode=density:0.58 | amp=0.220 | in=1 | out=0"
+        in registry
+    )
+    assert (
+        "phonon hint: status=armed | bias=stabilize | conf=0.41 | age=1 | window=6 | why=none | decide=stabilize_pressure_or_low_stability"
+        in registry
+    )
     assert "hint gate: state=off | bias=observe | conf=0.00 | rel=0.00 | n=0 | why=disabled" in registry
-    assert "nudge: applied=False | reason=none | rel=0.00 | d=a+0.000/d+0.000/p+0.000 | why=disabled" in registry
+    assert (
+        "nudge: applied=False | reason=none | rel=0.00 | d=a+0.000/d+0.000/p+0.000 | why=disabled" in registry
+    )
     assert "| gate=off | nudge=off | lph=density:0.58 | hint=stabilize:0.41" in comparative
 
 
@@ -279,7 +359,9 @@ def test_orchestrator_emits_telemetry_panel_and_history(tmp_path: Path, capsys):
     manifold_core = BlankManifoldCore(BlankManifoldConfig())
     manifold_core.generate_manifold()
     panel = TelemetryPanel(working_dir=tmp_path, history_limit=3)
-    orchestrator = OntologicalOrchestrator(manifold_core, tau_threshold=4.5, telemetry_panel=panel, manifold_id="primary")
+    orchestrator = OntologicalOrchestrator(
+        manifold_core, tau_threshold=4.5, telemetry_panel=panel, manifold_id="primary"
+    )
 
     test_node = "node_0042"
     manifold_core.graph.nodes[test_node]["resonance_accumulator"] = 5.0

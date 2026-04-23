@@ -3,7 +3,8 @@
 # See LICENSE in the repository root for details.
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 
 class HippocampalPairTransducer:
@@ -12,8 +13,8 @@ class HippocampalPairTransducer:
         transducer_a,
         transducer_b,
         pair_id: str,
-        manifold_ids: Tuple[str, str],
-        wormhole_nodes: Optional[Sequence[str]] = None,
+        manifold_ids: tuple[str, str],
+        wormhole_nodes: Sequence[str] | None = None,
     ):
         self.transducer_a = transducer_a
         self.transducer_b = transducer_b
@@ -23,15 +24,17 @@ class HippocampalPairTransducer:
 
     def capture_bilateral_bursts(
         self,
-        bursts_a: Iterable[Tuple[str, Dict[str, Any]]],
-        bursts_b: Iterable[Tuple[str, Dict[str, Any]]],
+        bursts_a: Iterable[tuple[str, dict[str, Any]]],
+        bursts_b: Iterable[tuple[str, dict[str, Any]]],
         manifold_a,
         manifold_b,
-        pair_metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        pair_metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         burst_list_a = list(bursts_a)
         burst_list_b = list(bursts_b)
-        wormhole_set = set(pair_metadata.get("wormhole_nodes", self.wormhole_nodes) if pair_metadata else self.wormhole_nodes)
+        wormhole_set = set(
+            pair_metadata.get("wormhole_nodes", self.wormhole_nodes) if pair_metadata else self.wormhole_nodes
+        )
         burst_ids_a = {node_id for node_id, _ in burst_list_a}
         burst_ids_b = {node_id for node_id, _ in burst_list_b}
         bilateral_node_ids = burst_ids_a & burst_ids_b

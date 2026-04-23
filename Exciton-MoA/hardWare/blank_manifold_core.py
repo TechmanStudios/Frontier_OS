@@ -1,10 +1,12 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any
+
 import networkx as nx
+import numpy as np
 from blank_config import BlankManifoldConfig
+
 
 class BlankManifoldCore:
     """
@@ -12,27 +14,30 @@ class BlankManifoldCore:
     Provides a uniformly distributed lattice (e.g. hyperbolic) with baseline coupling
     and physics, serving as a blank slate for MoA architectures or data streams.
     """
-    def __init__(self, config: Optional[BlankManifoldConfig] = None, seed: Optional[int] = None):
+
+    def __init__(self, config: BlankManifoldConfig | None = None, seed: int | None = None):
         self.config = config or BlankManifoldConfig()
         self.seed = None if seed is None else int(seed)
         self.rng = np.random.default_rng(self.seed)
         self.graph = nx.Graph()
-        self.nodes_data: Dict[str, Dict[str, Any]] = {}
-        
+        self.nodes_data: dict[str, dict[str, Any]] = {}
+
     def generate_manifold(self):
         """
         Generates the blank manifold topology according to the config parameters.
         Returns the populated NetworkX graph.
         """
         print(f"Initializing blank manifold substrate with {self.config.base_node_count} nodes...")
-        
+
         # 1. Distribute Nodes
         self._distribute_nodes()
-        
+
         # 2. Establish Baseline Topology (Edges)
         self._build_edges()
-        
-        print(f"Manifold Generation Complete. Nodes: {self.graph.number_of_nodes()}, Edges: {self.graph.number_of_edges()}")
+
+        print(
+            f"Manifold Generation Complete. Nodes: {self.graph.number_of_nodes()}, Edges: {self.graph.number_of_edges()}"
+        )
         return self.graph
 
     def _distribute_nodes(self):
@@ -40,45 +45,47 @@ class BlankManifoldCore:
         Uniformly distributes nodes across the specified topology without semantic weighting.
         """
         if self.config.topology_type == "hyperbolic_uniform":
-            # For a Poincare disk/hyperbolic model, we distribute nodes uniformly 
+            # For a Poincare disk/hyperbolic model, we distribute nodes uniformly
             # with respecting the non-Euclidean expansion (using polar coordinates).
             # Radius (r) mapped exponentially to maintain uniform density in hyperbolic space.
-            
+
             for i in range(self.config.base_node_count):
                 node_id = f"node_{i:04d}"
-                
+
                 # Random uniform angle
                 theta = self.rng.uniform(0.0, 2.0 * np.pi)
-                
+
                 # Inverse transform sampling for uniform distribution in hyperbolic disc
                 # For radius R = 1, sinh(r) distribution limits
                 max_radius_hyperbolic = 2.0  # arbitrary bounding radius in hyperbolic space
                 u = self.rng.uniform(0.0, 1.0)
                 # Derived from integral of sinh(r)
                 r = np.arccosh(1 + u * (np.cosh(max_radius_hyperbolic) - 1))
-                
+
                 # Convert back to Cartesian for internal representation if needed
                 # (Assuming 2D for simplicity of initialization, can expand to config.dimensionality)
                 x = r * np.cos(theta)
                 y = r * np.sin(theta)
-                
+
                 coords = [x, y]
                 # Pad remaining dimensions with 0s or random small variance
                 while len(coords) < self.config.dimensionality:
-                     coords.append(float(self.rng.normal(0.0, 0.1)))
-                     
+                    coords.append(float(self.rng.normal(0.0, 0.1)))
+
                 self.nodes_data[node_id] = {
                     "coords": coords,
                     "mass": self.config.base_jeans_mass,
-                    "state_vector": np.zeros(self.config.dimensionality), # Blank semantic vector
+                    "state_vector": np.zeros(self.config.dimensionality),  # Blank semantic vector
                     "resonance_accumulator": 0.0,
                     "semantic_potential": 0.0,
                     "flux_divergence": 0.0,
                 }
                 self.graph.add_node(node_id, **self.nodes_data[node_id])
-                
+
         else:
-             raise NotImplementedError(f"Topology '{self.config.topology_type}' not yet implemented for Blank Manifold.")
+            raise NotImplementedError(
+                f"Topology '{self.config.topology_type}' not yet implemented for Blank Manifold."
+            )
 
     def _build_edges(self):
         """
@@ -88,40 +95,38 @@ class BlankManifoldCore:
         # For a substrate, we typically want a k-nearest neighbor (k-NN) or a Delaunay-like structure.
         # We will use a basic spatial threshold to establish connections.
         nodes = list(self.graph.nodes(data=True))
-        
+
         # Simple thresholding calculation (O(N^2) - suitable for 1024 nodes)
         # Calculate max distance to ensure a connected graph, or use a fixed threshold.
         # For hyperbolic uniform with max radius 2.0, a connection distance of ~0.5 usually yields a sensible lattice.
-        connection_threshold = 0.5 
-        
+        connection_threshold = 0.5
+
         for i, (node_a, data_a) in enumerate(nodes):
             coords_a = np.array(data_a["coords"])
             for j in range(i + 1, len(nodes)):
                 node_b, data_b = nodes[j]
                 coords_b = np.array(data_b["coords"])
-                
-                # Euclidean distance in embedded space 
+
+                # Euclidean distance in embedded space
                 # (True hyperbolic distance is slightly more complex: arccosh(1 + 2*||x-y||^2 / ((1-||x||^2)(1-||y||^2))) )
                 # But for initialization seeding, euclidean in the embedding coords is acceptable to build the base mesh
                 dist = np.linalg.norm(coords_a - coords_b)
-                
+
                 if dist < connection_threshold:
-                    self.graph.add_edge(
-                        node_a, node_b, 
-                        weight=self.config.baseline_coupling,
-                        distance=dist
-                    )
-        
+                    self.graph.add_edge(node_a, node_b, weight=self.config.baseline_coupling, distance=dist)
+
         # Ensure Graph is connected. If we have isolates, we could optionally connect them to nearest neighbor
         isolates = list(nx.isolates(self.graph))
         if isolates:
-             print(f"Warning: Connection threshold yielded {len(isolates)} isolated nodes. Repairing connectivity.")
-             self._connect_isolates(isolates)
+            print(
+                f"Warning: Connection threshold yielded {len(isolates)} isolated nodes. Repairing connectivity."
+            )
+            self._connect_isolates(isolates)
 
         if not nx.is_connected(self.graph):
             self._connect_components()
 
-    def _connect_isolates(self, isolates: List[str]):
+    def _connect_isolates(self, isolates: list[str]):
         """
         Ensures isolated nodes are attached to their nearest neighbor so the
         substrate remains traversable for downstream operators and tests.
@@ -138,7 +143,9 @@ class BlankManifoldCore:
                 candidate_coords = np.array(data["coords"])
                 distance = float(np.linalg.norm(coords - candidate_coords))
                 if distance < nearest_distance or (
-                    np.isclose(distance, nearest_distance) and nearest_node is not None and str(candidate_id) < str(nearest_node)
+                    np.isclose(distance, nearest_distance)
+                    and nearest_node is not None
+                    and str(candidate_id) < str(nearest_node)
                 ):
                     nearest_distance = distance
                     nearest_node = candidate_id
@@ -162,7 +169,7 @@ class BlankManifoldCore:
         while len(components) > 1:
             left = components[0]
             right = components[1]
-            best_pair: Optional[Tuple[str, str]] = None
+            best_pair: tuple[str, str] | None = None
             best_distance = float("inf")
 
             for left_node in left:
@@ -192,7 +199,9 @@ class BlankManifoldCore:
             components = [sorted(component) for component in nx.connected_components(self.graph)]
             components.sort(key=lambda component: tuple(str(node_id) for node_id in component))
 
-    def solve_semantic_potential(self, flux_attribute: str = "residual_flux", weight_attribute: str = "weight") -> Dict[str, float]:
+    def solve_semantic_potential(
+        self, flux_attribute: str = "residual_flux", weight_attribute: str = "weight"
+    ) -> dict[str, float]:
         """
         Solves the discrete semantic potential on the graph from the current edge flux.
 
@@ -246,8 +255,8 @@ class BlankManifoldCore:
 
             potentials = solution[:node_count]
 
-        potential_by_node: Dict[str, float] = {}
-        for node_id, potential, local_divergence in zip(node_ids, potentials, divergence):
+        potential_by_node: dict[str, float] = {}
+        for node_id, potential, local_divergence in zip(node_ids, potentials, divergence, strict=False):
             scalar_potential = float(potential)
             self.graph.nodes[node_id]["semantic_potential"] = scalar_potential
             self.graph.nodes[node_id]["flux_divergence"] = float(local_divergence)
@@ -256,6 +265,7 @@ class BlankManifoldCore:
         self.graph.graph["semantic_potential_gauge"] = "mean_zero"
         self.graph.graph["semantic_potential_flux_attribute"] = flux_attribute
         return potential_by_node
+
 
 if __name__ == "__main__":
     core = BlankManifoldCore()

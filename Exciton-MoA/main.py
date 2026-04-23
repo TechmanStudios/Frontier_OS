@@ -3,6 +3,5 @@
 # See LICENSE in the repository root for details.
 from firmWare.main import main
 
-
 if __name__ == "__main__":
     main()

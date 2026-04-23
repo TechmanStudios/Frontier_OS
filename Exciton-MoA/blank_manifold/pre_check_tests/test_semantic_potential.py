@@ -1,7 +1,6 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-import numpy as np
 
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore

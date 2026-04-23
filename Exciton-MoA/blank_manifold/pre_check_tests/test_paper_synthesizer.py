@@ -64,7 +64,9 @@ def test_ingest_paper_intake_handoff_writes_index_and_summary(tmp_path: Path):
     )
 
     index_text = (working_mind_root / "papers-index.md").read_text(encoding="utf-8")
-    summary_text = (working_mind_root / "control-policy" / "control-paper.applied-summary.md").read_text(encoding="utf-8")
+    summary_text = (working_mind_root / "control-policy" / "control-paper.applied-summary.md").read_text(
+        encoding="utf-8"
+    )
 
     assert outputs["source_status"] == "summary-first-pdf-pending"
     assert "### control-policy/control-paper.pdf" in index_text
@@ -72,7 +74,9 @@ def test_ingest_paper_intake_handoff_writes_index_and_summary(tmp_path: Path):
     assert "- Ingested: 2026-03-12" in index_text
     assert "# Applied Summary: control-paper" in summary_text
     assert "- Intake mode: automatic bounded intake" in summary_text
-    assert "Recommended because it stays narrow and maps directly onto blocked-gate ambiguity." in summary_text
+    assert (
+        "Recommended because it stays narrow and maps directly onto blocked-gate ambiguity." in summary_text
+    )
     assert "This note was generated automatically from the intake handoff." in summary_text
 
 

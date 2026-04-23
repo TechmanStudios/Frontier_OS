@@ -4,30 +4,37 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
 
 class HippocampalTransducer:
-    def __init__(self, output_dir: Optional[Path] = None, burst_flush_threshold: int = 1):
-        self.output_dir = Path(output_dir) if output_dir is not None else Path(__file__).resolve().parents[1] / "working_data"
+    def __init__(self, output_dir: Path | None = None, burst_flush_threshold: int = 1):
+        self.output_dir = (
+            Path(output_dir)
+            if output_dir is not None
+            else Path(__file__).resolve().parents[1] / "working_data"
+        )
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.sequence_buffer: List[Dict[str, Any]] = []
+        self.sequence_buffer: list[dict[str, Any]] = []
         self.long_term_archive = self.output_dir / "hippocampal_long_term.jsonl"
         self.burst_flush_threshold = max(int(burst_flush_threshold), 1)
 
     def capture_bursts(
         self,
-        bursts: Iterable[Tuple[str, Dict[str, Any]]],
+        bursts: Iterable[tuple[str, dict[str, Any]]],
         manifold,
-        pair_context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Path]:
-        batch: List[Dict[str, Any]] = []
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        bilateral_node_ids = set(pair_context.get("bilateral_node_ids", [])) if pair_context is not None else set()
+        pair_context: dict[str, Any] | None = None,
+    ) -> Path | None:
+        batch: list[dict[str, Any]] = []
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        bilateral_node_ids = (
+            set(pair_context.get("bilateral_node_ids", [])) if pair_context is not None else set()
+        )
         wormhole_nodes = set(pair_context.get("wormhole_nodes", [])) if pair_context is not None else set()
 
         for node_id, metrics in bursts:
@@ -73,7 +80,9 @@ class HippocampalTransducer:
                             "phonon_confidence": float(pair_context.get("phonon_confidence", 0.0)),
                             "phonon_entropy": float(pair_context.get("phonon_entropy", 0.0)),
                             "phonon_mode": str(pair_context.get("phonon_mode", "density")),
-                            "phonon_predicted_next_mode": str(pair_context.get("phonon_predicted_next_mode", "active")),
+                            "phonon_predicted_next_mode": str(
+                                pair_context.get("phonon_predicted_next_mode", "active")
+                            ),
                             "phonon_stability_score": float(pair_context.get("phonon_stability_score", 0.0)),
                             "wormhole_entry_count": int(pair_context.get("wormhole_entry_count", 0)),
                             "wormhole_exit_count": int(pair_context.get("wormhole_exit_count", 0)),
@@ -98,7 +107,7 @@ class HippocampalTransducer:
         self.sequence_buffer = []
         return burst_path
 
-    def _serialize_vector(self, vector: Any) -> List[float]:
+    def _serialize_vector(self, vector: Any) -> list[float]:
         if vector is None:
             return []
         return [float(value) for value in np.asarray(vector, dtype=float).reshape(-1)]

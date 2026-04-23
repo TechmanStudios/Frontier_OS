@@ -1,9 +1,9 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-import numpy as np
 from pathlib import Path
 
+import numpy as np
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from latent_mediator import LatentMediator
@@ -37,7 +37,7 @@ def test_latent_mediator_persists_across_reloads(tmp_path: Path):
 
     fresh_manifold = BlankManifoldCore(BlankManifoldConfig())
     fresh_manifold.generate_manifold()
-    reloaded_mediator = LatentMediator(fresh_manifold, state_path=state_path)
+    LatentMediator(fresh_manifold, state_path=state_path)
 
     node_data = fresh_manifold.graph.nodes["node_0000"]
     assert node_data["dominant_giant"] == "The Integrator"
