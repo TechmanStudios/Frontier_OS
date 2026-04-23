@@ -93,6 +93,9 @@ def build_advisory_clamp(
     applicable: set[str] = set()
     contraindicated: set[str] = set()
     lesson_types: set[str] = set()
+    # C3: track recommended profile_used across selected v2 lessons. v1
+    # lessons (no profile_used field) contribute "none".
+    recommended_profile_counts: dict[str, int] = {}
     for lsn in selected:
         for pocket in lsn.get("applicable_constraints", []) or []:
             applicable.add(str(pocket))
@@ -100,6 +103,11 @@ def build_advisory_clamp(
             contraindicated.add(str(pocket))
         if isinstance(lsn.get("lesson_type"), str):
             lesson_types.add(lsn["lesson_type"])
+        profile_used = lsn.get("profile_used")
+        if isinstance(profile_used, str) and profile_used and profile_used != "none":
+            recommended_profile_counts[profile_used] = (
+                recommended_profile_counts.get(profile_used, 0) + 1
+            )
     return {
         "schema_version": ADVISORY_SCHEMA_VERSION,
         "applicable_pockets": sorted(applicable),
@@ -107,6 +115,7 @@ def build_advisory_clamp(
         "source_lesson_token": source_token,
         "source_lesson_types": sorted(lesson_types),
         "lesson_count": len(selected),
+        "recommended_profile_counts": recommended_profile_counts,
         "updated_utc": utcnow_iso(),
     }
 

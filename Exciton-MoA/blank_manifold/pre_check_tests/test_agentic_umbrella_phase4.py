@@ -154,7 +154,14 @@ def test_validate_knowledge_lesson_rejects_missing_evidence():
 
 
 def test_schema_versions_contains_knowledge_lesson():
-    assert agent_handoff_schemas.SCHEMA_VERSIONS.get("knowledge_lesson") == 1
+    assert agent_handoff_schemas.SCHEMA_VERSIONS.get("knowledge_lesson") == 2
+
+
+def test_validate_knowledge_lesson_accepts_v1_for_back_compat():
+    payload = _ok_lesson()
+    payload["schema_version"] = 1
+    ok, errors = agent_handoff_schemas.validate_knowledge_lesson(payload)
+    assert ok, errors
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +177,7 @@ def test_aggregate_patterns_groups_by_coupling_and_diagnosis(umbrella_world):
         )
         sweep_by_run.append((rd.as_posix(), rows))
     aggregates = lesson_compiler.aggregate_patterns(sweep_by_run)
-    weak_low = aggregates[("weak", "low_variance_candidate")]
+    weak_low = aggregates[("weak", "low_variance_candidate", "none", "disabled")]
     # 3 distinct pockets across runs (the rd3 repeat doesn't inflate the set).
     assert len(weak_low["pockets"]) == 3
     # Contraindication pocket from rd1 (same weak coupling, different diagnosis).
@@ -213,7 +220,7 @@ def test_run_lesson_compiler_writes_artifact_and_ledger(umbrella_world):
     artifact_path = Path(outcome["artifact_path"])
     assert artifact_path.exists()
     bundle = json.loads(artifact_path.read_text(encoding="utf-8"))
-    assert bundle["schema_versions"]["knowledge_lesson"] == 1
+    assert bundle["schema_versions"]["knowledge_lesson"] == 2
     assert bundle["lessons"]
     summary_path = artifact_path.parent / "summary.md"
     assert summary_path.exists()
@@ -526,4 +533,167 @@ def test_advisory_writer_main_cli_returns_zero(tmp_path, monkeypatch, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert '"dry_run"' in out
+
+
+# ---------------------------------------------------------------------------
+# C3: Lesson Compiler v2 (profile-aware grouping + posture_profile_lift)
+# ---------------------------------------------------------------------------
+
+
+def _v2_row(
+    loc_a: float,
+    loc_b: float,
+    drift: float,
+    coupling: str,
+    diagnosis: str,
+    *,
+    profile_used: str = "none",
+    msf_status_counts: dict | None = None,
+    met_entry_policy: bool = False,
+) -> dict:
+    return {
+        "embedding_a_loc": loc_a,
+        "embedding_b_loc": loc_b,
+        "embedding_drift": drift,
+        "paper_synchrony_coupling_posture": coupling,
+        "diagnosis_label": diagnosis,
+        "coupling_posture_profile_used": profile_used,
+        "msf_status_counts": msf_status_counts or {},
+        "met_entry_policy": met_entry_policy,
+    }
+
+
+def test_pattern_key_returns_four_tuple_with_defaults():
+    row = {
+        "paper_synchrony_coupling_posture": "weak",
+        "diagnosis_label": "low_variance_candidate",
+    }
+    assert lesson_compiler._pattern_key(row) == (
+        "weak",
+        "low_variance_candidate",
+        "none",
+        "disabled",
+    )
+
+
+def test_pattern_key_uses_profile_and_msf_status_dominant():
+    row = {
+        "paper_synchrony_coupling_posture": "weak",
+        "diagnosis_label": "low_variance_candidate",
+        "coupling_posture_profile_used": "weak",
+        "msf_status_counts": {"enabled": 5, "disabled": 1},
+    }
+    assert lesson_compiler._pattern_key(row) == (
+        "weak",
+        "low_variance_candidate",
+        "weak",
+        "enabled",
+    )
+
+
+def test_aggregate_patterns_includes_per_profile_natural_entry_means(tmp_path):
+    rd = tmp_path / "runs" / "daily" / "20260301T000000Z"
+    sweep_by_run = [
+        (
+            rd.as_posix(),
+            [
+                _v2_row(0.50, 0.57, 0.06, "weak", "low_variance_candidate",
+                        profile_used="none", met_entry_policy=False),
+                _v2_row(0.50, 0.58, 0.06, "weak", "low_variance_candidate",
+                        profile_used="none", met_entry_policy=False),
+                _v2_row(0.51, 0.57, 0.06, "weak", "low_variance_candidate",
+                        profile_used="weak", met_entry_policy=True),
+                _v2_row(0.51, 0.58, 0.06, "weak", "low_variance_candidate",
+                        profile_used="weak", met_entry_policy=True),
+            ],
+        ),
+    ]
+    aggregates = lesson_compiler.aggregate_patterns(sweep_by_run)
+    weak_none = aggregates[("weak", "low_variance_candidate", "none", "disabled")]
+    weak_weak = aggregates[("weak", "low_variance_candidate", "weak", "disabled")]
+    means_none = weak_none["per_profile_natural_entry_means"]
+    means_weak = weak_weak["per_profile_natural_entry_means"]
+    # Same coupling -> identical per-profile means dict.
+    assert means_none == means_weak
+    assert means_none["none"] == 0.0
+    assert means_none["weak"] == 1.0
+
+
+def test_build_lesson_payload_promotes_to_posture_profile_lift_on_swing(tmp_path):
+    pattern = ("weak", "low_variance_candidate", "weak", "disabled")
+    aggregate = {
+        "pockets": {"locA=0.51,locB=0.57,drift=0.06"},
+        "runs": {"runs/daily/A"},
+        "contraindication_pockets": set(),
+        "per_profile_natural_entry_means": {"none": 0.0, "weak": 1.0},
+    }
+    payload = lesson_compiler.build_lesson_payload(pattern, aggregate)
+    assert payload["lesson_type"] == "posture_profile_lift"
+    assert payload["schema_version"] == 2
+    assert payload["profile_used"] == "weak"
+    assert payload["msf_status_dominant"] == "disabled"
+    assert payload["per_profile_natural_entry_means"] == {"none": 0.0, "weak": 1.0}
+
+
+def test_build_lesson_payload_keeps_default_lesson_type_when_swing_below_threshold():
+    pattern = ("weak", "low_variance_candidate", "weak", "disabled")
+    aggregate = {
+        "pockets": {"locA=0.51,locB=0.57,drift=0.06"},
+        "runs": {"runs/daily/A"},
+        "contraindication_pockets": set(),
+        # Swing of 0.05 is below the 0.10 threshold.
+        "per_profile_natural_entry_means": {"none": 0.45, "weak": 0.50},
+    }
+    payload = lesson_compiler.build_lesson_payload(pattern, aggregate)
+    assert payload["lesson_type"] == "entrainment_stability"
+
+
+def test_validate_knowledge_lesson_v2_accepts_optional_fields():
+    payload = _ok_lesson()
+    payload["schema_version"] = 2
+    payload["profile_used"] = "weak"
+    payload["msf_status_dominant"] = "enabled"
+    payload["per_profile_natural_entry_means"] = {"weak": 0.6, "none": 0.4}
+    ok, errors = agent_handoff_schemas.validate_knowledge_lesson(payload)
+    assert ok, errors
+
+
+def test_advisory_writer_records_recommended_profile_from_v2_lessons(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    v2_lesson = _w3_lesson(
+        corro=3,
+        pockets=["locA=0.51,locB=0.57,drift=0.06"],
+    )
+    v2_lesson["schema_version"] = 2
+    v2_lesson["profile_used"] = "weak"
+    v2_lesson["msf_status_dominant"] = "enabled"
+    v2_lesson["per_profile_natural_entry_means"] = {"none": 0.0, "weak": 1.0}
+    _seed_lessons_bundle(consumers_root, "20260601T000000Z", [v2_lesson])
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        dry_run=True,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "dry_run"
+    clamp = outcome["payload"]["clamp"]
+    assert clamp["recommended_profile_counts"] == {"weak": 1}
+
+
+def test_advisory_writer_v1_lessons_yield_empty_recommended_profile_counts(tmp_path, monkeypatch):
+    consumers_root = tmp_path / "consumers"
+    _patch_state_path(monkeypatch, tmp_path)
+    _seed_lessons_bundle(
+        consumers_root,
+        "20260601T000000Z",
+        [_w3_lesson(corro=3, pockets=["locA=0.50,locB=0.57,drift=0.06"])],
+    )
+    outcome = lesson_advisory_writer.run_lesson_advisory_writer(
+        min_corroboration=3,
+        dry_run=True,
+        consumers_root=consumers_root,
+    )
+    assert outcome["status"] == "dry_run"
+    clamp = outcome["payload"]["clamp"]
+    assert clamp["recommended_profile_counts"] == {}
 

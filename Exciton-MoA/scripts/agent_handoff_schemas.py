@@ -22,7 +22,7 @@ SCHEMA_VERSIONS: dict[str, int] = {
     "knowledge_promotion_candidate": 1,
     "incident_report": 1,
     "tournament_entry": 1,
-    "knowledge_lesson": 1,
+    "knowledge_lesson": 2,
 }
 
 VALID_PAPER_TRIGGERS = ("synchrony", "basin_fragility")
@@ -31,6 +31,7 @@ VALID_LESSON_TYPES = (
     "coupling_asymmetry",
     "policy_generalization",
     "gate_blocker_pattern",
+    "posture_profile_lift",
 )
 VALID_SUBJECT_DOMAINS = (
     "synchronization",
@@ -258,7 +259,15 @@ def validate_knowledge_lesson(payload: Any) -> ValidationResult:
     if errors:
         return False, errors
     assert isinstance(payload, dict)
-    _check_schema_version(payload, "knowledge_lesson", errors)
+    # knowledge_lesson is the only multi-version schema today: readers accept
+    # both v1 (pre-C3) and v2 (C3, adds optional profile_used /
+    # msf_status_dominant / per_profile_natural_entry_means fields). Writers
+    # emit v2.
+    version = payload.get("schema_version")
+    if version not in (1, 2):
+        errors.append(
+            f"schema_version must be 1 or 2 for 'knowledge_lesson', got {version!r}"
+        )
     _check_enum(payload, "lesson_type", VALID_LESSON_TYPES, errors)
     _check_int(payload, "corroboration_count", errors, minimum=2)
     _check_list_of_str(payload, "evidence_run_dirs", errors)

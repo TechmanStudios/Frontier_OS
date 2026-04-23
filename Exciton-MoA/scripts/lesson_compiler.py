@@ -45,6 +45,10 @@ DIAGNOSIS_TO_LESSON_TYPE = {
     "entered_stabilizer": "entrainment_stability",
 }
 DEFAULT_LESSON_TYPE = "gate_blocker_pattern"
+# C3: per-profile natural-entry mean swing >= this triggers the
+# ``posture_profile_lift`` lesson_type override. Tuned conservatively so a
+# single noisy run cannot flip the lesson type.
+POSTURE_PROFILE_LIFT_THRESHOLD = 0.10
 
 
 def _read_sweep_summary(run_dir: Path) -> list[dict[str, Any]]:
@@ -76,10 +80,32 @@ def _pocket_key(row: dict[str, Any]) -> str:
     return f"locA={loc_a},locB={loc_b},drift={drift}"
 
 
-def _pattern_key(row: dict[str, Any]) -> tuple[str, str]:
+def _row_profile_used(row: dict[str, Any]) -> str:
+    value = row.get("coupling_posture_profile_used")
+    if isinstance(value, str) and value:
+        return value
+    return "none"
+
+
+def _row_msf_status_dominant(row: dict[str, Any]) -> str:
+    counts = row.get("msf_status_counts")
+    if isinstance(counts, dict) and counts:
+        try:
+            return max(
+                counts.items(),
+                key=lambda kv: (int(kv[1] or 0), str(kv[0])),
+            )[0]
+        except (TypeError, ValueError):
+            pass
+    return "disabled"
+
+
+def _pattern_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
     coupling = str(row.get("paper_synchrony_coupling_posture", "unknown"))
     diagnosis = str(row.get("diagnosis_label", "unknown"))
-    return coupling, diagnosis
+    profile_used = _row_profile_used(row)
+    msf_status_dominant = _row_msf_status_dominant(row)
+    return coupling, diagnosis, profile_used, msf_status_dominant
 
 
 def _lesson_type_for(diagnosis: str) -> str:
@@ -88,71 +114,101 @@ def _lesson_type_for(diagnosis: str) -> str:
 
 def aggregate_patterns(
     sweep_rows_by_run: Iterable[tuple[str, list[dict[str, Any]]]],
-) -> dict[tuple[str, str], dict[str, Any]]:
-    """Group sweep rows by (coupling_posture, diagnosis_label) pattern.
+) -> dict[tuple[str, str, str, str], dict[str, Any]]:
+    """Group sweep rows by (coupling_posture, diagnosis_label, profile_used,
+    msf_status_dominant) pattern (C3 v2 key).
 
     Returns a mapping pattern -> {pockets: set[str], runs: set[str],
-    contraindication_pockets: set[str]}. ``contraindication_pockets`` is the
-    set of pockets in which the same coupling_posture was observed but with a
-    *different* diagnosis_label.
+    contraindication_pockets: set[str], per_profile_natural_entry_means:
+    dict[str, float]}. ``contraindication_pockets`` is the set of pockets in
+    which the same coupling_posture was observed but with a *different*
+    diagnosis_label (independent of profile_used / msf_status_dominant).
     """
-    pockets_by_pattern: dict[tuple[str, str], set[str]] = defaultdict(set)
-    runs_by_pattern: dict[tuple[str, str], set[str]] = defaultdict(set)
-    pockets_by_coupling: dict[str, set[str]] = defaultdict(set)
-    pockets_with_pattern_by_coupling: dict[str, set[str]] = defaultdict(set)
+    # Materialize rows once so we can iterate multiple times without burning
+    # the underlying generator on the contraindication second pass.
+    materialized: list[tuple[str, list[dict[str, Any]]]] = [
+        (run_dir, list(rows)) for run_dir, rows in sweep_rows_by_run
+    ]
+    pockets_by_pattern: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
+    runs_by_pattern: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
+    # C3: pre-group natural_entry signal by (coupling, profile_used) so each
+    # final pattern can surface a per-profile lift comparison.
+    natural_by_coupling_profile: dict[tuple[str, str], list[int]] = defaultdict(list)
 
-    for run_dir, rows in sweep_rows_by_run:
+    for run_dir, rows in materialized:
         for row in rows:
             pattern = _pattern_key(row)
-            coupling, _ = pattern
+            coupling, _diagnosis, profile_used, _msf = pattern
             pocket = _pocket_key(row)
             pockets_by_pattern[pattern].add(pocket)
             runs_by_pattern[pattern].add(run_dir)
-            pockets_by_coupling[coupling].add(pocket)
-            pockets_with_pattern_by_coupling[coupling].add(pocket)
-    # Contraindication pockets per pattern: pockets that share the same
-    # coupling but a different diagnosis label.
-    aggregates: dict[tuple[str, str], dict[str, Any]] = {}
+            natural_by_coupling_profile[(coupling, profile_used)].append(
+                int(bool(row.get("met_entry_policy", False)))
+            )
+    aggregates: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     for pattern, pockets in pockets_by_pattern.items():
-        coupling, _diagnosis = pattern
+        coupling, _diagnosis, _profile, _msf = pattern
         contraindication_pockets: set[str] = set()
-        for run_dir, rows in sweep_rows_by_run:
+        for _run_dir, rows in materialized:
             for row in rows:
                 if str(row.get("paper_synchrony_coupling_posture", "unknown")) != coupling:
                     continue
-                other_pattern = _pattern_key(row)
-                if other_pattern == pattern:
+                # Contraindication is keyed on (coupling, diagnosis) only, so
+                # compare on those two fields, not the full v2 key.
+                if str(row.get("diagnosis_label", "unknown")) == pattern[1]:
                     continue
                 contraindication_pockets.add(_pocket_key(row))
+        per_profile_means: dict[str, float] = {}
+        for (cpl, profile_used), values in natural_by_coupling_profile.items():
+            if cpl != coupling or not values:
+                continue
+            per_profile_means[profile_used] = sum(values) / len(values)
         aggregates[pattern] = {
             "pockets": pockets,
             "runs": runs_by_pattern[pattern],
             "contraindication_pockets": contraindication_pockets,
+            "per_profile_natural_entry_means": per_profile_means,
         }
     return aggregates
 
 
 def build_lesson_payload(
-    pattern: tuple[str, str],
+    pattern: tuple[str, str, str, str],
     aggregate: dict[str, Any],
 ) -> dict[str, Any]:
-    coupling, diagnosis = pattern
+    coupling, diagnosis, profile_used, msf_status_dominant = pattern
     pockets = sorted(aggregate["pockets"])
     runs = sorted(aggregate["runs"])
     contras = sorted(aggregate["contraindication_pockets"])
+    per_profile = dict(aggregate.get("per_profile_natural_entry_means") or {})
     findings = (
         f"Across {len(pockets)} distinct pockets, coupling posture "
-        f"{coupling!r} co-occurred with diagnosis_label {diagnosis!r}."
+        f"{coupling!r} co-occurred with diagnosis_label {diagnosis!r} "
+        f"(profile_used={profile_used!r}, msf_status_dominant={msf_status_dominant!r})."
     )
+    # C3: promote lesson_type to posture_profile_lift when per-profile means
+    # diverge by >= POSTURE_PROFILE_LIFT_THRESHOLD across the same coupling.
+    if (
+        len(per_profile) >= 2
+        and (max(per_profile.values()) - min(per_profile.values()))
+        >= POSTURE_PROFILE_LIFT_THRESHOLD
+    ):
+        lesson_type = "posture_profile_lift"
+    else:
+        lesson_type = _lesson_type_for(diagnosis)
     payload = {
         "schema_version": SCHEMA_VERSIONS["knowledge_lesson"],
-        "lesson_type": _lesson_type_for(diagnosis),
+        "lesson_type": lesson_type,
         "corroboration_count": len(pockets),
         "evidence_run_dirs": runs,
         "key_findings": findings,
         "applicable_constraints": pockets,
         "contraindications": contras,
         "generated_utc": utcnow_iso(),
+        # C3 v2 additive fields.
+        "profile_used": profile_used,
+        "msf_status_dominant": msf_status_dominant,
+        "per_profile_natural_entry_means": per_profile,
     }
     return payload
 
