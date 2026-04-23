@@ -5,10 +5,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from paper_synthesizer import ingest_paper_intake_handoff
-
 
 DEFAULT_WORKING_MIND_ROOT = Path(__file__).resolve().parent / "working_mind"
 DEFAULT_SUBJECT_FOLDER = "synchronization"
@@ -19,11 +17,11 @@ def slugify_folder_name(value: str) -> str:
     return normalized or DEFAULT_SUBJECT_FOLDER
 
 
-def parse_domain_tags(domain_tags: str) -> List[str]:
+def parse_domain_tags(domain_tags: str) -> list[str]:
     return [tag.strip().lower() for tag in str(domain_tags or "").split(",") if tag.strip()]
 
 
-def resolve_subject_folder(*, intervention_class: str, domain_tags: str, subject_folder: Optional[str] = None) -> str:
+def resolve_subject_folder(*, intervention_class: str, domain_tags: str, subject_folder: str | None = None) -> str:
     if subject_folder:
         return slugify_folder_name(subject_folder)
 
@@ -45,7 +43,7 @@ def resolve_subject_folder(*, intervention_class: str, domain_tags: str, subject
     return DEFAULT_SUBJECT_FOLDER
 
 
-def derive_source_status(*, source_url: str, local_file_path: str, source_status: Optional[str] = None) -> str:
+def derive_source_status(*, source_url: str, local_file_path: str, source_status: str | None = None) -> str:
     if source_status:
         return str(source_status).strip()
     local_value = str(local_file_path or "").strip()
@@ -72,9 +70,9 @@ def resolve_working_mind_targets(
     domain_tags: str,
     source_url: str = "",
     local_file_path: str = "[UNKNOWN]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-) -> Dict[str, str]:
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+) -> dict[str, str]:
     folder_name = resolve_subject_folder(
         intervention_class=intervention_class,
         domain_tags=domain_tags,
@@ -98,9 +96,9 @@ def resolve_working_mind_targets(
     }
 
 
-def load_markdown_bullets_by_section(path: Path) -> Dict[str, Dict[str, str]]:
-    sections: Dict[str, Dict[str, str]] = {}
-    current_section: Optional[str] = None
+def load_markdown_bullets_by_section(path: Path) -> dict[str, dict[str, str]]:
+    sections: dict[str, dict[str, str]] = {}
+    current_section: str | None = None
     for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line:
@@ -116,7 +114,7 @@ def load_markdown_bullets_by_section(path: Path) -> Dict[str, Dict[str, str]]:
     return sections
 
 
-def parse_paper_recommendation(path: Path) -> Dict[str, str]:
+def parse_paper_recommendation(path: Path) -> dict[str, str]:
     sections = load_markdown_bullets_by_section(Path(path))
     recommendation = sections.get("Selected paper", {})
     return {
@@ -134,7 +132,7 @@ def parse_paper_recommendation(path: Path) -> Dict[str, str]:
     }
 
 
-def suggest_sol_concepts(intervention_class: str) -> List[str]:
+def suggest_sol_concepts(intervention_class: str) -> list[str]:
     normalized = str(intervention_class or "diagnostics").strip().lower()
     if normalized in {"control policy", "topology design", "diagnostics"}:
         return [
@@ -163,11 +161,11 @@ def render_prefilled_paper_intake_handoff(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
-    nearest_sol_concepts: Optional[str] = None,
-    recommendation_rationale: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
+    nearest_sol_concepts: str | None = None,
+    recommendation_rationale: str | None = None,
     working_mind_root: Path = DEFAULT_WORKING_MIND_ROOT,
 ) -> str:
     sections = load_markdown_bullets_by_section(Path(uncertainty_handoff_path))
@@ -269,7 +267,7 @@ def render_prefilled_paper_intake_handoff(
 def write_prefilled_paper_intake_handoff(
     *,
     uncertainty_handoff_path: Path,
-    output_path: Optional[Path],
+    output_path: Path | None,
     source_url: str,
     suggested_filename: str,
     local_file_path: str = "[UNKNOWN]",
@@ -277,11 +275,11 @@ def write_prefilled_paper_intake_handoff(
     authors: str = "[TO_FILL]",
     year: str = "[TO_FILL]",
     domain_tags: str = "[TO_FILL]",
-    subject_folder: Optional[str] = None,
-    source_status: Optional[str] = None,
-    current_relevance_note: Optional[str] = None,
-    nearest_sol_concepts: Optional[str] = None,
-    recommendation_rationale: Optional[str] = None,
+    subject_folder: str | None = None,
+    source_status: str | None = None,
+    current_relevance_note: str | None = None,
+    nearest_sol_concepts: str | None = None,
+    recommendation_rationale: str | None = None,
     working_mind_root: Path = DEFAULT_WORKING_MIND_ROOT,
 ) -> Path:
     resolved_output = Path(output_path) if output_path is not None else Path(uncertainty_handoff_path).with_name("approved_paper_intake_handoff.md")

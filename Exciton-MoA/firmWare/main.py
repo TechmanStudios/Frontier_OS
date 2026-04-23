@@ -4,12 +4,13 @@
 import numpy as np
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
-from transducer import StatisticalPrism
 from excitons import ExcitonEngine
-from telemetry import OntologicalOrchestrator
-from latent_mediator import LatentMediator
 from hippocampal import HippocampalTransducer
+from latent_mediator import LatentMediator
+from telemetry import OntologicalOrchestrator
 from telemetry_panel import TelemetryPanel
+from transducer import StatisticalPrism
+
 
 def main():
     print("=== Booting Exciton-MoA Operating System ===")

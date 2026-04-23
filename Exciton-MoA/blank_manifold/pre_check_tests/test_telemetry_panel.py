@@ -4,7 +4,6 @@
 from pathlib import Path
 
 import numpy as np
-
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from telemetry import OntologicalOrchestrator

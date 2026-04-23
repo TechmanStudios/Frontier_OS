@@ -27,6 +27,7 @@ from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from excitons import ExcitonEngine
 
+
 def test_exciton_activation():
     print("Running Pre-Check: Exciton Physics & SOL Differential Equations...")
     

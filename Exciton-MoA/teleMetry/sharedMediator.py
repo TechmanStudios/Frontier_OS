@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
-
 from teleMetry.latentMediator import ThoughtProjection
 
 
@@ -18,7 +18,7 @@ class SharedMediator:
         pair_id: str,
         manifold_ids: Sequence[str],
         max_entries_per_channel: int = 64,
-        state_path: Optional[Path] = None,
+        state_path: Path | None = None,
     ):
         self.pair_id = str(pair_id)
         self.manifold_ids = tuple(str(manifold_id) for manifold_id in manifold_ids)
@@ -30,10 +30,10 @@ class SharedMediator:
         )
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._pair_clock = 0
-        self._blackboard: Dict[str, List[ThoughtProjection]] = {}
-        self._resolved_channels: Dict[str, Dict[str, Any]] = {}
-        self._latest_summary: Dict[str, Any] = {}
-        self.loaded_state_metadata: Dict[str, Any] = {
+        self._blackboard: dict[str, list[ThoughtProjection]] = {}
+        self._resolved_channels: dict[str, dict[str, Any]] = {}
+        self._latest_summary: dict[str, Any] = {}
+        self.loaded_state_metadata: dict[str, Any] = {
             "loaded": False,
             "state_path": str(self.state_path),
             "pair_clock_before_load": 0,
@@ -48,7 +48,7 @@ class SharedMediator:
         giant_name: str,
         vector: np.ndarray,
         confidence: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ThoughtProjection:
         normalized = self._pad_vector(vector)
         entropy = self._estimate_entropy(normalized)
@@ -71,7 +71,7 @@ class SharedMediator:
 
         return projection
 
-    def resolve_channel(self, channel_id: str) -> Optional[Dict[str, Any]]:
+    def resolve_channel(self, channel_id: str) -> dict[str, Any] | None:
         entries = self._blackboard.get(channel_id, [])
         if not entries:
             return None
@@ -93,7 +93,7 @@ class SharedMediator:
             "projection_count": len(entries),
         }
 
-    def publish_consensus(self, channel_id: str) -> Optional[Dict[str, Any]]:
+    def publish_consensus(self, channel_id: str) -> dict[str, Any] | None:
         consensus = self.resolve_channel(channel_id)
         if consensus is None:
             return None
@@ -106,11 +106,11 @@ class SharedMediator:
         phase_coherence: float,
         wormhole_nodes: Sequence[str],
         bilateral_node_ids: Sequence[str],
-        top_events: Optional[Sequence[Dict[str, Any]]] = None,
+        top_events: Sequence[dict[str, Any]] | None = None,
         cross_domain_giant: str = "Entanglement Locus",
-        local_consensus: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
-        pair_metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        local_consensus: dict[str, dict[str, dict[str, Any]]] | None = None,
+        pair_metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         flux_vector = self._pad_vector(shared_flux)
         phase_value = float(phase_coherence)
         wormhole_list = [str(node_id) for node_id in wormhole_nodes]
@@ -191,7 +191,7 @@ class SharedMediator:
         self.persist_state()
         return self.get_latest_summary()
 
-    def publish_entangler_control(self, control_report: Dict[str, Any]) -> Dict[str, Any]:
+    def publish_entangler_control(self, control_report: dict[str, Any]) -> dict[str, Any]:
         report = self._to_jsonable(control_report)
         controls_after = dict(report.get("controls_after", {}))
         control_vector = self._pad_vector(
@@ -259,7 +259,7 @@ class SharedMediator:
         self.persist_state()
         return self.get_latest_summary().get("entangler_control", entangler_summary)
 
-    def publish_phonon_bundle(self, phonon_bundle: Dict[str, Any]) -> Dict[str, Any]:
+    def publish_phonon_bundle(self, phonon_bundle: dict[str, Any]) -> dict[str, Any]:
         bundle = self._to_jsonable(phonon_bundle)
         bundles = list(self._latest_summary.get("phonon_bundles", []))
         bundles.append(bundle)
@@ -279,7 +279,7 @@ class SharedMediator:
         self.persist_state()
         return bundle
 
-    def publish_phonon_control_hint(self, phonon_control_hint: Dict[str, Any]) -> Dict[str, Any]:
+    def publish_phonon_control_hint(self, phonon_control_hint: dict[str, Any]) -> dict[str, Any]:
         hint = self._to_jsonable(phonon_control_hint)
         hints = list(self._latest_summary.get("phonon_control_hints", []))
         hints.append(hint)
@@ -299,10 +299,10 @@ class SharedMediator:
         self.persist_state()
         return hint
 
-    def get_latest_summary(self) -> Dict[str, Any]:
+    def get_latest_summary(self) -> dict[str, Any]:
         return self._to_jsonable(self._latest_summary)
 
-    def get_state_load_metadata(self) -> Dict[str, Any]:
+    def get_state_load_metadata(self) -> dict[str, Any]:
         return dict(self.loaded_state_metadata)
 
     def persist_state(self) -> None:
@@ -350,12 +350,12 @@ class SharedMediator:
         phase_coherence: float,
         bilateral: bool,
         cross_domain_giant: str,
-        local_consensus: Dict[str, Dict[str, Dict[str, Any]]],
-    ) -> Dict[str, Any]:
-        vectors: List[np.ndarray] = []
-        confidences: List[float] = []
-        dominant_weights: Dict[str, float] = {}
-        per_manifold: Dict[str, Dict[str, Any]] = {}
+        local_consensus: dict[str, dict[str, dict[str, Any]]],
+    ) -> dict[str, Any]:
+        vectors: list[np.ndarray] = []
+        confidences: list[float] = []
+        dominant_weights: dict[str, float] = {}
+        per_manifold: dict[str, dict[str, Any]] = {}
 
         for manifold_id in self.manifold_ids:
             node_payload = dict(local_consensus.get(manifold_id, {}).get(node_id, {}))
@@ -397,7 +397,7 @@ class SharedMediator:
             },
         }
 
-    def _serialize_projection(self, projection: ThoughtProjection) -> Dict[str, Any]:
+    def _serialize_projection(self, projection: ThoughtProjection) -> dict[str, Any]:
         return {
             "giant_name": projection.giant_name,
             "vector": projection.vector.tolist(),
@@ -407,7 +407,7 @@ class SharedMediator:
             "metadata": self._to_jsonable(projection.metadata),
         }
 
-    def _deserialize_projection(self, channel_id: str, payload: Dict[str, Any]) -> ThoughtProjection:
+    def _deserialize_projection(self, channel_id: str, payload: dict[str, Any]) -> ThoughtProjection:
         return ThoughtProjection(
             node_id=channel_id,
             giant_name=str(payload.get("giant_name", "Entanglement Locus")),
@@ -418,19 +418,19 @@ class SharedMediator:
             metadata=self._to_jsonable(payload.get("metadata", {})),
         )
 
-    def _serialize_resolved_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_resolved_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         serialized = dict(payload)
         serialized["consensus_vector"] = self._pad_vector(payload.get("consensus_vector", [])).tolist()
         serialized["source_giants"] = list(payload.get("source_giants", []))
         return self._to_jsonable(serialized)
 
-    def _deserialize_resolved_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _deserialize_resolved_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         deserialized = dict(payload)
         deserialized["consensus_vector"] = self._pad_vector(payload.get("consensus_vector", []))
         deserialized["source_giants"] = list(payload.get("source_giants", []))
         return deserialized
 
-    def _preserve_latest_summary_fields(self, previous_summary: Dict[str, Any]) -> None:
+    def _preserve_latest_summary_fields(self, previous_summary: dict[str, Any]) -> None:
         for key in (
             "entangler_control",
             "latest_phonon_bundle",

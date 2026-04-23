@@ -26,6 +26,7 @@ from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from transducer import StatisticalPrism
 
+
 def test_dimensional_compression():
     print("Running Pre-Check: Statistical Prism Transduction...")
     

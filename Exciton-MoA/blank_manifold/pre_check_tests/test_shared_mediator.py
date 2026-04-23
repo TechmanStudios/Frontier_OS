@@ -4,7 +4,6 @@
 from pathlib import Path
 
 import numpy as np
-
 from shared_mediator import SharedMediator
 
 

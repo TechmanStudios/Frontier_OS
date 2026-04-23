@@ -1,9 +1,11 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
+from collections.abc import Sequence
+
 import numpy as np
 from scipy.stats import skew
-from typing import Dict, Any, Sequence
+
 
 class StatisticalPrism:
     """

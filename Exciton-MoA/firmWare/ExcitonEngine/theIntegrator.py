@@ -35,8 +35,8 @@ def _integrator_jacobian_expansion(self, epicenter_id: str, target_coords: np.nd
         # The node achieves mathematical 'truth'.
         
         if uncertainty < 0.5: # Arbitrary truth threshold for the demo
-            print(f"     *** BAYESIAN COLLAPSE: Absolute Certainty Reached ***")
-            print(f"     *** MANIFOLD STATE: 'Hello, World.' ***")
+            print("     *** BAYESIAN COLLAPSE: Absolute Certainty Reached ***")
+            print("     *** MANIFOLD STATE: 'Hello, World.' ***")
             
             # Lock the state vector to the target and zero out future uncertainty
             node_data["state_vector"] = target_coords

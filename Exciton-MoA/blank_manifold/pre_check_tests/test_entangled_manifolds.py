@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from blank_config import BlankManifoldConfig
 from entangled_manifolds import (
     EntangledSOLPair,

@@ -1,10 +1,12 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any
+
 import networkx as nx
+import numpy as np
 from blank_config import BlankManifoldConfig
+
 
 class BlankManifoldCore:
     """
@@ -12,12 +14,12 @@ class BlankManifoldCore:
     Provides a uniformly distributed lattice (e.g. hyperbolic) with baseline coupling
     and physics, serving as a blank slate for MoA architectures or data streams.
     """
-    def __init__(self, config: Optional[BlankManifoldConfig] = None, seed: Optional[int] = None):
+    def __init__(self, config: BlankManifoldConfig | None = None, seed: int | None = None):
         self.config = config or BlankManifoldConfig()
         self.seed = None if seed is None else int(seed)
         self.rng = np.random.default_rng(self.seed)
         self.graph = nx.Graph()
-        self.nodes_data: Dict[str, Dict[str, Any]] = {}
+        self.nodes_data: dict[str, dict[str, Any]] = {}
         
     def generate_manifold(self):
         """
@@ -121,7 +123,7 @@ class BlankManifoldCore:
         if not nx.is_connected(self.graph):
             self._connect_components()
 
-    def _connect_isolates(self, isolates: List[str]):
+    def _connect_isolates(self, isolates: list[str]):
         """
         Ensures isolated nodes are attached to their nearest neighbor so the
         substrate remains traversable for downstream operators and tests.
@@ -162,7 +164,7 @@ class BlankManifoldCore:
         while len(components) > 1:
             left = components[0]
             right = components[1]
-            best_pair: Optional[Tuple[str, str]] = None
+            best_pair: tuple[str, str] | None = None
             best_distance = float("inf")
 
             for left_node in left:
@@ -192,7 +194,7 @@ class BlankManifoldCore:
             components = [sorted(component) for component in nx.connected_components(self.graph)]
             components.sort(key=lambda component: tuple(str(node_id) for node_id in component))
 
-    def solve_semantic_potential(self, flux_attribute: str = "residual_flux", weight_attribute: str = "weight") -> Dict[str, float]:
+    def solve_semantic_potential(self, flux_attribute: str = "residual_flux", weight_attribute: str = "weight") -> dict[str, float]:
         """
         Solves the discrete semantic potential on the graph from the current edge flux.
 
@@ -246,8 +248,8 @@ class BlankManifoldCore:
 
             potentials = solution[:node_count]
 
-        potential_by_node: Dict[str, float] = {}
-        for node_id, potential, local_divergence in zip(node_ids, potentials, divergence):
+        potential_by_node: dict[str, float] = {}
+        for node_id, potential, local_divergence in zip(node_ids, potentials, divergence, strict=False):
             scalar_potential = float(potential)
             self.graph.nodes[node_id]["semantic_potential"] = scalar_potential
             self.graph.nodes[node_id]["flux_divergence"] = float(local_divergence)

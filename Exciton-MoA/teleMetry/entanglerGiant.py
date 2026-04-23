@@ -3,7 +3,8 @@
 # See LICENSE in the repository root for details.
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -32,10 +33,10 @@ class EntanglerGiant:
     def control(
         self,
         controls: Any,
-        shared_locus_summary: Dict[str, Any],
-        shared_flux_history: Optional[Sequence[np.ndarray]] = None,
-        pair_metrics: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        shared_locus_summary: dict[str, Any],
+        shared_flux_history: Sequence[np.ndarray] | None = None,
+        pair_metrics: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         pair_metrics = dict(pair_metrics or {})
         mode_name = self._normalize_mode_name(pair_metrics.get("entangler_mode", getattr(controls, "entangler_mode", "active")))
         pair_clock = int(shared_locus_summary.get("pair_clock", 0))
@@ -67,9 +68,9 @@ class EntanglerGiant:
             )
         )
 
-        aperture_before = float(getattr(controls, "aperture"))
-        damping_before = float(getattr(controls, "damping"))
-        phase_before = float(getattr(controls, "phase_offset"))
+        aperture_before = float(controls.aperture)
+        damping_before = float(controls.damping)
+        phase_before = float(controls.phase_offset)
 
         aperture_target = (
             aperture_before
@@ -220,9 +221,9 @@ class EntanglerGiant:
     def _evaluate_hint_gate(
         self,
         controls: Any,
-        shared_locus_summary: Dict[str, Any],
-        pair_metrics: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        shared_locus_summary: dict[str, Any],
+        pair_metrics: dict[str, Any],
+    ) -> dict[str, Any]:
         gate_policy = getattr(controls, "hint_gate_policy", None)
         enabled = bool(getattr(gate_policy, "enabled", False)) if gate_policy is not None else False
         candidate_hint = dict(
@@ -296,7 +297,7 @@ class EntanglerGiant:
 
     def _annotate_near_pass_candidate(
         self,
-        evaluation: Dict[str, Any],
+        evaluation: dict[str, Any],
         controls: Any,
         recommendation: str,
     ) -> None:
@@ -323,9 +324,9 @@ class EntanglerGiant:
     def _apply_nudge_if_reliable(
         self,
         controls: Any,
-        hint_gate: Dict[str, Any],
-        coherence_feedback: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        hint_gate: dict[str, Any],
+        coherence_feedback: dict[str, Any],
+    ) -> dict[str, Any]:
         gate_policy = getattr(controls, "hint_gate_policy", None)
         nudge_enabled = bool(getattr(gate_policy, "enable_bounded_nudges", False)) if gate_policy is not None else False
         recommendation = str(hint_gate.get("considered_recommendation", "observe"))
@@ -440,14 +441,14 @@ class EntanglerGiant:
 
     def _wormhole_health(
         self,
-        shared_locus_summary: Dict[str, Any],
+        shared_locus_summary: dict[str, Any],
         bilateral_node_ids: Sequence[str],
-    ) -> tuple[Dict[str, float], str, float]:
+    ) -> tuple[dict[str, float], str, float]:
         resolved_channels = dict(shared_locus_summary.get("resolved_channels", {}))
         pair_clock = int(shared_locus_summary.get("pair_clock", 0))
         bilateral_set = {str(node_id) for node_id in bilateral_node_ids}
-        dominant_weights: Dict[str, float] = {}
-        wormhole_health: Dict[str, float] = {}
+        dominant_weights: dict[str, float] = {}
+        wormhole_health: dict[str, float] = {}
 
         for node_id in shared_locus_summary.get("wormhole_nodes", []):
             resolved = dict(resolved_channels.get(str(node_id), {}))
@@ -473,7 +474,7 @@ class EntanglerGiant:
         history = [self._vector(item) for item in shared_flux_history[-4:]]
         if len(history) < 2:
             return 0.0
-        diffs = [float(np.linalg.norm(current - previous)) for previous, current in zip(history[:-1], history[1:])]
+        diffs = [float(np.linalg.norm(current - previous)) for previous, current in zip(history[:-1], history[1:], strict=False)]
         average_norm = float(np.mean([np.linalg.norm(vector) for vector in history]))
         return float(np.clip(np.mean(diffs) / max(average_norm + 1.0, 1.0), 0.0, 1.0))
 
@@ -494,15 +495,15 @@ class EntanglerGiant:
     def _build_wormhole_weight_map(
         self,
         wormhole_nodes: Sequence[str],
-        wormhole_health: Dict[str, float],
+        wormhole_health: dict[str, float],
         bilateral_node_ids: Sequence[str],
         oscillation: float,
         entanglement_strength: float,
         mode_name: str,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         bilateral_set = {str(node_id) for node_id in bilateral_node_ids}
         base_offset = 0.92 + (0.08 * entanglement_strength) - (0.06 * oscillation)
-        weight_map: Dict[str, float] = {}
+        weight_map: dict[str, float] = {}
         stabilizer_mode = mode_name.lower() == "stabilizer"
 
         for node_id in wormhole_nodes:
@@ -520,9 +521,9 @@ class EntanglerGiant:
         self,
         phase_coherence: float,
         recent_phase_coherence: Sequence[float],
-        recent_control_deltas: Sequence[Dict[str, Any]],
+        recent_control_deltas: Sequence[dict[str, Any]],
         mode_name: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         history = [float(value) for value in recent_phase_coherence]
         previous = history[-1] if history else float(phase_coherence)
         trailing_mean = float(np.mean(history[-3:])) if history else float(phase_coherence)

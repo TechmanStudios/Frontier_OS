@@ -8,8 +8,6 @@ import shutil
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Dict, Optional
-
 
 DEFAULT_WORKING_MIND_ROOT = Path(__file__).resolve().parent / "working_mind"
 DEFAULT_LEARNING_LEDGER = DEFAULT_WORKING_MIND_ROOT / "frontier-learning-ledger.md"
@@ -18,9 +16,9 @@ DEFAULT_REPO_MEMORY_PROMOTIONS = DEFAULT_WORKING_MIND_ROOT / "repo-memory-promot
 KNOWLEDGE_NOTE_THRESHOLD = 2
 
 
-def load_markdown_bullets_by_section(path: Path) -> Dict[str, Dict[str, str]]:
-    sections: Dict[str, Dict[str, str]] = {}
-    current_section: Optional[str] = None
+def load_markdown_bullets_by_section(path: Path) -> dict[str, dict[str, str]]:
+    sections: dict[str, dict[str, str]] = {}
+    current_section: str | None = None
     for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line:
@@ -44,7 +42,7 @@ def to_posix_string(path: Path) -> str:
     return path.as_posix()
 
 
-def resolve_repo_relative_source(path_text: str, *, working_mind_root: Path) -> Optional[Path]:
+def resolve_repo_relative_source(path_text: str, *, working_mind_root: Path) -> Path | None:
     normalized = clean_value(path_text)
     if not normalized or normalized == "[UNKNOWN]":
         return None
@@ -266,7 +264,7 @@ def render_learning_ledger_section(payload: IntakePayload, *, papers: list[str])
     return "\n".join(lines)
 
 
-def upsert_learning_ledger(ledger_path: Path, payload: IntakePayload) -> Dict[str, object]:
+def upsert_learning_ledger(ledger_path: Path, payload: IntakePayload) -> dict[str, object]:
     if ledger_path.exists():
         sections = load_markdown_bullets_by_section(ledger_path)
         text = ledger_path.read_text(encoding="utf-8")
@@ -431,10 +429,10 @@ def stage_local_pdf(payload: IntakePayload, *, working_mind_root: Path, stage_lo
 def ingest_paper_intake_handoff(
     *,
     intake_handoff_path: Path,
-    working_mind_root: Optional[Path] = None,
-    ingested_on: Optional[str] = None,
+    working_mind_root: Path | None = None,
+    ingested_on: str | None = None,
     stage_local_file: bool = True,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     payload = parse_paper_intake_handoff(Path(intake_handoff_path))
     resolved_root = Path(working_mind_root) if working_mind_root is not None else Path(payload.working_mind_root)
     resolved_root.mkdir(parents=True, exist_ok=True)

@@ -1,15 +1,15 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-from pathlib import Path
-
 import json
 import sys
+from pathlib import Path
 
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from hippocampal import HippocampalTransducer
-from hippocampal_replay import HippocampalReplay, main as replay_main
+from hippocampal_replay import HippocampalReplay
+from hippocampal_replay import main as replay_main
 from telemetry_panel import TelemetryPanel
 
 

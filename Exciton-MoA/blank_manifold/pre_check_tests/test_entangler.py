@@ -2,7 +2,6 @@
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
 import numpy as np
-
 from entangler import EntanglerGiant
 
 

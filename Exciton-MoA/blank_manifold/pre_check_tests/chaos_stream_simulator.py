@@ -31,14 +31,16 @@ these three phenomena in the console telemetry:
 """
 
 import time
+
 import numpy as np
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
-from transducer import StatisticalPrism
 from excitons import ExcitonEngine
-from telemetry import OntologicalOrchestrator
-from latent_mediator import LatentMediator
 from hippocampal import HippocampalTransducer
+from latent_mediator import LatentMediator
+from telemetry import OntologicalOrchestrator
+from transducer import StatisticalPrism
+
 
 def run_chaos_stream(iterations: int = 50, sleep_interval: float = 0.5):
     print("=== Initiating Continuous Flux Simulation ===")

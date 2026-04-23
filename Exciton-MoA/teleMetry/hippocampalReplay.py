@@ -7,27 +7,26 @@ import argparse
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 
 
 class HippocampalReplay:
-    def __init__(self, working_dir: Optional[Path] = None):
+    def __init__(self, working_dir: Path | None = None):
         self.working_dir = Path(working_dir) if working_dir is not None else Path(__file__).resolve().parents[1] / "working_data"
 
-    def list_burst_files(self) -> List[Path]:
+    def list_burst_files(self) -> list[Path]:
         return sorted(self.working_dir.glob("**/hippocampal_burst_*.json"))
 
-    def list_long_term_archives(self) -> List[Path]:
+    def list_long_term_archives(self) -> list[Path]:
         return sorted(self.working_dir.glob("**/hippocampal_long_term.jsonl"))
 
-    def load_burst(self, path: Optional[Path] = None) -> List[Dict[str, object]]:
+    def load_burst(self, path: Path | None = None) -> list[dict[str, object]]:
         burst_path = Path(path) if path is not None else self._latest_burst_path()
         return json.loads(burst_path.read_text(encoding="utf-8"))
 
-    def load_long_term_records(self) -> List[Dict[str, object]]:
-        records: List[Dict[str, object]] = []
+    def load_long_term_records(self) -> list[dict[str, object]]:
+        records: list[dict[str, object]] = []
         for archive_path in self.list_long_term_archives():
             for line in archive_path.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
@@ -35,12 +34,12 @@ class HippocampalReplay:
                 records.append(json.loads(line))
         return records
 
-    def load_pair_telemetry_records(self, pair_id: Optional[str] = None) -> List[Dict[str, object]]:
+    def load_pair_telemetry_records(self, pair_id: str | None = None) -> list[dict[str, object]]:
         history_path = self.working_dir / "adaptive_tau_history.jsonl"
         if not history_path.exists():
             return []
 
-        records: List[Dict[str, object]] = []
+        records: list[dict[str, object]] = []
         for line in history_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -54,10 +53,10 @@ class HippocampalReplay:
         records.sort(key=lambda item: (str(item.get("timestamp", "")), int(item.get("shared_pair_clock", 0))))
         return records
 
-    def filter_pair_bursts(self, records: List[Dict[str, object]], pair_id: str) -> List[Dict[str, object]]:
+    def filter_pair_bursts(self, records: list[dict[str, object]], pair_id: str) -> list[dict[str, object]]:
         return [record for record in records if str(record.get("pair_id", "")) == pair_id]
 
-    def summarize(self, records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize(self, records: list[dict[str, object]]) -> dict[str, object]:
         if not records:
             return {
                 "total_bursts": 0,
@@ -82,7 +81,7 @@ class HippocampalReplay:
             "bilateral_bursts": sum(1 for record in records if record.get("bilateral_burst")),
         }
 
-    def summarize_pair(self, records: List[Dict[str, object]], pair_id: str) -> Dict[str, object]:
+    def summarize_pair(self, records: list[dict[str, object]], pair_id: str) -> dict[str, object]:
         pair_records = self.filter_pair_bursts(records, pair_id)
         if not pair_records:
             return {
@@ -113,7 +112,7 @@ class HippocampalReplay:
             "cross_domain_giants": dict(cross_domain_giants.most_common()),
         }
 
-    def summarize_weight_drift(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_weight_drift(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         weighted_records = [
             record
             for record in telemetry_records
@@ -142,7 +141,7 @@ class HippocampalReplay:
             "weight_max_range": (float(min(max_values)), float(max(max_values))),
         }
 
-    def summarize_coherence_trend(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_coherence_trend(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         coherence_records = [record for record in telemetry_records if "phase_coherence" in record]
         if not coherence_records:
             return {
@@ -171,7 +170,7 @@ class HippocampalReplay:
             "status_counts": dict(statuses.most_common()),
         }
 
-    def summarize_mode_switching(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_mode_switching(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         mode_records = [
             record
             for record in telemetry_records
@@ -196,11 +195,11 @@ class HippocampalReplay:
         reason_counts: Counter[str] = Counter()
         explicit_transition_count = 0
         inferred_transition_count = 0
-        stabilizer_runs: List[int] = []
-        current_run_mode: Optional[str] = None
+        stabilizer_runs: list[int] = []
+        current_run_mode: str | None = None
         current_run_length = 0
-        previous_mode: Optional[str] = None
-        previous_record: Optional[Dict[str, object]] = None
+        previous_mode: str | None = None
+        previous_record: dict[str, object] | None = None
 
         for record in mode_records:
             mode_name = str(record.get("entangler_mode", "active"))
@@ -249,7 +248,7 @@ class HippocampalReplay:
             "stabilizer_dwell_max": int(max(stabilizer_runs)) if stabilizer_runs else 0,
         }
 
-    def summarize_local_phonons(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_local_phonons(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         local_records = [
             record
             for record in telemetry_records
@@ -288,7 +287,7 @@ class HippocampalReplay:
             "latest_mode": str(local_records[-1].get("local_phonon_mode", "none")),
         }
 
-    def summarize_advisory_hints(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_advisory_hints(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         hint_records = [record for record in telemetry_records if record.get("phonon_hint_status") is not None]
         if not hint_records:
             return {
@@ -331,11 +330,11 @@ class HippocampalReplay:
 
     def summarize_predictive_phonon_correlations(
         self,
-        telemetry_records: List[Dict[str, object]],
+        telemetry_records: list[dict[str, object]],
         *,
         forward_window: int = 2,
         improvement_threshold: float = 0.02,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         records = [record for record in telemetry_records if "phase_coherence" in record]
         if len(records) < 2:
             return {
@@ -345,8 +344,8 @@ class HippocampalReplay:
                 "recommendation_correlations": {},
             }
 
-        tier_stats: Dict[str, Dict[str, float]] = {}
-        recommendation_stats: Dict[str, Dict[str, float]] = {}
+        tier_stats: dict[str, dict[str, float]] = {}
+        recommendation_stats: dict[str, dict[str, float]] = {}
         sample_count = 0
 
         for index, record in enumerate(records[:-1]):
@@ -375,14 +374,14 @@ class HippocampalReplay:
 
     def score_hint_reliability(
         self,
-        predictive_correlations: Dict[str, object],
+        predictive_correlations: dict[str, object],
         *,
         min_samples: int = 3,
         recovery_weight: float = 0.65,
         stabilizer_weight: float = 0.25,
         delta_weight: float = 0.10,
         delta_normalizer: float = 0.08,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         minimum_samples = max(int(min_samples), 1)
         recommendation_scores = self._score_reliability_group(
             predictive_correlations.get("recommendation_correlations", {}),
@@ -412,11 +411,11 @@ class HippocampalReplay:
 
     def summarize_hint_calibration(
         self,
-        telemetry_records: List[Dict[str, object]],
+        telemetry_records: list[dict[str, object]],
         *,
         forward_window: int = 2,
         min_samples: int = 3,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         hint_records = [record for record in telemetry_records if record.get("phonon_hint_status") is not None]
         if not hint_records:
             return {
@@ -450,13 +449,13 @@ class HippocampalReplay:
 
     def summarize_hint_gate_decisions(
         self,
-        telemetry_records: List[Dict[str, object]],
+        telemetry_records: list[dict[str, object]],
         *,
         confidence_threshold: float = 0.55,
         reliability_threshold: float = 0.60,
         min_samples: int = 3,
         require_armed_status: bool = True,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         gate_records = [
             record
             for record in telemetry_records
@@ -504,18 +503,18 @@ class HippocampalReplay:
         near_pass_count = 0
         provisional_count = 0
         passed_but_nudge_blocked_count = 0
-        first_block_tick: Optional[int] = None
-        first_pass_tick: Optional[int] = None
+        first_block_tick: int | None = None
+        first_pass_tick: int | None = None
         longest_block_streak = 0
         current_block_streak = 0
-        confidences: List[float] = []
-        reliabilities: List[float] = []
-        sample_counts: List[float] = []
+        confidences: list[float] = []
+        reliabilities: list[float] = []
+        sample_counts: list[float] = []
         reason_counts: Counter[str] = Counter()
         status_counts: Counter[str] = Counter()
         recommendation_counts: Counter[str] = Counter()
-        best_near_pass: Optional[Dict[str, object]] = None
-        first_pass_signal: Optional[Dict[str, object]] = None
+        best_near_pass: dict[str, object] | None = None
+        first_pass_signal: dict[str, object] | None = None
 
         for index, record in enumerate(gate_records, start=1):
             if not bool(record.get("entangler_hint_gate_enabled", False)):
@@ -622,11 +621,11 @@ class HippocampalReplay:
 
     def summarize_nudge_outcomes(
         self,
-        telemetry_records: List[Dict[str, object]],
+        telemetry_records: list[dict[str, object]],
         *,
         forward_window: int = 2,
         improvement_threshold: float = 0.02,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         records = [record for record in telemetry_records if "phase_coherence" in record]
         nudge_records = [
             record
@@ -663,15 +662,15 @@ class HippocampalReplay:
         positive_windows = 0
         stabilizer_windows = 0
         clamp_count = 0
-        future_deltas: List[float] = []
-        reliabilities: List[float] = []
-        stability_scores: List[float] = []
+        future_deltas: list[float] = []
+        reliabilities: list[float] = []
+        stability_scores: list[float] = []
         delta_abs = {"aperture": [], "damping": [], "phase_offset": []}
         reason_counts: Counter[str] = Counter()
         decision_reason_counts: Counter[str] = Counter()
         rejection_counts: Counter[str] = Counter()
-        reason_stats: Dict[str, Dict[str, float]] = {}
-        decision_stats: Dict[str, Dict[str, float]] = {}
+        reason_stats: dict[str, dict[str, float]] = {}
+        decision_stats: dict[str, dict[str, float]] = {}
 
         for index, record in enumerate(records):
             if "entangler_nudge_enabled" not in record and "entangler_nudge_applied" not in record:
@@ -747,7 +746,7 @@ class HippocampalReplay:
             "decision_outcomes": self._finalize_predictive_stats(decision_stats),
         }
 
-    def summarize_status_streaks(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_status_streaks(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         coherence_records = [record for record in telemetry_records if "entangler_coherence_status" in record]
         if not coherence_records:
             return {
@@ -759,10 +758,10 @@ class HippocampalReplay:
                 "first_stabilizer_tick": None,
             }
 
-        longest_streaks: Dict[str, int] = {}
-        current_status: Optional[str] = None
+        longest_streaks: dict[str, int] = {}
+        current_status: str | None = None
         current_streak = 0
-        first_stabilizer_tick: Optional[int] = None
+        first_stabilizer_tick: int | None = None
 
         for index, record in enumerate(coherence_records, start=1):
             status = str(record.get("entangler_coherence_status", "stable"))
@@ -791,12 +790,12 @@ class HippocampalReplay:
 
     def summarize_sweep_diagnosis(
         self,
-        telemetry_records: List[Dict[str, object]],
+        telemetry_records: list[dict[str, object]],
         *,
         min_mode_switch_samples: int = 3,
         enter_decay_streak: int = 2,
-        cycle_count: Optional[int] = None,
-    ) -> Dict[str, object]:
+        cycle_count: int | None = None,
+    ) -> dict[str, object]:
         trend = self.summarize_coherence_trend(telemetry_records)
         switching = self.summarize_mode_switching(telemetry_records)
         streaks = self.summarize_status_streaks(telemetry_records)
@@ -807,7 +806,7 @@ class HippocampalReplay:
         status_counts = dict(trend.get("status_counts", {}))
         transition_counts = dict(switching.get("transition_counts", {}))
         first_stabilizer_tick = streaks.get("first_stabilizer_tick")
-        entry_policy_tick: Optional[int] = None
+        entry_policy_tick: int | None = None
 
         for index, record in enumerate(telemetry_records, start=1):
             pair_clock = int(record.get("shared_pair_clock", record.get("entangler_pair_clock", index)))
@@ -892,9 +891,9 @@ class HippocampalReplay:
             "entry_policy_tick": entry_policy_tick,
         }
 
-    def summarize_top_wormhole_shifts(self, telemetry_records: List[Dict[str, object]], top_n: int = 4) -> Dict[str, Dict[str, object]]:
-        shift_summary: Dict[str, Dict[str, object]] = {}
-        previous_ranks: Dict[str, int] = {}
+    def summarize_top_wormhole_shifts(self, telemetry_records: list[dict[str, object]], top_n: int = 4) -> dict[str, dict[str, object]]:
+        shift_summary: dict[str, dict[str, object]] = {}
+        previous_ranks: dict[str, int] = {}
 
         for record in telemetry_records:
             ranked = list(record.get("entangler_top_wormholes", []))[:top_n]
@@ -1213,7 +1212,7 @@ class HippocampalReplay:
             f"reasons={reason_lines}; decisions={decision_lines}; rejects={dict(summary.get('rejection_counts', {}))}"
         )
 
-    def summarize_paper_diagnostic_proxies(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_paper_diagnostic_proxies(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         if not telemetry_records:
             return {
                 "tick_count": 0,
@@ -1296,11 +1295,11 @@ class HippocampalReplay:
         phase_offset_mean = float(np.mean(phase_offset_values)) if phase_offset_values else 0.0
         coupling_strength_mean = float(np.mean(coupling_strength_values)) if coupling_strength_values else 0.0
 
-        synchrony_support: List[str] = []
-        synchrony_risks: List[str] = []
-        contradiction_signals: List[str] = []
-        coupling_support: List[str] = []
-        coupling_risks: List[str] = []
+        synchrony_support: list[str] = []
+        synchrony_risks: list[str] = []
+        contradiction_signals: list[str] = []
+        coupling_support: list[str] = []
+        coupling_risks: list[str] = []
 
         if aperture_values and damping_values:
             if 0.18 <= aperture_mean <= 0.36 and 0.78 <= damping_mean <= 0.90:
@@ -1408,13 +1407,13 @@ class HippocampalReplay:
         else:
             synchrony_basis = "mixed"
 
-        evidence_signals: List[str] = []
+        evidence_signals: list[str] = []
         for signal in [*coupling_support, *synchrony_support, *synchrony_risks, *coupling_risks]:
             if signal not in evidence_signals:
                 evidence_signals.append(signal)
 
-        basin_support: List[str] = []
-        basin_risks: List[str] = []
+        basin_support: list[str] = []
+        basin_risks: list[str] = []
 
         if coherence_mean >= 0.70 and latest_status in {"stable", "improving"}:
             basin_support.append("coherence_holds")
@@ -1476,7 +1475,7 @@ class HippocampalReplay:
             },
         }
 
-    def summarize_uncertainty_paper_recommendation(self, telemetry_records: List[Dict[str, object]]) -> Dict[str, object]:
+    def summarize_uncertainty_paper_recommendation(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         proxies = self.summarize_paper_diagnostic_proxies(telemetry_records)
         if int(proxies.get("tick_count", 0)) == 0:
             return {"triggered": False, "reason": "no_pair_telemetry"}
@@ -1706,7 +1705,7 @@ class HippocampalReplay:
         pair_id: str,
         section: str,
         top_n: int = 10,
-        hint_gate_policy: Optional[object] = None,
+        hint_gate_policy: object | None = None,
     ) -> str:
         normalized = str(section or "full").strip().lower()
         if normalized == "full":
@@ -1729,7 +1728,7 @@ class HippocampalReplay:
             return "\n".join(lines)
         raise ValueError(f"Unsupported pair section: {section}")
 
-    def render(self, records: List[Dict[str, object]], top_n: int = 10, width: int = 24) -> str:
+    def render(self, records: list[dict[str, object]], top_n: int = 10, width: int = 24) -> str:
         if not records:
             return "No hippocampal burst records available."
 
@@ -1758,10 +1757,10 @@ class HippocampalReplay:
 
     def replay(
         self,
-        path: Optional[Path] = None,
-        pair_id: Optional[str] = None,
+        path: Path | None = None,
+        pair_id: str | None = None,
         top_n: int = 10,
-        hint_gate_policy: Optional[object] = None,
+        hint_gate_policy: object | None = None,
     ) -> str:
         if pair_id is not None:
             records = self.load_burst(path) if path is not None else self.load_long_term_records()
@@ -1853,7 +1852,7 @@ class HippocampalReplay:
 
     def _accumulate_predictive_stat(
         self,
-        stat_map: Dict[str, Dict[str, float]],
+        stat_map: dict[str, dict[str, float]],
         key: str,
         future_delta: float,
         recovery: float,
@@ -1868,8 +1867,8 @@ class HippocampalReplay:
         bucket["recovery_sum"] += float(recovery)
         bucket["stabilizer_entry_sum"] += float(stabilizer_entry)
 
-    def _finalize_predictive_stats(self, stat_map: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]]:
-        finalized: Dict[str, Dict[str, float]] = {}
+    def _finalize_predictive_stats(self, stat_map: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+        finalized: dict[str, dict[str, float]] = {}
         for key, bucket in stat_map.items():
             count = max(float(bucket.get("count", 0.0)), 1.0)
             finalized[str(key)] = {
@@ -1891,15 +1890,15 @@ class HippocampalReplay:
 
     def _score_reliability_group(
         self,
-        stats: Dict[str, Dict[str, float]],
+        stats: dict[str, dict[str, float]],
         *,
         min_samples: int,
         recovery_weight: float,
         stabilizer_weight: float,
         delta_weight: float,
         delta_normalizer: float,
-    ) -> Dict[str, Dict[str, float | bool | int | str]]:
-        scored: Dict[str, Dict[str, float | bool | int | str]] = {}
+    ) -> dict[str, dict[str, float | bool | int | str]]:
+        scored: dict[str, dict[str, float | bool | int | str]] = {}
         for key, summary in dict(stats).items():
             sample_count = int(summary.get("count", 0))
             recovery_rate = float(summary.get("recovery_rate", 0.0))
@@ -1944,17 +1943,17 @@ class HippocampalReplay:
 
     def _build_calibration_group(
         self,
-        hint_records: List[Dict[str, object]],
+        hint_records: list[dict[str, object]],
         *,
         key_name: str,
-        reliability_map: Dict[str, Dict[str, object]],
-    ) -> Dict[str, Dict[str, object]]:
-        grouped: Dict[str, List[Dict[str, object]]] = {}
+        reliability_map: dict[str, dict[str, object]],
+    ) -> dict[str, dict[str, object]]:
+        grouped: dict[str, list[dict[str, object]]] = {}
         for record in hint_records:
             key = str(record.get(key_name, "none"))
             grouped.setdefault(key, []).append(record)
 
-        calibration: Dict[str, Dict[str, object]] = {}
+        calibration: dict[str, dict[str, object]] = {}
         for key, records in grouped.items():
             confidences = [float(record.get("phonon_hint_confidence", 0.0)) for record in records]
             ages = [int(record.get("phonon_hint_age_ticks", 0)) for record in records]
@@ -1992,7 +1991,7 @@ class HippocampalReplay:
             )
         )
 
-    def _render_predictive_group(self, stats: Dict[str, Dict[str, float]], label: str) -> str:
+    def _render_predictive_group(self, stats: dict[str, dict[str, float]], label: str) -> str:
         if not stats:
             return f"no {label}"
         parts = []
@@ -2005,7 +2004,7 @@ class HippocampalReplay:
             )
         return "; ".join(parts)
 
-    def _render_reliability_group(self, stats: Dict[str, Dict[str, object]]) -> str:
+    def _render_reliability_group(self, stats: dict[str, dict[str, object]]) -> str:
         if not stats:
             return "none"
         parts = []
@@ -2021,7 +2020,7 @@ class HippocampalReplay:
             )
         return "; ".join(parts)
 
-    def _render_calibration_group(self, stats: Dict[str, Dict[str, object]]) -> str:
+    def _render_calibration_group(self, stats: dict[str, dict[str, object]]) -> str:
         if not stats:
             return "none"
         parts = []
@@ -2038,14 +2037,14 @@ class HippocampalReplay:
 
     def _render_count_group(
         self,
-        counts: Dict[str, object],
+        counts: dict[str, object],
         *,
         empty_label: str = "none",
         limit: int = 4,
     ) -> str:
         if not counts:
             return empty_label
-        parts: List[str] = []
+        parts: list[str] = []
         for index, (key, value) in enumerate(counts.items()):
             if index >= max(int(limit), 1):
                 break
@@ -2055,7 +2054,7 @@ class HippocampalReplay:
     def _render_signal_list(self, values: object, *, empty_label: str = "none", limit: int = 4) -> str:
         if not values:
             return empty_label
-        parts: List[str] = []
+        parts: list[str] = []
         for index, value in enumerate(list(values)):
             if index >= max(int(limit), 1):
                 break

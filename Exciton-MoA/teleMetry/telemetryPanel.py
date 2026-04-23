@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 
 class TelemetryPanel:
-    def __init__(self, working_dir: Optional[Path] = None, history_limit: int = 8, bar_width: int = 8):
+    def __init__(self, working_dir: Path | None = None, history_limit: int = 8, bar_width: int = 8):
         self.working_dir = Path(working_dir) if working_dir is not None else Path(__file__).resolve().parents[1] / "working_data"
         self.working_dir.mkdir(parents=True, exist_ok=True)
         self.history_limit = max(int(history_limit), 1)
@@ -25,13 +25,13 @@ class TelemetryPanel:
         burst_count: int,
         avg_h: float,
         max_h: float,
-        bursts: Optional[Sequence[Tuple[str, Dict[str, float]]]] = None,
-    ) -> Dict[str, object]:
+        bursts: Sequence[tuple[str, dict[str, float]]] | None = None,
+    ) -> dict[str, object]:
         burst_summary = self._summarize_bursts(bursts or [])
         entry = {
             "schema_version": "1.1",
             "record_type": "manifold",
-            "timestamp": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+            "timestamp": datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
             "manifold_id": manifold_id,
             "adaptive_tau": float(adaptive_tau),
             "burst_count": int(burst_count),
@@ -62,14 +62,14 @@ class TelemetryPanel:
         phase_coherence: float,
         bilateral_burst_count: int,
         max_h_cross_domain: float,
-        bilateral_node_ids: Optional[Sequence[str]] = None,
-        top_events: Optional[Sequence[Dict[str, object]]] = None,
-        shared_locus_summary: Optional[Dict[str, object]] = None,
-        entangler_control: Optional[Dict[str, object]] = None,
-        latest_local_phonon_bundle: Optional[Dict[str, object]] = None,
+        bilateral_node_ids: Sequence[str] | None = None,
+        top_events: Sequence[dict[str, object]] | None = None,
+        shared_locus_summary: dict[str, object] | None = None,
+        entangler_control: dict[str, object] | None = None,
+        latest_local_phonon_bundle: dict[str, object] | None = None,
         local_phonon_bundle_count: int = 0,
-        phonon_control_hint: Optional[Dict[str, object]] = None,
-    ) -> Dict[str, object]:
+        phonon_control_hint: dict[str, object] | None = None,
+    ) -> dict[str, object]:
         flux = list(float(value) for value in shared_flux)
         while len(flux) < 3:
             flux.append(0.0)
@@ -82,7 +82,7 @@ class TelemetryPanel:
         entry = {
             "schema_version": "2.2",
             "record_type": "pair",
-            "timestamp": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+            "timestamp": datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
             "pair_id": pair_id,
             "manifold_a_id": manifold_a_id,
             "manifold_b_id": manifold_b_id,
@@ -260,11 +260,11 @@ class TelemetryPanel:
 
         return entry
 
-    def load_recent_history(self, manifold_id: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, object]]:
+    def load_recent_history(self, manifold_id: str | None = None, limit: int | None = None) -> list[dict[str, object]]:
         if not self.history_path.exists():
             return []
 
-        entries: List[Dict[str, object]] = []
+        entries: list[dict[str, object]] = []
         for line in self.history_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -278,17 +278,17 @@ class TelemetryPanel:
         history_limit = self.history_limit if limit is None else max(int(limit), 1)
         return entries[-history_limit:]
 
-    def load_latest_bursts(self) -> List[Dict[str, object]]:
+    def load_latest_bursts(self) -> list[dict[str, object]]:
         burst_files = sorted(self.working_dir.glob("hippocampal_burst_*.json"))
         if not burst_files:
             return []
         return json.loads(burst_files[-1].read_text(encoding="utf-8"))
 
-    def load_manifold_snapshots(self) -> List[Dict[str, object]]:
+    def load_manifold_snapshots(self) -> list[dict[str, object]]:
         if not self.history_path.exists():
             return []
 
-        latest_by_manifold: Dict[str, Dict[str, object]] = {}
+        latest_by_manifold: dict[str, dict[str, object]] = {}
         for line in self.history_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -302,11 +302,11 @@ class TelemetryPanel:
         snapshots.sort(key=lambda entry: str(entry.get("manifold_id", "primary")))
         return snapshots
 
-    def load_pair_snapshots(self) -> List[Dict[str, object]]:
+    def load_pair_snapshots(self) -> list[dict[str, object]]:
         if not self.history_path.exists():
             return []
 
-        latest_by_pair: Dict[str, Dict[str, object]] = {}
+        latest_by_pair: dict[str, dict[str, object]] = {}
         for line in self.history_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -323,8 +323,8 @@ class TelemetryPanel:
     def render(
         self,
         manifold_id: str,
-        bursts: Sequence[Tuple[str, Dict[str, float]]],
-        history: Optional[List[Dict[str, object]]] = None,
+        bursts: Sequence[tuple[str, dict[str, float]]],
+        history: list[dict[str, object]] | None = None,
         top_n: int = 5,
     ) -> str:
         recent_history = history if history is not None else self.load_recent_history(manifold_id)
@@ -385,7 +385,7 @@ class TelemetryPanel:
             )
         return self.render(manifold_id=manifold_id, bursts=bursts, top_n=top_n)
 
-    def render_registry(self, manifold_ids: Optional[Sequence[str]] = None, top_n: int = 3) -> str:
+    def render_registry(self, manifold_ids: Sequence[str] | None = None, top_n: int = 3) -> str:
         snapshots = self.load_manifold_snapshots()
         if manifold_ids is not None:
             allowed = {str(manifold_id) for manifold_id in manifold_ids}
@@ -425,7 +425,7 @@ class TelemetryPanel:
 
         return "\n".join(lines)
 
-    def render_pair_registry(self, pair_ids: Optional[Sequence[str]] = None, top_n: int = 3) -> str:
+    def render_pair_registry(self, pair_ids: Sequence[str] | None = None, top_n: int = 3) -> str:
         snapshots = self.load_pair_snapshots()
         if pair_ids is not None:
             allowed = {str(pair_id) for pair_id in pair_ids}
@@ -542,7 +542,7 @@ class TelemetryPanel:
 
         return "\n".join(lines)
 
-    def render_comparative(self, manifold_ids: Optional[Sequence[str]] = None) -> str:
+    def render_comparative(self, manifold_ids: Sequence[str] | None = None) -> str:
         snapshots = self.load_manifold_snapshots()
         if manifold_ids is not None:
             allowed = {str(manifold_id) for manifold_id in manifold_ids}
@@ -582,7 +582,7 @@ class TelemetryPanel:
 
         return "\n".join(lines)
 
-    def render_pair_comparative(self, pair_ids: Optional[Sequence[str]] = None) -> str:
+    def render_pair_comparative(self, pair_ids: Sequence[str] | None = None) -> str:
         snapshots = self.load_pair_snapshots()
         if pair_ids is not None:
             allowed = {str(pair_id) for pair_id in pair_ids}
@@ -640,7 +640,7 @@ class TelemetryPanel:
 
         return "\n".join(lines)
 
-    def _summarize_bursts(self, bursts: Sequence[Tuple[str, Dict[str, float]]], top_n: int = 3) -> Dict[str, object]:
+    def _summarize_bursts(self, bursts: Sequence[tuple[str, dict[str, float]]], top_n: int = 3) -> dict[str, object]:
         ranked_bursts = sorted(bursts, key=lambda item: float(item[1].get("H_total", 0.0)), reverse=True)[:top_n]
         if not ranked_bursts:
             return {
@@ -699,7 +699,7 @@ class TelemetryPanel:
         return ("#" * filled).ljust(self.bar_width, "-")
 
 
-def main(argv: Optional[Sequence[str]] = None):
+def main(argv: Sequence[str] | None = None):
     parser = argparse.ArgumentParser(description="Render telemetry views for the Exciton-MoA manifold runtime.")
     parser.add_argument("--mode", choices=["latest", "registry", "comparative"], default="latest")
     parser.add_argument("--scope", choices=["manifold", "pair", "all"], default="manifold")

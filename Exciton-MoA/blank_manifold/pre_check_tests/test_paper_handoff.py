@@ -1,9 +1,8 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-from pathlib import Path
-
 import sys
+from pathlib import Path
 
 from paper_handoff import (
     main,

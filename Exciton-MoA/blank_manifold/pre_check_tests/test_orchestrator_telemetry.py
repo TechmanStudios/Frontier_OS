@@ -22,7 +22,6 @@ As you execute this macroscopic observation test, explicitly monitor:
 """
 
 import numpy as np
-
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from telemetry import OntologicalOrchestrator

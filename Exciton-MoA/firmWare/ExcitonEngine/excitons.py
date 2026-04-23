@@ -1,9 +1,10 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
+from collections.abc import Sequence
+
 import numpy as np
-import networkx as nx
-from typing import Dict, Optional, Sequence
+
 
 class ExcitonEngine:
     """
@@ -161,7 +162,7 @@ class ExcitonEngine:
             self.manifold[epicenter_id][n]["weight"] = self.manifold[epicenter_id][n].get("weight", 0.1) * expansion_factor
             
         if uncertainty < 0.5:
-            print(f"     *** BAYESIAN COLLAPSE: Absolute Certainty Reached ***\n     *** MANIFOLD STATE: 'Hello, World.' ***")
+            print("     *** BAYESIAN COLLAPSE: Absolute Certainty Reached ***\n     *** MANIFOLD STATE: 'Hello, World.' ***")
             node_data["state_vector"] = target_coords
             for n in self.manifold.neighbors(epicenter_id):
                 self.manifold[epicenter_id][n]["weight"] *= 0.1
@@ -185,7 +186,7 @@ class ExcitonEngine:
         node_ids: Sequence[str],
         flux_vector: np.ndarray,
         injection_scale: float = 0.05,
-        per_node_scale: Optional[Dict[str, float]] = None,
+        per_node_scale: dict[str, float] | None = None,
     ):
         """
         Feed a low-volume shared flux packet back into a selected wormhole boundary.

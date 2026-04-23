@@ -8,13 +8,12 @@ import csv
 import hashlib
 import json
 import shutil
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from itertools import product
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-
 from blank_config import BlankManifoldConfig
 from blank_manifold_core import BlankManifoldCore
 from entangler import EntanglerGiant
@@ -27,8 +26,7 @@ from telemetry import OntologicalOrchestrator
 from telemetry_panel import TelemetryPanel
 from transducer import StatisticalPrism
 
-
-PAIR_RUNTIME_PRESETS: Dict[str, Dict[str, object]] = {
+PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
     "best-pocket": {
         "cycles": 12,
         "seed": 149,
@@ -43,7 +41,7 @@ PAIR_RUNTIME_PRESETS: Dict[str, Dict[str, object]] = {
 class PairRuntimeArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._pair_base_defaults: Dict[str, object] = {}
+        self._pair_base_defaults: dict[str, object] = {}
 
     def remember_base_defaults(self) -> None:
         self._pair_base_defaults = {
@@ -122,31 +120,31 @@ class PhononBundle:
     pair_clock: int
     source_tier: str
     carrier_giant: str
-    source_nodes: Tuple[str, ...]
+    source_nodes: tuple[str, ...]
     mode: str
-    state_vector: Tuple[float, float, float]
+    state_vector: tuple[float, float, float]
     amplitude: float
     phase_coherence: float
     decay_rate: float
     confidence: float
     entropy: float
     predicted_next_mode: str
-    wormhole_entry_nodes: Tuple[str, ...]
-    wormhole_exit_nodes: Tuple[str, ...]
-    weight_delta_map: Dict[str, float]
-    coherence_signature: Dict[str, object]
+    wormhole_entry_nodes: tuple[str, ...]
+    wormhole_exit_nodes: tuple[str, ...]
+    weight_delta_map: dict[str, float]
+    coherence_signature: dict[str, object]
 
 
 class EntangledSOLPair:
     def __init__(
         self,
-        config_a: Optional[BlankManifoldConfig] = None,
-        config_b: Optional[BlankManifoldConfig] = None,
-        manifold_ids: Tuple[str, str] = ("primary", "secondary"),
-        pair_id: Optional[str] = None,
-        controls: Optional[EntanglementControls] = None,
-        working_dir: Optional[Path] = None,
-        telemetry_panel: Optional[TelemetryPanel] = None,
+        config_a: BlankManifoldConfig | None = None,
+        config_b: BlankManifoldConfig | None = None,
+        manifold_ids: tuple[str, str] = ("primary", "secondary"),
+        pair_id: str | None = None,
+        controls: EntanglementControls | None = None,
+        working_dir: Path | None = None,
+        telemetry_panel: TelemetryPanel | None = None,
     ):
         self.controls = controls or EntanglementControls()
         self.manifold_ids = manifold_ids
@@ -209,22 +207,22 @@ class EntangledSOLPair:
         self.wormhole_nodes = self._select_wormhole_nodes(self.controls.wormhole_count)
         self.pair_transducer.wormhole_nodes = list(self.wormhole_nodes)
         self.shared_flux = np.zeros(3, dtype=float)
-        self.shared_flux_history: List[np.ndarray] = []
-        self.wormhole_weight_map: Dict[str, float] = {node_id: 1.0 for node_id in self.wormhole_nodes}
-        self.wormhole_weight_delta_history: List[Dict[str, float]] = []
-        self.coherence_history: List[float] = []
-        self.control_delta_history: List[Dict[str, float]] = []
-        self.phonon_bundles: List[PhononBundle] = []
-        self.local_phonon_bundles: List[PhononBundle] = []
-        self.phonon_control_hints: List[Dict[str, object]] = []
-        self.tick_trace_history: List[Dict[str, object]] = []
-        self.last_pair_metrics: Dict[str, object] = {}
+        self.shared_flux_history: list[np.ndarray] = []
+        self.wormhole_weight_map: dict[str, float] = {node_id: 1.0 for node_id in self.wormhole_nodes}
+        self.wormhole_weight_delta_history: list[dict[str, float]] = []
+        self.coherence_history: list[float] = []
+        self.control_delta_history: list[dict[str, float]] = []
+        self.phonon_bundles: list[PhononBundle] = []
+        self.local_phonon_bundles: list[PhononBundle] = []
+        self.phonon_control_hints: list[dict[str, object]] = []
+        self.tick_trace_history: list[dict[str, object]] = []
+        self.last_pair_metrics: dict[str, object] = {}
         self._mode_decay_streak = 0
         self._mode_improving_streak = 0
         self._stabilizer_dwell_ticks = 0
-        self._last_mode_transition: Dict[str, object] = self._build_mode_transition(changed=False)
+        self._last_mode_transition: dict[str, object] = self._build_mode_transition(changed=False)
 
-    def tick(self, embedding_a: Optional[np.ndarray] = None, embedding_b: Optional[np.ndarray] = None) -> Dict[str, object]:
+    def tick(self, embedding_a: np.ndarray | None = None, embedding_b: np.ndarray | None = None) -> dict[str, object]:
         embedding_a = self._coerce_embedding(embedding_a, loc=0.50)
         embedding_b = self._coerce_embedding(embedding_b, loc=0.55)
 
@@ -448,7 +446,7 @@ class EntangledSOLPair:
             "archive_paths": archive_result["paths"],
         }
 
-    def run_cycles(self, cycle_count: int = 1) -> List[Dict[str, object]]:
+    def run_cycles(self, cycle_count: int = 1) -> list[dict[str, object]]:
         return [self.tick() for _ in range(max(int(cycle_count), 1))]
 
     def run_live_cycles(
@@ -458,8 +456,8 @@ class EntangledSOLPair:
         embedding_b_loc: float = 0.55,
         embedding_scale: float = 0.20,
         embedding_drift: float = 0.04,
-    ) -> List[Dict[str, object]]:
-        results: List[Dict[str, object]] = []
+    ) -> list[dict[str, object]]:
+        results: list[dict[str, object]] = []
         for cycle_index in range(max(int(cycle_count), 1)):
             embedding_a, embedding_b = self._generate_live_embeddings(
                 cycle_index=cycle_index,
@@ -471,7 +469,7 @@ class EntangledSOLPair:
             results.append(self.tick(embedding_a=embedding_a, embedding_b=embedding_b))
         return results
 
-    def render_runtime_outputs(self, top_n: int = 6) -> Dict[str, str]:
+    def render_runtime_outputs(self, top_n: int = 6) -> dict[str, str]:
         replay = HippocampalReplay(working_dir=self.working_dir)
         return {
             "registry": self.telemetry_panel.render_pair_registry(pair_ids=[self.pair_id], top_n=min(max(int(top_n), 1), 6)),
@@ -483,9 +481,9 @@ class EntangledSOLPair:
             ),
         }
 
-    def persist_runtime_outputs(self, top_n: int = 6) -> Dict[str, Path]:
+    def persist_runtime_outputs(self, top_n: int = 6) -> dict[str, Path]:
         summaries = self.render_runtime_outputs(top_n=top_n)
-        output_paths: Dict[str, Path] = {}
+        output_paths: dict[str, Path] = {}
         for name, text in summaries.items():
             path = self.working_dir / f"{name}_summary.txt"
             path.write_text(text, encoding="utf-8")
@@ -494,10 +492,10 @@ class EntangledSOLPair:
 
     def build_run_checkpoint(
         self,
-        results: Sequence[Dict[str, object]],
+        results: Sequence[dict[str, object]],
         *,
-        runtime_context: Optional[Dict[str, object]] = None,
-    ) -> Dict[str, object]:
+        runtime_context: dict[str, object] | None = None,
+    ) -> dict[str, object]:
         pair_metrics_list = [dict(item.get("pair_metrics", {})) for item in results]
         tick_traces = self._jsonable_payload(self.tick_trace_history)
         gate_reason_history = [
@@ -587,7 +585,7 @@ class EntangledSOLPair:
             "gate_reason_counts": _count_values(gate_reason_history),
         }
 
-    def _build_manifold_checkpoint(self, manifold: BlankManifoldCore) -> Dict[str, object]:
+    def _build_manifold_checkpoint(self, manifold: BlankManifoldCore) -> dict[str, object]:
         nodes = []
         for node_id in sorted(manifold.graph.nodes()):
             coords = [round(float(value), 6) for value in list(manifold.graph.nodes[node_id].get("coords", []))]
@@ -639,11 +637,11 @@ class EntangledSOLPair:
         previous_shared_flux: np.ndarray,
         signature_a: np.ndarray,
         signature_b: np.ndarray,
-        pair_metrics: Dict[str, object],
-        entangler_control: Dict[str, object],
-        entangler_state: Dict[str, object],
-        weight_delta_map: Dict[str, float],
-        previous_weight_map: Dict[str, float],
+        pair_metrics: dict[str, object],
+        entangler_control: dict[str, object],
+        entangler_state: dict[str, object],
+        weight_delta_map: dict[str, float],
+        previous_weight_map: dict[str, float],
     ) -> None:
         trace = {
             "tick": int(tick_index),
@@ -692,7 +690,7 @@ class EntangledSOLPair:
         if len(self.tick_trace_history) > self.controls.max_history:
             self.tick_trace_history = self.tick_trace_history[-self.controls.max_history :]
 
-    def _build_tick_manifold_trace(self, manifold: BlankManifoldCore) -> Dict[str, object]:
+    def _build_tick_manifold_trace(self, manifold: BlankManifoldCore) -> dict[str, object]:
         wormhole_nodes = {}
         for node_id in self.wormhole_nodes:
             node = manifold.graph.nodes[node_id]
@@ -716,8 +714,8 @@ class EntangledSOLPair:
             "wormhole_edge_fingerprint": self._fingerprint_payload(wormhole_edges),
         }
 
-    def _capture_wormhole_edge_snapshot(self, manifold: BlankManifoldCore) -> List[Dict[str, object]]:
-        edges: List[Dict[str, object]] = []
+    def _capture_wormhole_edge_snapshot(self, manifold: BlankManifoldCore) -> list[dict[str, object]]:
+        edges: list[dict[str, object]] = []
         seen = set()
         for node_id in self.wormhole_nodes:
             for neighbor_id in manifold.graph.neighbors(node_id):
@@ -740,7 +738,7 @@ class EntangledSOLPair:
         edges.sort(key=lambda item: (str(item["left"]), str(item["right"])))
         return edges
 
-    def _select_wormhole_nodes(self, wormhole_count: int) -> List[str]:
+    def _select_wormhole_nodes(self, wormhole_count: int) -> list[str]:
         node_ids = sorted(self.manifold_a.graph.nodes())
         if wormhole_count <= 0:
             return []
@@ -787,11 +785,11 @@ class EntangledSOLPair:
 
     def _build_pair_metrics(
         self,
-        bursts_a: Sequence[Tuple[str, Dict[str, float]]],
-        bursts_b: Sequence[Tuple[str, Dict[str, float]]],
+        bursts_a: Sequence[tuple[str, dict[str, float]]],
+        bursts_b: Sequence[tuple[str, dict[str, float]]],
         signature_a: np.ndarray,
         signature_b: np.ndarray,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         wormhole_set = set(self.wormhole_nodes)
         burst_ids_a = {node_id for node_id, _ in bursts_a if node_id in wormhole_set}
         burst_ids_b = {node_id for node_id, _ in bursts_b if node_id in wormhole_set}
@@ -814,10 +812,10 @@ class EntangledSOLPair:
             "top_events": top_events,
         }
 
-    def _collect_wormhole_consensus(self) -> Dict[str, Dict[str, Dict[str, object]]]:
-        snapshots: Dict[str, Dict[str, Dict[str, object]]] = {}
+    def _collect_wormhole_consensus(self) -> dict[str, dict[str, dict[str, object]]]:
+        snapshots: dict[str, dict[str, dict[str, object]]] = {}
         for manifold_id, manifold in ((self.manifold_ids[0], self.manifold_a), (self.manifold_ids[1], self.manifold_b)):
-            per_node: Dict[str, Dict[str, object]] = {}
+            per_node: dict[str, dict[str, object]] = {}
             for node_id in self.wormhole_nodes:
                 node = manifold.graph.nodes[node_id]
                 if "consensus_vector" not in node:
@@ -834,17 +832,17 @@ class EntangledSOLPair:
 
     def _compute_weight_delta_map(
         self,
-        previous_weight_map: Dict[str, float],
-        current_weight_map: Dict[str, float],
-    ) -> Dict[str, float]:
+        previous_weight_map: dict[str, float],
+        current_weight_map: dict[str, float],
+    ) -> dict[str, float]:
         node_ids = sorted(set(previous_weight_map) | set(current_weight_map))
         return {
             node_id: float(current_weight_map.get(node_id, 1.0) - previous_weight_map.get(node_id, 1.0))
             for node_id in node_ids
         }
 
-    def _capture_wormhole_snapshot(self, manifold: BlankManifoldCore) -> Dict[str, Dict[str, object]]:
-        snapshot: Dict[str, Dict[str, object]] = {}
+    def _capture_wormhole_snapshot(self, manifold: BlankManifoldCore) -> dict[str, dict[str, object]]:
+        snapshot: dict[str, dict[str, object]] = {}
         for node_id in self.wormhole_nodes:
             node = manifold.graph.nodes[node_id]
             snapshot[node_id] = {
@@ -871,12 +869,12 @@ class EntangledSOLPair:
         if len(self.local_phonon_bundles) > max_local_history:
             self.local_phonon_bundles = self.local_phonon_bundles[-max_local_history:]
 
-    def _record_phonon_control_hint(self, phonon_control_hint: Dict[str, object]) -> None:
+    def _record_phonon_control_hint(self, phonon_control_hint: dict[str, object]) -> None:
         self.phonon_control_hints.append(dict(phonon_control_hint))
         if len(self.phonon_control_hints) > self.controls.max_history:
             self.phonon_control_hints = self.phonon_control_hints[-self.controls.max_history :]
 
-    def _derive_phonon_control_hint(self, current_pair_tick: int) -> Dict[str, object]:
+    def _derive_phonon_control_hint(self, current_pair_tick: int) -> dict[str, object]:
         prior_pair_bundles = self.phonon_bundles[:-1][-3:]
         prior_local_bundles = [bundle for bundle in self.local_phonon_bundles if int(bundle.pair_clock) < int(current_pair_tick)][-8:]
         latest_source_clock = max(
@@ -974,11 +972,11 @@ class EntangledSOLPair:
         source_tier: str,
         clock_hint: int,
         phase_coherence_hint: float,
-        baseline_snapshot: Optional[Dict[str, Dict[str, object]]] = None,
-        dominant_channel_hint: Optional[str] = None,
+        baseline_snapshot: dict[str, dict[str, object]] | None = None,
+        dominant_channel_hint: str | None = None,
     ) -> PhononBundle:
-        candidates: List[Dict[str, object]] = []
-        node_delta_map: Dict[str, float] = {}
+        candidates: list[dict[str, object]] = []
+        node_delta_map: dict[str, float] = {}
         for node_id in self.wormhole_nodes:
             node = manifold.graph.nodes[node_id]
             current_vector = self._pad_vector(node.get("state_vector", []))
@@ -1061,23 +1059,23 @@ class EntangledSOLPair:
             },
         )
 
-    def _smooth_weight_delta_map(self, current_weight_delta_map: Dict[str, float]) -> Dict[str, float]:
+    def _smooth_weight_delta_map(self, current_weight_delta_map: dict[str, float]) -> dict[str, float]:
         recent_maps = self.wormhole_weight_delta_history[-2:] + [current_weight_delta_map]
-        smoothed: Dict[str, float] = {}
+        smoothed: dict[str, float] = {}
         for node_id in sorted({key for mapping in recent_maps for key in mapping}):
             values = sorted(float(mapping.get(node_id, 0.0)) for mapping in recent_maps)
             smoothed[node_id] = float(values[len(values) // 2])
         return smoothed
 
-    def _top_weighted_nodes(self, weight_map: Dict[str, float], top_n: int = 4) -> List[str]:
+    def _top_weighted_nodes(self, weight_map: dict[str, float], top_n: int = 4) -> list[str]:
         ranked = sorted(weight_map.items(), key=lambda item: (float(item[1]), item[0]), reverse=True)
         return [node_id for node_id, _ in ranked[: max(int(top_n), 1)]]
 
     def _build_coherence_signature(
         self,
         phase_coherence: float,
-        entangler_state: Dict[str, object],
-    ) -> Dict[str, object]:
+        entangler_state: dict[str, object],
+    ) -> dict[str, object]:
         feedback = dict(entangler_state.get("coherence_feedback", {}))
         recent_deltas = self.control_delta_history[-4:]
         responsiveness_values = []
@@ -1107,12 +1105,12 @@ class EntangledSOLPair:
 
     def _build_phonon_bundle(
         self,
-        pair_metrics: Dict[str, object],
-        shared_locus: Dict[str, object],
-        entangler_state: Dict[str, object],
-        previous_weight_map: Dict[str, float],
-        current_weight_map: Dict[str, float],
-        current_weight_delta_map: Dict[str, float],
+        pair_metrics: dict[str, object],
+        shared_locus: dict[str, object],
+        entangler_state: dict[str, object],
+        previous_weight_map: dict[str, float],
+        current_weight_map: dict[str, float],
+        current_weight_delta_map: dict[str, float],
     ) -> PhononBundle:
         pair_clock = int(entangler_state.get("pair_clock", shared_locus.get("pair_clock", 0)))
         state_vector = np.asarray(shared_locus.get("shared_flux_vector", self.shared_flux.tolist()), dtype=float).reshape(-1)
@@ -1155,7 +1153,7 @@ class EntangledSOLPair:
             coherence_signature=coherence_signature,
         )
 
-    def _serialize_phonon_bundle(self, phonon_bundle: PhononBundle) -> Dict[str, object]:
+    def _serialize_phonon_bundle(self, phonon_bundle: PhononBundle) -> dict[str, object]:
         return {
             "phonon_id": phonon_bundle.phonon_id,
             "pair_clock": int(phonon_bundle.pair_clock),
@@ -1178,11 +1176,11 @@ class EntangledSOLPair:
 
     def _build_top_pair_events(
         self,
-        bursts_a: Sequence[Tuple[str, Dict[str, float]]],
-        bursts_b: Sequence[Tuple[str, Dict[str, float]]],
+        bursts_a: Sequence[tuple[str, dict[str, float]]],
+        bursts_b: Sequence[tuple[str, dict[str, float]]],
         top_n: int = 4,
-    ) -> List[Dict[str, object]]:
-        events: List[Dict[str, object]] = []
+    ) -> list[dict[str, object]]:
+        events: list[dict[str, object]] = []
         for manifold_id, bursts in ((self.manifold_ids[0], bursts_a), (self.manifold_ids[1], bursts_b)):
             for node_id, metrics in bursts:
                 events.append(
@@ -1199,7 +1197,7 @@ class EntangledSOLPair:
         events.sort(key=lambda event: float(event.get("h_total", 0.0)), reverse=True)
         return events[:top_n]
 
-    def _coerce_embedding(self, embedding: Optional[np.ndarray], loc: float) -> np.ndarray:
+    def _coerce_embedding(self, embedding: np.ndarray | None, loc: float) -> np.ndarray:
         if embedding is not None:
             return np.asarray(embedding, dtype=float)
         return self.rng.normal(loc=loc, scale=0.2, size=1536)
@@ -1211,7 +1209,7 @@ class EntangledSOLPair:
         embedding_b_loc: float,
         embedding_scale: float,
         embedding_drift: float,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         phase = float(cycle_index)
         drift = float(max(embedding_drift, 0.0))
         scale = float(max(embedding_scale, 1e-6))
@@ -1221,7 +1219,7 @@ class EntangledSOLPair:
         embedding_b = self.rng.normal(loc=loc_b, scale=scale, size=1536)
         return embedding_a, embedding_b
 
-    def _apply_entangler_control(self, control_report: Dict[str, object]) -> None:
+    def _apply_entangler_control(self, control_report: dict[str, object]) -> None:
         controls_after = dict(control_report.get("controls_after", {}))
         self.controls.aperture = float(controls_after.get("aperture", self.controls.aperture))
         self.controls.damping = float(controls_after.get("damping", self.controls.damping))
@@ -1233,7 +1231,7 @@ class EntangledSOLPair:
         control_report["stabilizer_dwell_ticks"] = self._stabilizer_dwell_ticks
         control_report["next_coherence_mode"] = str(self.controls.entangler_mode)
 
-    def _evaluate_mode_transition(self, control_report: Dict[str, object]) -> Dict[str, object]:
+    def _evaluate_mode_transition(self, control_report: dict[str, object]) -> dict[str, object]:
         feedback = dict(control_report.get("coherence_feedback", {}))
         current_mode = self._normalize_mode_name(control_report.get("coherence_mode", self.controls.entangler_mode))
         next_mode = current_mode
@@ -1308,11 +1306,11 @@ class EntangledSOLPair:
         self,
         *,
         changed: bool,
-        previous_mode: Optional[str] = None,
-        next_mode: Optional[str] = None,
+        previous_mode: str | None = None,
+        next_mode: str | None = None,
         reason: str = "none",
         total_samples: int = 0,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         previous = self._normalize_mode_name(previous_mode or self.controls.entangler_mode)
         upcoming = self._normalize_mode_name(next_mode or self.controls.entangler_mode)
         return {
@@ -1343,7 +1341,7 @@ class EntangledSOLPair:
 def run_pair_runtime(
     *,
     controls: EntanglementControls,
-    working_dir: Optional[Path],
+    working_dir: Path | None,
     cycles: int,
     top_n: int,
     live_embeddings: bool,
@@ -1353,7 +1351,7 @@ def run_pair_runtime(
     embedding_scale: float,
     embedding_drift: float,
     clean_run_reset: bool = False,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     if clean_run_reset:
         if working_dir is None:
             raise ValueError("clean_run_reset requires an explicit working_dir so reset scope stays bounded")
@@ -1376,7 +1374,7 @@ def run_pair_runtime(
         results = pair.run_cycles(cycle_count=cycles)
 
     summaries = pair.render_runtime_outputs(top_n=top_n)
-    output_paths: Dict[str, Path] = {}
+    output_paths: dict[str, Path] = {}
     if persist_summaries:
         output_paths = pair.persist_runtime_outputs(top_n=top_n)
 
@@ -1420,12 +1418,12 @@ def run_pair_runtime_repeated(
     embedding_drift: float,
     repeat_run_count: int,
     clean_run_reset: bool,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     base_dir = Path(working_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
-    runs: List[Dict[str, object]] = []
-    checkpoints: List[Dict[str, object]] = []
-    comparison_paths: List[Path] = []
+    runs: list[dict[str, object]] = []
+    checkpoints: list[dict[str, object]] = []
+    comparison_paths: list[Path] = []
 
     for repeat_index in range(max(int(repeat_run_count), 1)):
         attempt_dir = base_dir / f"repeat_{repeat_index + 1:02d}"
@@ -1445,7 +1443,7 @@ def run_pair_runtime_repeated(
         runs.append(run_result)
         checkpoints.append(dict(run_result["checkpoint"]))
 
-    comparison_reports: List[Dict[str, object]] = []
+    comparison_reports: list[dict[str, object]] = []
     baseline_checkpoint = checkpoints[0] if checkpoints else {}
     for compare_index, checkpoint in enumerate(checkpoints[1:], start=2):
         comparison = compare_run_checkpoints(baseline_checkpoint, checkpoint)
@@ -1467,7 +1465,7 @@ def run_pair_runtime_repeated(
     }
 
 
-def compare_run_checkpoints(left: Dict[str, object], right: Dict[str, object]) -> Dict[str, object]:
+def compare_run_checkpoints(left: dict[str, object], right: dict[str, object]) -> dict[str, object]:
     static_matches = {
         "seed": left.get("seed") == right.get("seed"),
         "wormhole_nodes": left.get("wormhole_nodes") == right.get("wormhole_nodes"),
@@ -1476,8 +1474,8 @@ def compare_run_checkpoints(left: Dict[str, object], right: Dict[str, object]) -
         "state_loads": _normalize_state_loads(left.get("state_loads", {})) == _normalize_state_loads(right.get("state_loads", {})),
         "scan_fingerprints": left.get("scan_fingerprints") == right.get("scan_fingerprints"),
     }
-    sequence_matches: Dict[str, bool] = {}
-    first_divergence: Optional[Dict[str, object]] = None
+    sequence_matches: dict[str, bool] = {}
+    first_divergence: dict[str, object] | None = None
     for field in (
         "primary_wormhole_state_fingerprint_history",
         "secondary_wormhole_state_fingerprint_history",
@@ -1527,7 +1525,7 @@ def compare_run_checkpoints(left: Dict[str, object], right: Dict[str, object]) -
     }
 
 
-def render_run_checkpoint_comparison(comparison: Dict[str, object]) -> str:
+def render_run_checkpoint_comparison(comparison: dict[str, object]) -> str:
     lines = [
         f"[REPRO COMPARISON] {comparison.get('left_run', 'left')} vs {comparison.get('right_run', 'right')}",
         f"matches={bool(comparison.get('matches', False))}",
@@ -1551,7 +1549,7 @@ def render_run_checkpoint_comparison(comparison: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def run_pair_runtime_repeated_from_args(args: argparse.Namespace) -> Dict[str, object]:
+def run_pair_runtime_repeated_from_args(args: argparse.Namespace) -> dict[str, object]:
     if not args.working_dir:
         raise ValueError("repeat-run mode requires --working-dir so comparison artifacts stay scoped")
     result = run_pair_runtime_repeated(
@@ -1573,7 +1571,7 @@ def run_pair_runtime_repeated_from_args(args: argparse.Namespace) -> Dict[str, o
     return result
 
 
-def run_pair_runtime_from_args(args: argparse.Namespace) -> Dict[str, object]:
+def run_pair_runtime_from_args(args: argparse.Namespace) -> dict[str, object]:
     result = run_pair_runtime(
         controls=build_controls_from_args(args),
         working_dir=Path(args.working_dir) if args.working_dir else None,
@@ -1592,13 +1590,13 @@ def run_pair_runtime_from_args(args: argparse.Namespace) -> Dict[str, object]:
     return result
 
 
-def build_pair_sweep_variants(args: argparse.Namespace, sweep_root_dir: Path) -> List[PairSweepVariant]:
+def build_pair_sweep_variants(args: argparse.Namespace, sweep_root_dir: Path) -> list[PairSweepVariant]:
     embedding_a_locs = list(args.sweep_embedding_a_locs or [float(args.embedding_a_loc)])
     embedding_b_locs = list(args.sweep_embedding_b_locs or [float(args.embedding_b_loc)])
     embedding_drifts = list(args.sweep_embedding_drifts or [float(args.embedding_drift)])
     cycle_counts = list(args.sweep_cycle_counts or [int(args.cycles)])
     seeds = list(args.sweep_seeds or [int(args.seed)])
-    variants: List[PairSweepVariant] = []
+    variants: list[PairSweepVariant] = []
 
     for variant_index, (embedding_a_loc, embedding_b_loc, embedding_drift, cycle_count, seed) in enumerate(
         product(embedding_a_locs, embedding_b_locs, embedding_drifts, cycle_counts, seeds),
@@ -1628,12 +1626,12 @@ def build_pair_sweep_variants(args: argparse.Namespace, sweep_root_dir: Path) ->
     return variants
 
 
-def run_pair_runtime_sweep(args: argparse.Namespace) -> Dict[str, object]:
+def run_pair_runtime_sweep(args: argparse.Namespace) -> dict[str, object]:
     base_dir = Path(args.sweep_root_dir) if args.sweep_root_dir else _default_sweep_root_dir(args.working_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
     variants = build_pair_sweep_variants(args, base_dir)
-    records: List[Dict[str, object]] = []
-    runs: List[Dict[str, object]] = []
+    records: list[dict[str, object]] = []
+    runs: list[dict[str, object]] = []
     base_controls = build_controls_from_args(args)
 
     for variant in variants:
@@ -1678,7 +1676,7 @@ def summarize_sweep_variant(
     pair: EntangledSOLPair,
     controls: EntanglementControls,
     live_embeddings: bool,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     replay = HippocampalReplay(working_dir=variant.working_dir)
     telemetry_records = replay.load_pair_telemetry_records(pair_id=pair.pair_id)
     trend = replay.summarize_coherence_trend(telemetry_records)
@@ -1854,7 +1852,7 @@ def summarize_sweep_variant(
     }
 
 
-def persist_sweep_outputs(records: Sequence[Dict[str, object]], sweep_root_dir: Path) -> Dict[str, Path]:
+def persist_sweep_outputs(records: Sequence[dict[str, object]], sweep_root_dir: Path) -> dict[str, Path]:
     from paper_finder_artifact import write_paper_finder_recommendation
 
     jsonl_path = sweep_root_dir / "sweep_summary.jsonl"
@@ -1885,7 +1883,7 @@ def persist_sweep_outputs(records: Sequence[Dict[str, object]], sweep_root_dir: 
     }
 
 
-def write_sweep_csv(records: Sequence[Dict[str, object]], output_path: Path) -> None:
+def write_sweep_csv(records: Sequence[dict[str, object]], output_path: Path) -> None:
     fieldnames = [
         "variant_id",
         "pair_id",
@@ -2047,11 +2045,11 @@ def write_sweep_csv(records: Sequence[Dict[str, object]], output_path: Path) -> 
             )
 
 
-def render_sweep_ranked_summary(records: Sequence[Dict[str, object]]) -> str:
+def render_sweep_ranked_summary(records: Sequence[dict[str, object]]) -> str:
     if not records:
         return "[PAIR SWEEP] no variants were executed."
 
-    diagnosis_counts: Dict[str, int] = {}
+    diagnosis_counts: dict[str, int] = {}
     for record in records:
         label = str(record.get("diagnosis_label", "unknown"))
         diagnosis_counts[label] = diagnosis_counts.get(label, 0) + 1
@@ -2113,7 +2111,7 @@ def render_sweep_ranked_summary(records: Sequence[Dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
-def render_sweep_compact_comparison(records: Sequence[Dict[str, object]]) -> str:
+def render_sweep_compact_comparison(records: Sequence[dict[str, object]]) -> str:
     if not records:
         return "[PAIR SWEEP COMPARISON] no variants were executed."
 
@@ -2182,7 +2180,7 @@ def render_sweep_compact_comparison(records: Sequence[Dict[str, object]]) -> str
     return "\n".join(lines)
 
 
-def render_sweep_paper_diagnostics(records: Sequence[Dict[str, object]]) -> str:
+def render_sweep_paper_diagnostics(records: Sequence[dict[str, object]]) -> str:
     if not records:
         return "[PAIR SWEEP PAPER] no variants were executed."
 
@@ -2226,7 +2224,7 @@ def render_sweep_paper_diagnostics(records: Sequence[Dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
-def render_sweep_uncertainty_paper_handoff(records: Sequence[Dict[str, object]]) -> str:
+def render_sweep_uncertainty_paper_handoff(records: Sequence[dict[str, object]]) -> str:
     if not records:
         return "# UNCERTAINTY TO PAPER RECOMMENDATION\n\nNo sweep variants were executed."
 
@@ -2284,7 +2282,7 @@ def render_sweep_uncertainty_paper_handoff(records: Sequence[Dict[str, object]])
             "- ready handoff into `paper-intake-handoff-template.md` if accepted",
         ]
     )
-def _sweep_rank_key(record: Dict[str, object]) -> Tuple[int, int, float, float, int]:
+def _sweep_rank_key(record: dict[str, object]) -> tuple[int, int, float, float, int]:
     decay_pressure = max(-float(record.get("coherence_delta", 0.0)), 0.0)
     return (
         int(int(record.get("transition_active_to_stabilizer", 0)) > 0),
@@ -2295,23 +2293,23 @@ def _sweep_rank_key(record: Dict[str, object]) -> Tuple[int, int, float, float, 
     )
 
 
-def _count_diagnosis_labels(records: Sequence[Dict[str, object]]) -> Dict[str, int]:
-    diagnosis_counts: Dict[str, int] = {}
+def _count_diagnosis_labels(records: Sequence[dict[str, object]]) -> dict[str, int]:
+    diagnosis_counts: dict[str, int] = {}
     for record in records:
         label = str(record.get("diagnosis_label", "unknown"))
         diagnosis_counts[label] = diagnosis_counts.get(label, 0) + 1
     return diagnosis_counts
 
 
-def _count_label_field(records: Sequence[Dict[str, object]], field: str) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _count_label_field(records: Sequence[dict[str, object]], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for record in records:
         label = str(record.get(field, "unknown"))
         counts[label] = counts.get(label, 0) + 1
     return counts
 
 
-def _paper_priority_key(record: Dict[str, object]) -> Tuple[int, int, int, int, float, float, int, int, float]:
+def _paper_priority_key(record: dict[str, object]) -> tuple[int, int, int, int, float, float, int, int, float]:
     return (
         int(bool(record.get("paper_uncertainty_triggered", False))),
         int(record.get("paper_synchrony_risk_score", 0)) + int(record.get("paper_basin_risk_score", 0)),
@@ -2325,18 +2323,18 @@ def _paper_priority_key(record: Dict[str, object]) -> Tuple[int, int, int, int, 
     )
 
 
-def _best_paper_priority_record(records: Sequence[Dict[str, object]]) -> Optional[Dict[str, object]]:
+def _best_paper_priority_record(records: Sequence[dict[str, object]]) -> dict[str, object] | None:
     triggered = [record for record in records if bool(record.get("paper_uncertainty_triggered", False))]
     if not triggered:
         return None
     return sorted(triggered, key=_paper_priority_key, reverse=True)[0]
 
 
-def _paper_trigger_consensus_summary(triggered: Sequence[Dict[str, object]], total_records: int) -> str:
+def _paper_trigger_consensus_summary(triggered: Sequence[dict[str, object]], total_records: int) -> str:
     if not triggered:
         return "no bounded uncertainty trigger"
 
-    def dominant(field: str) -> Tuple[str, int]:
+    def dominant(field: str) -> tuple[str, int]:
         counts = _count_label_field(triggered, field)
         label, count = sorted(counts.items(), key=lambda item: (item[1], item[0]), reverse=True)[0]
         return label, count
@@ -2359,8 +2357,8 @@ def _paper_trigger_consensus_summary(triggered: Sequence[Dict[str, object]], tot
 
 
 def _paper_selection_basis(
-    selected: Dict[str, object],
-    triggered: Sequence[Dict[str, object]],
+    selected: dict[str, object],
+    triggered: Sequence[dict[str, object]],
     total_records: int,
 ) -> str:
     if len(triggered) == total_records:
@@ -2377,16 +2375,16 @@ def _paper_selection_basis(
 
 
 def _best_ranked_record(
-    ranked_records: Sequence[Dict[str, object]],
+    ranked_records: Sequence[dict[str, object]],
     predicate,
-) -> Optional[Dict[str, object]]:
+) -> dict[str, object] | None:
     for record in ranked_records:
         if predicate(record):
             return record
     return None
 
 
-def _calm_long_run_key(record: Dict[str, object]) -> Tuple[int, float, int]:
+def _calm_long_run_key(record: dict[str, object]) -> tuple[int, float, int]:
     return (
         int(record.get("cycles", 0)),
         -float(record.get("coherence_range_span", 0.0)),
@@ -2394,7 +2392,7 @@ def _calm_long_run_key(record: Dict[str, object]) -> Tuple[int, float, int]:
     )
 
 
-def _compact_bucket_line(record: Optional[Dict[str, object]]) -> str:
+def _compact_bucket_line(record: dict[str, object] | None) -> str:
     if record is None:
         return "none"
     return (
@@ -2406,7 +2404,7 @@ def _compact_bucket_line(record: Optional[Dict[str, object]]) -> str:
     )
 
 
-def _compact_rank_reason(record: Dict[str, object]) -> str:
+def _compact_rank_reason(record: dict[str, object]) -> str:
     if int(record.get("transition_active_to_stabilizer", 0)) > 0:
         return "entered"
     if bool(record.get("met_entry_policy", False)):
@@ -2419,15 +2417,15 @@ def _compact_rank_reason(record: Dict[str, object]) -> str:
 
 
 def _render_diagnosis_grouped_winners(
-    ranked_records: Sequence[Dict[str, object]],
+    ranked_records: Sequence[dict[str, object]],
     top_n: int,
-) -> List[str]:
-    grouped: Dict[str, List[Dict[str, object]]] = {}
+) -> list[str]:
+    grouped: dict[str, list[dict[str, object]]] = {}
     for record in ranked_records:
         label = str(record.get("diagnosis_label", "unknown"))
         grouped.setdefault(label, []).append(record)
 
-    lines: List[str] = []
+    lines: list[str] = []
     for label in sorted(grouped):
         records = grouped[label][:top_n]
         lines.append(f"{label}: top {len(records)}")
@@ -2437,10 +2435,10 @@ def _render_diagnosis_grouped_winners(
 
 
 def _render_parameter_pocket_summaries(
-    records: Sequence[Dict[str, object]],
-    ranked_records: Sequence[Dict[str, object]],
-) -> List[str]:
-    lines: List[str] = []
+    records: Sequence[dict[str, object]],
+    ranked_records: Sequence[dict[str, object]],
+) -> list[str]:
+    lines: list[str] = []
     lines.extend(_render_single_parameter_pocket_summary("cycles", _group_records_by_cycles(records), ranked_records))
     lines.append("")
     lines.extend(_render_single_parameter_pocket_summary("drift", _group_records_by_drift(records), ranked_records))
@@ -2451,9 +2449,9 @@ def _render_parameter_pocket_summaries(
 
 def _render_single_parameter_pocket_summary(
     label: str,
-    grouped_records: Dict[str, List[Dict[str, object]]],
-    ranked_records: Sequence[Dict[str, object]],
-) -> List[str]:
+    grouped_records: dict[str, list[dict[str, object]]],
+    ranked_records: Sequence[dict[str, object]],
+) -> list[str]:
     lines = [
         f"[{label}] key | runs | entries | mean_span | mean_decay | top_variant | top_reason",
     ]
@@ -2476,24 +2474,24 @@ def _render_single_parameter_pocket_summary(
     return lines
 
 
-def _group_records_by_cycles(records: Sequence[Dict[str, object]]) -> Dict[str, List[Dict[str, object]]]:
-    grouped: Dict[str, List[Dict[str, object]]] = {}
+def _group_records_by_cycles(records: Sequence[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
     for record in records:
         key = str(int(record.get("cycles", 0)))
         grouped.setdefault(key, []).append(record)
     return grouped
 
 
-def _group_records_by_drift(records: Sequence[Dict[str, object]]) -> Dict[str, List[Dict[str, object]]]:
-    grouped: Dict[str, List[Dict[str, object]]] = {}
+def _group_records_by_drift(records: Sequence[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
     for record in records:
         key = f"{float(record.get('embedding_drift', 0.0)):.3f}"
         grouped.setdefault(key, []).append(record)
     return grouped
 
 
-def _group_records_by_location_pair(records: Sequence[Dict[str, object]]) -> Dict[str, List[Dict[str, object]]]:
-    grouped: Dict[str, List[Dict[str, object]]] = {}
+def _group_records_by_location_pair(records: Sequence[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
     for record in records:
         key = (
             f"{float(record.get('embedding_a_loc', 0.0)):.3f}/"
@@ -2503,13 +2501,13 @@ def _group_records_by_location_pair(records: Sequence[Dict[str, object]]) -> Dic
     return grouped
 
 
-def _mean_metric(records: Sequence[Dict[str, object]], key: str) -> float:
+def _mean_metric(records: Sequence[dict[str, object]], key: str) -> float:
     if not records:
         return 0.0
     return sum(float(record.get(key, 0.0)) for record in records) / float(len(records))
 
 
-def _render_compact_record_line(record: Dict[str, object], rank: str) -> str:
+def _render_compact_record_line(record: dict[str, object], rank: str) -> str:
     policy_flag = "yes" if bool(record.get("met_entry_policy", False)) else "no"
     switch_tick = record.get("first_stabilizer_tick")
     policy_tick = record.get("entry_policy_tick")
@@ -2549,7 +2547,7 @@ def _render_compact_record_line(record: Dict[str, object], rank: str) -> str:
     )
 
 
-def _top_gate_reason_fragment(record: Dict[str, object]) -> str:
+def _top_gate_reason_fragment(record: dict[str, object]) -> str:
     reason_counts = dict(record.get("hint_gate_reason_counts", {}))
     if not reason_counts:
         return "top=none"
@@ -2557,7 +2555,7 @@ def _top_gate_reason_fragment(record: Dict[str, object]) -> str:
     return f"top={reason}:{int(count)}"
 
 
-def _gate_diagnostic_fragment(record: Dict[str, object]) -> str:
+def _gate_diagnostic_fragment(record: dict[str, object]) -> str:
     fragments = [_top_gate_reason_fragment(record)]
     first_pass_tick = record.get("hint_gate_first_pass_tick")
     if first_pass_tick is not None:
@@ -2565,17 +2563,17 @@ def _gate_diagnostic_fragment(record: Dict[str, object]) -> str:
     near_pass_tick = record.get("hint_gate_first_near_pass_tick")
     if near_pass_tick is not None:
         fragments.append(
-            (
+            
                 f"near@{int(near_pass_tick)}:{record.get('hint_gate_first_near_pass_reason', 'unknown')}"
                 f"/c{float(record.get('hint_gate_first_near_pass_confidence_gap', 0.0)):.2f}"
                 f"/r{float(record.get('hint_gate_first_near_pass_reliability_gap', 0.0)):.2f}"
                 f"/n{int(record.get('hint_gate_first_near_pass_sample_gap', 0))}"
-            )
+            
         )
     return " ".join(fragments)
 
 
-def _telemetry_fields_for_record(record: Dict[str, object]) -> List[str]:
+def _telemetry_fields_for_record(record: dict[str, object]) -> list[str]:
     intervention = str(record.get("paper_uncertainty_intervention_class", "diagnostics"))
     if intervention == "topology design":
         return [
@@ -2606,7 +2604,7 @@ def _telemetry_fields_for_record(record: Dict[str, object]) -> List[str]:
     ]
 
 
-def _replay_signals_for_record(record: Dict[str, object]) -> List[str]:
+def _replay_signals_for_record(record: dict[str, object]) -> list[str]:
     intervention = str(record.get("paper_uncertainty_intervention_class", "diagnostics"))
     if intervention == "topology design":
         return ["coherence trend", "coupling posture summary", "paper diagnostic summary", "sweep ranking"]
@@ -2615,7 +2613,7 @@ def _replay_signals_for_record(record: Dict[str, object]) -> List[str]:
     return ["mode switching", "status streaks", "paper diagnostic summary", "sweep ranking"]
 
 
-def _regime_labels_for_record(record: Dict[str, object]) -> List[str]:
+def _regime_labels_for_record(record: dict[str, object]) -> list[str]:
     return [
         str(record.get("paper_synchrony_margin", "unknown")),
         f"coupling:{record.get('paper_synchrony_coupling_posture', 'unknown')}",
@@ -2624,7 +2622,7 @@ def _regime_labels_for_record(record: Dict[str, object]) -> List[str]:
     ]
 
 
-def _local_hypotheses_for_record(record: Dict[str, object]) -> List[str]:
+def _local_hypotheses_for_record(record: dict[str, object]) -> list[str]:
     intervention = str(record.get("paper_uncertainty_intervention_class", "diagnostics"))
     coupling_posture = str(record.get("paper_synchrony_coupling_posture", "unknown"))
     if intervention == "topology design" or coupling_posture == "weak":
@@ -2643,7 +2641,7 @@ def _local_hypotheses_for_record(record: Dict[str, object]) -> List[str]:
     ]
 
 
-def _unresolved_summary_for_record(record: Dict[str, object]) -> str:
+def _unresolved_summary_for_record(record: dict[str, object]) -> str:
     if str(record.get("paper_uncertainty_intervention_class", "diagnostics")) == "topology design":
         return (
             f"Current sweep evidence points to {record.get('paper_synchrony_coupling_posture', 'unknown')} coupling posture with "
@@ -2655,7 +2653,7 @@ def _unresolved_summary_for_record(record: Dict[str, object]) -> str:
     )
 
 
-def _stable_uncertainty_reason(record: Dict[str, object]) -> str:
+def _stable_uncertainty_reason(record: dict[str, object]) -> str:
     return (
         f"The trigger persists across gate blocks={int(record.get('hint_gate_blocked_count', 0))}, "
         f"near-passes={int(record.get('hint_gate_near_pass_count', 0))}, contradictions={int(record.get('paper_synchrony_contradiction_count', 0))}, "
@@ -2663,7 +2661,7 @@ def _stable_uncertainty_reason(record: Dict[str, object]) -> str:
     )
 
 
-def _novelty_summary_for_record(record: Dict[str, object]) -> str:
+def _novelty_summary_for_record(record: dict[str, object]) -> str:
     if str(record.get("paper_uncertainty_intervention_class", "diagnostics")) == "topology design":
         return "Extend beyond the current synchrony-margin and basin-stability seeds with a more specific topology-aware synchronization or controllability source."
     if str(record.get("paper_uncertainty_intervention_class", "diagnostics")) in {"control policy", "diagnostics"}:
@@ -2671,13 +2669,13 @@ def _novelty_summary_for_record(record: Dict[str, object]) -> str:
     return "Extend beyond the current basin-stability seed with a source that sharpens perturbation resilience or neighborhood persistence."
 
 
-def _stop_condition_for_record(record: Dict[str, object]) -> str:
+def _stop_condition_for_record(record: dict[str, object]) -> str:
     if str(record.get("paper_uncertainty_intervention_class", "diagnostics")) in {"control policy", "topology design", "diagnostics"}:
         return "Stop if nearby variants move the synchrony label to favorable or if local diagnostics clearly explain the blocked regime."
     return "Stop if nearby variants move the basin label to broad or if replay evidence clearly demonstrates durable recovery." 
 
 
-def _default_sweep_root_dir(working_dir: Optional[str]) -> Path:
+def _default_sweep_root_dir(working_dir: str | None) -> Path:
     if working_dir:
         return Path(working_dir) / "sweep_runs"
     return Path(__file__).resolve().parent / "working_data" / "sweep_runs"
@@ -2689,15 +2687,15 @@ def _reset_runtime_working_dir(working_dir: Path) -> None:
     working_dir.mkdir(parents=True, exist_ok=True)
 
 
-def _count_values(values: Sequence[str]) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _count_values(values: Sequence[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for value in values:
         counts[str(value)] = counts.get(str(value), 0) + 1
     return dict(sorted(counts.items()))
 
 
-def _normalize_state_loads(state_loads: object) -> Dict[str, object]:
-    normalized: Dict[str, object] = {}
+def _normalize_state_loads(state_loads: object) -> dict[str, object]:
+    normalized: dict[str, object] = {}
     for channel_id, payload in dict(state_loads or {}).items():
         payload_dict = dict(payload or {})
         normalized[str(channel_id)] = {
@@ -2708,7 +2706,7 @@ def _normalize_state_loads(state_loads: object) -> Dict[str, object]:
     return normalized
 
 
-def _first_sequence_divergence(field: str, left_values: Sequence[object], right_values: Sequence[object]) -> Optional[Dict[str, object]]:
+def _first_sequence_divergence(field: str, left_values: Sequence[object], right_values: Sequence[object]) -> dict[str, object] | None:
     max_len = max(len(left_values), len(right_values))
     for index in range(max_len):
         left_value = left_values[index] if index < len(left_values) else None

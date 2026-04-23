@@ -1,10 +1,10 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
-import networkx as nx
 import hashlib
+
 import numpy as np
-from typing import List, Dict, Any, Tuple
+
 
 class OntologicalOrchestrator:
     """
@@ -25,14 +25,14 @@ class OntologicalOrchestrator:
         self.tau_percentile = 88.0
         self.tau_mad_scale = 2.0
         self.tau_smoothing = 0.35
-        self.last_scan_order: List[str] = []
-        self.last_scan_order_preview: List[str] = []
+        self.last_scan_order: list[str] = []
+        self.last_scan_order_preview: list[str] = []
         self.last_scan_order_fingerprint = "none"
         
         # Functional Weights over response-compressed channels.
         self.alphas = {"density": 1.5, "shear": 1.0, "vorticity": 0.75}
 
-    def compute_local_hotspot(self, node_id: str) -> Dict[str, float]:
+    def compute_local_hotspot(self, node_id: str) -> dict[str, float]:
         """
         Calculates the 3-part Hotspot Functional H(x,t) for a specific node 
         by analyzing its immediate geodesic neighborhood.
@@ -142,7 +142,7 @@ class OntologicalOrchestrator:
             
         return active_bursts
 
-    def _trigger_threshold_burst(self, bursts: List[Tuple[str, Dict]]):
+    def _trigger_threshold_burst(self, bursts: list[tuple[str, dict]]):
         """
         The Holographic UI Event. Routes rendering compute to the collapsing 
         basins and signals the Hippocampal transducer to unroll the n+1 tape.
@@ -175,7 +175,7 @@ class OntologicalOrchestrator:
             if burst_path is not None:
                 print(f"  -> Hippocampal burst archived to {burst_path}")
 
-    def _compute_local_vorticity(self, node_id: str, neighbors: List[str]) -> float:
+    def _compute_local_vorticity(self, node_id: str, neighbors: list[str]) -> float:
         vorticity = 0.0
         cycle_count = 0
         for index, left_neighbor in enumerate(neighbors):
@@ -200,7 +200,7 @@ class OntologicalOrchestrator:
 
         return float(np.log1p(vorticity / cycle_count))
 
-    def _enrich_bursts(self, bursts: List[Tuple[str, Dict]]):
+    def _enrich_bursts(self, bursts: list[tuple[str, dict]]):
         for node_id, metrics in bursts:
             if self.mediator is not None:
                 self.mediator.publish_consensus(node_id)
@@ -210,7 +210,7 @@ class OntologicalOrchestrator:
             metrics["consensus_clock"] = node.get("consensus_clock")
             metrics["consensus_entropy"] = float(node.get("consensus_entropy", 0.0))
 
-    def _compute_adaptive_tau(self, h_values: List[float]) -> float:
+    def _compute_adaptive_tau(self, h_values: list[float]) -> float:
         if not h_values:
             return self.base_tau
 
@@ -230,7 +230,7 @@ class OntologicalOrchestrator:
 
         return float(((1.0 - self.tau_smoothing) * self.tau) + (self.tau_smoothing * target_tau))
 
-    def _render_telemetry_panel(self, bursts: List[Tuple[str, Dict]], h_values: List[float]):
+    def _render_telemetry_panel(self, bursts: list[tuple[str, dict]], h_values: list[float]):
         if self.telemetry_panel is None:
             return
 
