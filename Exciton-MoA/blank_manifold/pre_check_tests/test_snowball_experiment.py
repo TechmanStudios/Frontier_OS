@@ -698,18 +698,20 @@ def test_default_state_includes_coupling_posture_profile_usage_counts():
 
 def test_decide_emits_coupling_posture_profile_specs_on_daily_explore():
     state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
     config = snowball_experiment.decide_next_config(state, "daily")
     assert config.regime == "explore"
     assert config.coupling_posture_profile_specs == (
         "weak:0.45,0.55,none",
         "permissive:none,none,0.05",
     )
-    assert "coupling_posture_profiles: weak,permissive" in config.rationale
+    assert "posture_ab: treatment" in config.rationale
 
 
 def test_decide_emits_coupling_posture_profile_specs_on_daily_exploit():
     state = snowball_experiment.default_state()
     state["recent_yields_daily"] = [0, 1, 2]
+    state["posture_ab_alternation"] = 1
     config = snowball_experiment.decide_next_config(state, "daily")
     assert config.regime == "exploit"
     assert config.coupling_posture_profile_specs is not None
@@ -725,12 +727,14 @@ def test_decide_omits_coupling_posture_profile_specs_on_hold():
 
 def test_decide_omits_coupling_posture_profile_specs_on_pulse():
     state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
     config = snowball_experiment.decide_next_config(state, "pulse")
     assert config.coupling_posture_profile_specs is None
 
 
 def test_build_engine_argv_passes_coupling_posture_profile_flags():
     state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
     config = snowball_experiment.decide_next_config(state, "daily")
     argv = snowball_experiment.build_engine_argv(config, Path("runs/x"))
     # Two repeated --coupling-posture-profile flags expected.
@@ -814,6 +818,159 @@ def test_apply_results_accumulates_coupling_posture_profile_usage_counts():
         s1, tier="daily", config=config, results=results, argv=["--sweep"]
     )
     assert s2["coupling_posture_profile_usage_counts"] == {"weak": 4, "none": 2}
+
+
+# ---------------------------------------------------------------------------
+# C2: coupling-posture A/B variant
+# ---------------------------------------------------------------------------
+
+
+def test_default_state_includes_posture_ab_fields():
+    state = snowball_experiment.default_state()
+    assert state["posture_ab_alternation"] == 0
+    assert state["last_posture_ab_arm"] is None
+
+
+def test_decide_posture_ab_control_arm_when_parity_even():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 0
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.coupling_posture_profile_specs == ()
+    assert "__posture_ab_treatment__" not in config.flags
+    assert "posture_ab: control" in config.rationale
+
+
+def test_decide_posture_ab_treatment_arm_when_parity_odd():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.coupling_posture_profile_specs == (
+        "weak:0.45,0.55,none",
+        "permissive:none,none,0.05",
+    )
+    assert "__posture_ab_treatment__" in config.flags
+    assert "posture_ab: treatment" in config.rationale
+
+
+def test_build_engine_argv_omits_profile_flags_on_control_arm():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 0
+    config = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(config, Path("runs/x"))
+    assert "--coupling-posture-profile" not in argv
+    # bookkeeping marker must never leak into argv
+    assert "__posture_ab_treatment__" not in argv
+
+
+def test_build_engine_argv_emits_profile_flags_on_treatment_arm():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
+    config = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(config, Path("runs/x"))
+    assert argv.count("--coupling-posture-profile") == 2
+    assert "__posture_ab_treatment__" not in argv
+
+
+def test_apply_results_increments_posture_ab_alternation_only_on_daily_explore_exploit():
+    state = _c1_daily_explore_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    results = {
+        "consensus_diagnosis": "low_variance_candidate",
+        "coupling_consensus": "weak",
+        "paper_trigger": "synchrony",
+        "natural_entries": 0,
+        "gate_pass_total": 0,
+        "positive_forward_window_total": 0,
+    }
+    s1 = snowball_experiment.apply_results_to_state(
+        state, tier="daily", config=config, results=results, argv=["--sweep"]
+    )
+    assert s1["posture_ab_alternation"] == 1
+    assert s1["last_posture_ab_arm"] == "control"
+
+    # After the bump, parity flips to treatment.
+    config2 = snowball_experiment.decide_next_config(s1, "daily")
+    assert "__posture_ab_treatment__" in config2.flags
+    s2 = snowball_experiment.apply_results_to_state(
+        s1, tier="daily", config=config2, results=results, argv=["--sweep"]
+    )
+    assert s2["posture_ab_alternation"] == 2
+    assert s2["last_posture_ab_arm"] == "treatment"
+
+
+def test_apply_results_does_not_bump_posture_ab_on_pulse_or_hold():
+    state = snowball_experiment.default_state()  # hold
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.regime == "hold"
+    results = {
+        "consensus_diagnosis": "unknown",
+        "coupling_consensus": "unknown",
+        "paper_trigger": "none",
+        "natural_entries": 0,
+        "gate_pass_total": 0,
+        "positive_forward_window_total": 0,
+    }
+    s1 = snowball_experiment.apply_results_to_state(
+        state, tier="daily", config=config, results=results, argv=["--sweep"]
+    )
+    assert s1["posture_ab_alternation"] == 0
+
+
+def test_summarize_posture_ab_outcomes_pairs_control_then_treatment(tmp_path: Path):
+    rows = [
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "posture_ab_arm": "control",
+            "natural_entries": 1,
+            "observe_only_streak": 2,
+            "finished_utc": "2026-01-01T00:00:00Z",
+            "coupling_posture_profile_used_counts": {"none": 4},
+        },
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "posture_ab_arm": "treatment",
+            "natural_entries": 3,
+            "observe_only_streak": 0,
+            "finished_utc": "2026-01-02T00:00:00Z",
+            "coupling_posture_profile_used_counts": {"weak": 3, "none": 1},
+        },
+    ]
+    out_path = tmp_path / "posture_ab_outcomes.jsonl"
+    deltas = snowball_experiment.summarize_posture_ab_outcomes(rows, output_path=out_path)
+    assert len(deltas) == 1
+    assert deltas[0]["delta_natural_entries"] == 2
+    assert deltas[0]["delta_observe_only_streak"] == -2
+    assert deltas[0]["profile_used_b"] == "weak"
+    assert out_path.exists()
+    written = [json.loads(line) for line in out_path.read_text(encoding="utf-8").splitlines() if line]
+    assert written == deltas
+
+
+def test_summarize_posture_ab_outcomes_skips_non_daily_and_hold(tmp_path: Path):
+    rows = [
+        {"origin": "pulse", "regime": "explore", "posture_ab_arm": "control", "natural_entries": 5},
+        {"origin": "daily", "regime": "hold", "posture_ab_arm": "control", "natural_entries": 5},
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "posture_ab_arm": "control",
+            "natural_entries": 0,
+            "observe_only_streak": 0,
+        },
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "posture_ab_arm": "treatment",
+            "natural_entries": 1,
+            "observe_only_streak": 1,
+            "coupling_posture_profile_used_counts": {},
+        },
+    ]
+    deltas = snowball_experiment.summarize_posture_ab_outcomes(rows, output_path=None)
+    assert len(deltas) == 1
+    assert deltas[0]["profile_used_b"] == "none"
 
 
 def test_apply_lesson_clamp_empty_intersection_falls_back():

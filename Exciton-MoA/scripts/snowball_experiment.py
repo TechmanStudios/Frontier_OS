@@ -117,6 +117,8 @@ def default_state() -> dict[str, Any]:
         "msf_ab_alternation": 0,
         "last_msf_ab_arm": None,
         "coupling_posture_profile_usage_counts": {},
+        "posture_ab_alternation": 0,
+        "last_posture_ab_arm": None,
         # Cross-consumer additive fields. Listed here so that load_state's
         # default-state allowlist preserves them across reads. Defaults are
         # "absent" sentinels so decide_next_config's `state.get(...)` checks
@@ -376,13 +378,27 @@ def decide_next_config(
     # engine relaxes thresholds for weak coupling and tightens MSFGuard for
     # permissive coupling. Hold/policy-probe regimes opt out — those cycles
     # need stable baselines for paired evidence.
+    #
+    # C2 layers a posture A/B variant over this: independent parity counter
+    # `posture_ab_alternation` selects treatment (specs attached) vs control
+    # (empty tuple = explicitly disable profiles). Composes orthogonally with
+    # the MSF A/B switch above to form a 2x2 randomization grid.
     coupling_posture_profile_specs: tuple[str, ...] | None = None
     if tier == "daily" and regime in {"explore", "exploit"}:
-        coupling_posture_profile_specs = (
-            "weak:0.45,0.55,none",
-            "permissive:none,none,0.05",
-        )
-        rationale_parts.append("coupling_posture_profiles: weak,permissive")
+        posture_alt_raw = state.get("posture_ab_alternation")
+        posture_alt = 0 if posture_alt_raw is None else int(posture_alt_raw or 0)
+        if posture_alt % 2 == 1:
+            coupling_posture_profile_specs = (
+                "weak:0.45,0.55,none",
+                "permissive:none,none,0.05",
+            )
+            flags.append("__posture_ab_treatment__")
+            rationale_parts.append(
+                "posture_ab: treatment (coupling_posture_profiles: weak,permissive)"
+            )
+        else:
+            coupling_posture_profile_specs = ()
+            rationale_parts.append("posture_ab: control (no coupling_posture_profiles)")
 
     # Advisory lesson clamp — if the lesson_advisory_writer consumer has
     # populated ``state.advisory_lesson_clamp`` with high-confidence pockets,
@@ -710,6 +726,14 @@ def apply_results_to_state(
         new_state["last_msf_ab_arm"] = (
             "treatment" if "__msf_ab_treatment__" in config.flags else "control"
         )
+        # C2: independent posture A/B alternation, also bumped only on daily
+        # explore/exploit cycles so it composes orthogonally with the MSF arm.
+        new_state["posture_ab_alternation"] = (
+            int(new_state.get("posture_ab_alternation", 0) or 0) + 1
+        )
+        new_state["last_posture_ab_arm"] = (
+            "treatment" if "__posture_ab_treatment__" in config.flags else "control"
+        )
 
     # Accumulate W4 coupling-posture profile usage. Counts how many sweep
     # variants applied each named profile (or "none" when no profile matched
@@ -849,10 +873,74 @@ def append_ledger_row(
         "started_utc": started_utc,
         "finished_utc": finished_utc,
         "engine_returncode": engine_returncode,
+        "msf_ab_arm": state_after.get("last_msf_ab_arm"),
+        "posture_ab_arm": state_after.get("last_posture_ab_arm"),
+        "observe_only_streak": state_after.get("observe_only_streak"),
+        "coupling_posture_profile_used_counts": results.get(
+            "coupling_posture_profile_used_counts", {}
+        ),
     }
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
     with ledger_path.open("a", encoding="utf-8") as fp:
         fp.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+POSTURE_AB_OUTCOMES_PATH = SNOWBALL_DIR / "posture_ab_outcomes.jsonl"
+
+
+def summarize_posture_ab_outcomes(
+    rows: Sequence[dict[str, Any]],
+    *,
+    output_path: Path | None = POSTURE_AB_OUTCOMES_PATH,
+) -> list[dict[str, Any]]:
+    """Pair daily explore/exploit ledger rows by posture A/B arm and emit deltas.
+
+    Walks ``rows`` in order, keeping a buffer of the last unpaired control and
+    last unpaired treatment row. When both are available it emits a delta
+    record (treatment minus control) and clears the buffer. Rows whose origin
+    is not ``daily`` or whose regime is not in ``{explore, exploit}`` are
+    skipped. When ``output_path`` is given the delta records are appended as
+    JSON lines (parent dirs created on demand). Returns the deltas regardless.
+    """
+    deltas: list[dict[str, Any]] = []
+    buffered: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row.get("origin") != "daily":
+            continue
+        if row.get("regime") not in {"explore", "exploit"}:
+            continue
+        arm = row.get("posture_ab_arm")
+        if arm not in {"control", "treatment"}:
+            continue
+        buffered[arm] = row
+        if "control" in buffered and "treatment" in buffered:
+            ctrl = buffered.pop("control")
+            trt = buffered.pop("treatment")
+            profile_counts_b = trt.get("coupling_posture_profile_used_counts") or {}
+            if isinstance(profile_counts_b, dict) and profile_counts_b:
+                profile_used_b = max(
+                    profile_counts_b.items(), key=lambda kv: (int(kv[1] or 0), str(kv[0]))
+                )[0]
+            else:
+                profile_used_b = "none"
+            deltas.append(
+                {
+                    "control_finished_utc": ctrl.get("finished_utc"),
+                    "treatment_finished_utc": trt.get("finished_utc"),
+                    "regime": trt.get("regime"),
+                    "delta_natural_entries": int(trt.get("natural_entries", 0) or 0)
+                    - int(ctrl.get("natural_entries", 0) or 0),
+                    "delta_observe_only_streak": int(trt.get("observe_only_streak", 0) or 0)
+                    - int(ctrl.get("observe_only_streak", 0) or 0),
+                    "profile_used_b": profile_used_b,
+                }
+            )
+    if output_path is not None and deltas:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("a", encoding="utf-8") as fp:
+            for delta in deltas:
+                fp.write(json.dumps(delta, sort_keys=True) + "\n")
+    return deltas
 
 
 def prune_old_runs(tier: str, *, retention: int, runs_dir: Path = RUNS_DIR) -> list[Path]:
