@@ -17,7 +17,8 @@ python -m venv .venv
 # Windows:  .venv\Scripts\Activate.ps1
 # POSIX:    source .venv/bin/activate
 pip install -r Exciton-MoA/requirements.txt
-pip install ruff pytest
+pip install ruff==0.15.11 pytest pre-commit
+pre-commit install
 ```
 
 ## Tests
@@ -32,7 +33,7 @@ Every PR must keep this suite green. CI runs it on Linux and Windows for Python 
 
 ## Code style
 
-- **Formatter / linter:** `ruff` (configuration in `pyproject.toml`, when added).
+- **Formatter / linter:** `ruff`, pinned to `==0.15.11` in CI ([`.github/workflows/lint.yml`](.github/workflows/lint.yml)). Keep your local install on the same version (`pip install ruff==0.15.11`) so `ruff format` output matches CI; ruff's formatter changes between minor versions and an unpinned local install is the most common source of "green locally, red on CI" drift. A `pre-commit` config is provided ([`.pre-commit-config.yaml`](.pre-commit-config.yaml)) — run `pre-commit install` once and the hook will run `ruff check --fix` and `ruff format` before every commit.
 - **Imports:** keep the existing flat-module pattern; the legacy compatibility shims at the project root (`blank_config`, `blank_manifold_core`, `transducer`, `excitons`, `telemetry`, `main`) must continue to import cleanly.
 - **Avoid over-engineering.** Don't add abstractions, comments, or type annotations to code you didn't change. Don't add error handling for cases that can't happen.
 
