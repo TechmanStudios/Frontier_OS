@@ -96,6 +96,32 @@ def _ok_tournament_entry() -> dict:
     }
 
 
+def _ok_knowledge_lesson() -> dict:
+    return {
+        "schema_version": agent_handoff_schemas.SCHEMA_VERSIONS["knowledge_lesson"],
+        "lesson_type": "gate_blocker_pattern",
+        "corroboration_count": 3,
+        "evidence_run_dirs": [
+            "Exciton-MoA/working_data/snowball/runs/daily/20260420T061700Z",
+            "Exciton-MoA/working_data/snowball/runs/daily/20260421T061700Z",
+            "Exciton-MoA/working_data/snowball/runs/daily/20260422T061700Z",
+        ],
+        "key_findings": (
+            "Across 3 distinct (locA,locB,drift) pockets, weak coupling posture "
+            "co-occurs with low_variance_candidate diagnosis."
+        ),
+        "applicable_constraints": [
+            "embedding_a_loc=0.50,embedding_b_loc=0.57,embedding_drift=0.06",
+            "embedding_a_loc=0.50,embedding_b_loc=0.58,embedding_drift=0.06",
+            "embedding_a_loc=0.50,embedding_b_loc=0.57,embedding_drift=0.08",
+        ],
+        "contraindications": [
+            "embedding_a_loc=0.49,embedding_b_loc=0.57,embedding_drift=0.06",
+        ],
+        "generated_utc": "2026-04-23T06:18:00Z",
+    }
+
+
 HANDOFF_FIXTURES = {
     "paper_handoff": (
         _ok_paper_handoff,
@@ -112,6 +138,10 @@ HANDOFF_FIXTURES = {
     "tournament_entry": (
         _ok_tournament_entry,
         agent_handoff_schemas.validate_tournament_entry,
+    ),
+    "knowledge_lesson": (
+        _ok_knowledge_lesson,
+        agent_handoff_schemas.validate_knowledge_lesson,
     ),
 }
 

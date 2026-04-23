@@ -22,9 +22,16 @@ SCHEMA_VERSIONS: dict[str, int] = {
     "knowledge_promotion_candidate": 1,
     "incident_report": 1,
     "tournament_entry": 1,
+    "knowledge_lesson": 1,
 }
 
 VALID_PAPER_TRIGGERS = ("synchrony", "basin_fragility")
+VALID_LESSON_TYPES = (
+    "entrainment_stability",
+    "coupling_asymmetry",
+    "policy_generalization",
+    "gate_blocker_pattern",
+)
 VALID_SUBJECT_DOMAINS = (
     "synchronization",
     "basin-stability",
@@ -229,13 +236,48 @@ def validate_tournament_entry(payload: Any) -> ValidationResult:
     return (not errors), errors
 
 
+def validate_knowledge_lesson(payload: Any) -> ValidationResult:
+    """Validate a cross-pair knowledge_lesson payload.
+
+    A lesson is a cross-pocket regularity detected by ``lesson_compiler``
+    over multiple sweep_summary.jsonl artifacts. ``corroboration_count`` is
+    the number of distinct pockets (or runs) the regularity was observed in
+    and must be >= 2 — a single-pocket pattern is not a transferable lesson.
+    """
+    required = (
+        "schema_version",
+        "lesson_type",
+        "corroboration_count",
+        "evidence_run_dirs",
+        "key_findings",
+        "applicable_constraints",
+        "contraindications",
+        "generated_utc",
+    )
+    errors = _require_keys(payload, required)
+    if errors:
+        return False, errors
+    assert isinstance(payload, dict)
+    _check_schema_version(payload, "knowledge_lesson", errors)
+    _check_enum(payload, "lesson_type", VALID_LESSON_TYPES, errors)
+    _check_int(payload, "corroboration_count", errors, minimum=2)
+    _check_list_of_str(payload, "evidence_run_dirs", errors)
+    _check_str(payload, "key_findings", errors)
+    _check_list_of_str(payload, "applicable_constraints", errors, allow_empty=True)
+    _check_list_of_str(payload, "contraindications", errors, allow_empty=True)
+    _check_str(payload, "generated_utc", errors)
+    return (not errors), errors
+
+
 __all__ = [
     "SCHEMA_VERSIONS",
     "VALID_INCIDENT_SEVERITIES",
+    "VALID_LESSON_TYPES",
     "VALID_PAPER_TRIGGERS",
     "VALID_SUBJECT_DOMAINS",
     "ValidationResult",
     "validate_incident_report",
+    "validate_knowledge_lesson",
     "validate_knowledge_promotion_candidate",
     "validate_paper_handoff",
     "validate_tournament_entry",
