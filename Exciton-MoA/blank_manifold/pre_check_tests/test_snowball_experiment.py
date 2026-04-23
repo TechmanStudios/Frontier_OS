@@ -678,6 +678,144 @@ def test_apply_lesson_clamp_excludes_contraindicated_pockets():
     assert d == (0.06,)
 
 
+# ---------------------------------------------------------------------------
+# C1: coupling-posture profile integration
+# ---------------------------------------------------------------------------
+
+
+def _c1_daily_explore_state() -> dict:
+    state = snowball_experiment.default_state()
+    # Force regime=explore via low_variance_candidate streak.
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    return state
+
+
+def test_default_state_includes_coupling_posture_profile_usage_counts():
+    state = snowball_experiment.default_state()
+    assert state["coupling_posture_profile_usage_counts"] == {}
+
+
+def test_decide_emits_coupling_posture_profile_specs_on_daily_explore():
+    state = _c1_daily_explore_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.regime == "explore"
+    assert config.coupling_posture_profile_specs == (
+        "weak:0.45,0.55,none",
+        "permissive:none,none,0.05",
+    )
+    assert "coupling_posture_profiles: weak,permissive" in config.rationale
+
+
+def test_decide_emits_coupling_posture_profile_specs_on_daily_exploit():
+    state = snowball_experiment.default_state()
+    state["recent_yields_daily"] = [0, 1, 2]
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.regime == "exploit"
+    assert config.coupling_posture_profile_specs is not None
+    assert len(config.coupling_posture_profile_specs) == 2
+
+
+def test_decide_omits_coupling_posture_profile_specs_on_hold():
+    state = snowball_experiment.default_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    assert config.regime == "hold"
+    assert config.coupling_posture_profile_specs is None
+
+
+def test_decide_omits_coupling_posture_profile_specs_on_pulse():
+    state = _c1_daily_explore_state()
+    config = snowball_experiment.decide_next_config(state, "pulse")
+    assert config.coupling_posture_profile_specs is None
+
+
+def test_build_engine_argv_passes_coupling_posture_profile_flags():
+    state = _c1_daily_explore_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(config, Path("runs/x"))
+    # Two repeated --coupling-posture-profile flags expected.
+    indices = [i for i, tok in enumerate(argv) if tok == "--coupling-posture-profile"]
+    assert len(indices) == 2
+    payloads = [argv[i + 1] for i in indices]
+    assert payloads == ["weak:0.45,0.55,none", "permissive:none,none,0.05"]
+
+
+def test_build_engine_argv_omits_coupling_posture_profile_on_hold():
+    state = snowball_experiment.default_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(config, Path("runs/x"))
+    assert "--coupling-posture-profile" not in argv
+
+
+def test_parse_results_aggregates_coupling_posture_profile_used_counts(tmp_path: Path):
+    _write_records(
+        tmp_path,
+        [
+            {
+                "diagnosis_label": "low_variance_candidate",
+                "met_entry_policy": False,
+                "paper_synchrony_basis": "borderline",
+                "paper_synchrony_coupling_posture": "weak",
+                "paper_basin_fragility": "broad",
+                "paper_uncertainty_triggered": False,
+                "gate_pass_count": 0,
+                "nudge_applied_count": 0,
+                "nudge_positive_forward_windows": 0,
+                "coupling_posture_profile_used": "weak",
+            },
+            {
+                "diagnosis_label": "low_variance_candidate",
+                "met_entry_policy": False,
+                "paper_synchrony_basis": "borderline",
+                "paper_synchrony_coupling_posture": "weak",
+                "paper_basin_fragility": "broad",
+                "paper_uncertainty_triggered": False,
+                "gate_pass_count": 0,
+                "nudge_applied_count": 0,
+                "nudge_positive_forward_windows": 0,
+                "coupling_posture_profile_used": "weak",
+            },
+            {
+                "diagnosis_label": "low_variance_candidate",
+                "met_entry_policy": False,
+                "paper_synchrony_basis": "borderline",
+                "paper_synchrony_coupling_posture": "permissive",
+                "paper_basin_fragility": "broad",
+                "paper_uncertainty_triggered": False,
+                "gate_pass_count": 0,
+                "nudge_applied_count": 0,
+                "nudge_positive_forward_windows": 0,
+                # missing -> "none"
+            },
+        ],
+    )
+    results = snowball_experiment.parse_results(tmp_path)
+    counts = results["coupling_posture_profile_used_counts"]
+    assert counts == {"weak": 2, "none": 1}
+
+
+def test_apply_results_accumulates_coupling_posture_profile_usage_counts():
+    state = _c1_daily_explore_state()
+    config = snowball_experiment.decide_next_config(state, "daily")
+    results = {
+        "consensus_diagnosis": "low_variance_candidate",
+        "coupling_consensus": "weak",
+        "paper_trigger": "synchrony",
+        "natural_entries": 0,
+        "gate_pass_total": 0,
+        "positive_forward_window_total": 0,
+        "coupling_posture_profile_used_counts": {"weak": 2, "none": 1},
+    }
+    s1 = snowball_experiment.apply_results_to_state(
+        state, tier="daily", config=config, results=results, argv=["--sweep"]
+    )
+    assert s1["coupling_posture_profile_usage_counts"] == {"weak": 2, "none": 1}
+    s2 = snowball_experiment.apply_results_to_state(
+        s1, tier="daily", config=config, results=results, argv=["--sweep"]
+    )
+    assert s2["coupling_posture_profile_usage_counts"] == {"weak": 4, "none": 2}
+
+
 def test_apply_lesson_clamp_empty_intersection_falls_back():
     clamp = {
         "applicable_pockets": ["locA=0.99,locB=0.99,drift=0.99"],

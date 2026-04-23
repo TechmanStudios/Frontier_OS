@@ -116,6 +116,7 @@ def default_state() -> dict[str, Any]:
         "policy_probe_alternation": 0,
         "msf_ab_alternation": 0,
         "last_msf_ab_arm": None,
+        "coupling_posture_profile_usage_counts": {},
         # Cross-consumer additive fields. Listed here so that load_state's
         # default-state allowlist preserves them across reads. Defaults are
         # "absent" sentinels so decide_next_config's `state.get(...)` checks
@@ -195,6 +196,7 @@ class NextConfig:
     explore_loc_a_override: tuple[float, ...] | None = None
     explore_loc_b_override: tuple[float, ...] | None = None
     explore_drift_override: tuple[float, ...] | None = None
+    coupling_posture_profile_specs: tuple[str, ...] | None = None
 
 
 def _parse_pocket_key(key: str) -> dict[str, float] | None:
@@ -369,6 +371,19 @@ def decide_next_config(
         else:
             rationale_parts.append("msf_ab: control (--no-enable-msf-guard)")
 
+    # Coupling-posture adaptive gate profiles (W4 integration). On daily
+    # explore/exploit cycles, attach two posture-scoped overrides so the
+    # engine relaxes thresholds for weak coupling and tightens MSFGuard for
+    # permissive coupling. Hold/policy-probe regimes opt out — those cycles
+    # need stable baselines for paired evidence.
+    coupling_posture_profile_specs: tuple[str, ...] | None = None
+    if tier == "daily" and regime in {"explore", "exploit"}:
+        coupling_posture_profile_specs = (
+            "weak:0.45,0.55,none",
+            "permissive:none,none,0.05",
+        )
+        rationale_parts.append("coupling_posture_profiles: weak,permissive")
+
     # Advisory lesson clamp — if the lesson_advisory_writer consumer has
     # populated ``state.advisory_lesson_clamp`` with high-confidence pockets,
     # narrow the explore neighbor lists to that intersection. Empty
@@ -409,6 +424,7 @@ def decide_next_config(
         explore_loc_a_override=explore_loc_a_override,
         explore_loc_b_override=explore_loc_b_override,
         explore_drift_override=explore_drift_override,
+        coupling_posture_profile_specs=coupling_posture_profile_specs,
     )
 
 
@@ -462,6 +478,11 @@ def build_engine_argv(config: NextConfig, run_dir: Path) -> list[str]:
         argv.append("--enable-msf-guard")
     else:
         argv.append("--no-enable-msf-guard")
+
+    # Coupling-posture adaptive gate profiles (W4). One CLI flag per spec.
+    if config.coupling_posture_profile_specs:
+        for spec in config.coupling_posture_profile_specs:
+            argv += ["--coupling-posture-profile", spec]
 
     if config.size == "tight":
         # 1 variant, short cycles.
@@ -546,6 +567,7 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
     coupling_counts: dict[str, int] = {}
     basin_counts: dict[str, int] = {}
     synchrony_counts: dict[str, int] = {}
+    profile_used_counts: dict[str, int] = {}
     gate_pass_total = 0
     nudge_applied_total = 0
     positive_window_total = 0
@@ -565,6 +587,8 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
         gate_pass_total += int(r.get("gate_pass_count", 0) or 0)
         nudge_applied_total += int(r.get("nudge_applied_count", 0) or 0)
         positive_window_total += int(r.get("nudge_positive_forward_windows", 0) or 0)
+        profile_used_key = str(r.get("coupling_posture_profile_used", "none") or "none")
+        profile_used_counts[profile_used_key] = profile_used_counts.get(profile_used_key, 0) + 1
 
     consensus_diagnosis = _argmax(diagnosis_counts)
     coupling_consensus = _argmax(coupling_counts)
@@ -604,6 +628,7 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
         "gate_pass_total": gate_pass_total,
         "nudge_applied_total": nudge_applied_total,
         "positive_forward_window_total": positive_window_total,
+        "coupling_posture_profile_used_counts": profile_used_counts,
         "handoff_excerpt": _first_lines(handoff_text, 12),
     }
 
@@ -685,6 +710,20 @@ def apply_results_to_state(
         new_state["last_msf_ab_arm"] = (
             "treatment" if "__msf_ab_treatment__" in config.flags else "control"
         )
+
+    # Accumulate W4 coupling-posture profile usage. Counts how many sweep
+    # variants applied each named profile (or "none" when no profile matched
+    # the row's coupling posture). Cross-cycle telemetry only — does not feed
+    # back into the decision policy in C1.
+    profile_counts_in = results.get("coupling_posture_profile_used_counts") or {}
+    if isinstance(profile_counts_in, dict) and profile_counts_in:
+        existing = dict(new_state.get("coupling_posture_profile_usage_counts") or {})
+        for key, value in profile_counts_in.items():
+            try:
+                existing[str(key)] = int(existing.get(str(key), 0)) + int(value or 0)
+            except (TypeError, ValueError):
+                continue
+        new_state["coupling_posture_profile_usage_counts"] = existing
 
     # Cross-tier safety rule: a pulse-only signal cannot leave the regime in
     # "exploit" by itself.  If the policy chose exploit on a pulse run, demote
