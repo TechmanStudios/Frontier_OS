@@ -46,6 +46,40 @@ def test_entangled_pair_selects_deterministic_wormholes(tmp_path: Path):
     )
 
 
+def test_entangled_pair_phase_coherence_history_is_reproducible(tmp_path: Path):
+    """Two independently constructed pairs with identical seed and identical
+    embeddings must produce bit-identical phase_coherence_history through many
+    ticks. Guards the deterministic wormhole signature + shared-flux quantization
+    fix against regressions in NetworkX neighbor iteration order or float-sum
+    accumulation drift.
+    """
+    config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
+    controls_template = dict(wormhole_count=6, seed=149, entangler_mode="active")
+
+    embeddings_a = [np.linspace(0.20 + 0.01 * tick, 1.20 + 0.01 * tick, 256) for tick in range(8)]
+    embeddings_b = [np.linspace(0.40 + 0.01 * tick, 1.40 + 0.01 * tick, 256) for tick in range(8)]
+
+    def _run_history(working_dir: Path) -> list[float]:
+        pair = EntangledSOLPair(
+            config_a=config,
+            config_b=config,
+            controls=EntanglementControls(**controls_template),
+            working_dir=working_dir,
+        )
+        history: list[float] = []
+        for embedding_a, embedding_b in zip(embeddings_a, embeddings_b):
+            result = pair.tick(embedding_a=embedding_a, embedding_b=embedding_b)
+            history.append(float(result["pair_metrics"]["phase_coherence"]))
+        return history
+
+    history_a = _run_history(tmp_path / "run_a")
+    history_b = _run_history(tmp_path / "run_b")
+
+    assert history_a == history_b, (
+        f"phase_coherence_history diverged between independent runs: {history_a} vs {history_b}"
+    )
+
+
 def test_entangled_pair_records_pair_metrics_and_bounded_flux(tmp_path: Path):
     config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
     controls = EntanglementControls(

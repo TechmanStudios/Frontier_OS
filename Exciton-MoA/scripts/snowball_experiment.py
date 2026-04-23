@@ -114,6 +114,8 @@ def default_state() -> dict[str, Any]:
         "last_config_pulse": None,
         "last_config_daily": None,
         "policy_probe_alternation": 0,
+        "msf_ab_alternation": 0,
+        "last_msf_ab_arm": None,
         "history_window": 8,
         "updated_utc": None,
     }
@@ -277,6 +279,23 @@ def decide_next_config(
         flags.append("__conf_rel_probe__")
         rationale_parts.append(f"probe thresholds: conf/rel={CONF_REL_PROBE[0]}/{CONF_REL_PROBE[1]}")
 
+    # MSFGuard A/B alternation. Toggle the guard on/off across consecutive
+    # daily explore/exploit cycles so paired evidence accumulates over time.
+    # Hold/policy-probe regimes opt out so probes stay isolated. The selector
+    # is the existing daily-cycle counter ``msf_ab_alternation`` if present
+    # (incremented by the runner), else falls back to len(yields_daily).
+    if tier == "daily" and regime in {"explore", "exploit"}:
+        msf_alt_raw = state.get("msf_ab_alternation")
+        if msf_alt_raw is None:
+            msf_alt = len(yields_daily)
+        else:
+            msf_alt = int(msf_alt_raw or 0)
+        if msf_alt % 2 == 1:
+            flags.append("__msf_ab_treatment__")
+            rationale_parts.append("msf_ab: treatment (--enable-msf-guard)")
+        else:
+            rationale_parts.append("msf_ab: control (--no-enable-msf-guard)")
+
     rationale = "; ".join(rationale_parts)
     return NextConfig(tier=tier, size=size, regime=regime, rationale=rationale, flags=tuple(flags))
 
@@ -324,6 +343,13 @@ def build_engine_argv(config: NextConfig, run_dir: Path) -> list[str]:
     for flag in config.flags:
         if flag.startswith("--"):
             argv.append(flag)
+
+    # MSFGuard A/B: explicit on/off so the engine logs which arm produced
+    # this sweep regardless of any future default-flip.
+    if "__msf_ab_treatment__" in config.flags:
+        argv.append("--enable-msf-guard")
+    else:
+        argv.append("--no-enable-msf-guard")
 
     if config.size == "tight":
         # 1 variant, short cycles.
@@ -532,6 +558,15 @@ def apply_results_to_state(
 
     if config.regime == "policy_probe" and paper_trigger == "synchrony":
         new_state["policy_probe_alternation"] = int(new_state.get("policy_probe_alternation", 0) or 0) + 1
+
+    # Increment the MSF A/B alternation counter on every daily explore/exploit
+    # cycle so the next decide_next_config flips the arm. Hold/policy-probe
+    # cycles do not bump it (those arms aren't part of the A/B series).
+    if tier == "daily" and config.regime in {"explore", "exploit"}:
+        new_state["msf_ab_alternation"] = int(new_state.get("msf_ab_alternation", 0) or 0) + 1
+        new_state["last_msf_ab_arm"] = (
+            "treatment" if "__msf_ab_treatment__" in config.flags else "control"
+        )
 
     # Cross-tier safety rule: a pulse-only signal cannot leave the regime in
     # "exploit" by itself.  If the policy chose exploit on a pulse run, demote

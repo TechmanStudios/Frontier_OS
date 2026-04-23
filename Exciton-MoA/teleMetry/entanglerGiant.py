@@ -113,6 +113,7 @@ class EntanglerGiant:
             controls=controls,
             hint_gate=hint_gate,
             coherence_feedback=coherence_feedback,
+            recent_phase_coherence=pair_metrics.get("recent_phase_coherence", []),
         )
         nudge_delta = dict(nudge_summary.get("nudge_delta", {}))
         aperture_target += float(nudge_delta.get("aperture", 0.0))
@@ -346,6 +347,7 @@ class EntanglerGiant:
         controls: Any,
         hint_gate: dict[str, Any],
         coherence_feedback: dict[str, Any],
+        recent_phase_coherence: Sequence[float] | None = None,
     ) -> dict[str, Any]:
         gate_policy = getattr(controls, "hint_gate_policy", None)
         nudge_enabled = (
@@ -368,6 +370,7 @@ class EntanglerGiant:
                 1.0,
             )
         )
+        msf_eval = self._evaluate_msf_guard(gate_policy, recent_phase_coherence or [])
         result = {
             "nudge_enabled": nudge_enabled,
             "nudge_applied": False,
@@ -380,6 +383,10 @@ class EntanglerGiant:
             "nudge_delta": {"aperture": 0.0, "damping": 0.0, "phase_offset": 0.0},
             "nudge_clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
             "nudge_override_source": "none",
+            "nudge_msf_guard_enabled": msf_eval["enabled"],
+            "nudge_msf_lambda_hat": msf_eval["lambda_hat"],
+            "nudge_msf_status": msf_eval["status"],
+            "nudge_msf_sample_count": msf_eval["sample_count"],
         }
         observe_feedback_scale = (
             float(getattr(gate_policy, "observe_nudge_feedback_scale", 0.35))
@@ -415,6 +422,9 @@ class EntanglerGiant:
             if status == "decaying":
                 result["nudge_rejection_reason"] = "unstable"
                 return result
+        if msf_eval["enabled"] and msf_eval["status"] == "unstable":
+            result["nudge_rejection_reason"] = "msf_unstable"
+            return result
 
         strength = float(np.clip((confidence + reliability) * 0.5, 0.0, 1.0))
         aperture_max = min(
@@ -526,6 +536,49 @@ class EntanglerGiant:
         ]
         average_norm = float(np.mean([np.linalg.norm(vector) for vector in history]))
         return float(np.clip(np.mean(diffs) / max(average_norm + 1.0, 1.0), 0.0, 1.0))
+
+    def _evaluate_msf_guard(
+        self,
+        gate_policy: Any,
+        recent_phase_coherence: Sequence[float],
+    ) -> dict[str, Any]:
+        """Compute the MSFGuard surrogate transverse Lyapunov exponent.
+
+        Discrete-time, observable-only proxy for the master-stability-function
+        idea (Pecora & Carroll, PhysRevLett.80.2109): treat ``1 - phase_coherence``
+        as a transverse-perturbation magnitude. If it contracts geometrically
+        across a short window, the synchronized state is locally transversely
+        stable and bounded nudges are safe; if it grows, applying nudges is
+        likely to drive the pair away from synchrony.
+        """
+        enabled = bool(getattr(gate_policy, "enable_msf_guard", False)) if gate_policy else False
+        result: dict[str, Any] = {
+            "enabled": enabled,
+            "lambda_hat": float("nan"),
+            "status": "disabled",
+            "sample_count": 0,
+        }
+        if not enabled:
+            return result
+        window = max(int(getattr(gate_policy, "msf_window", 4)), 2)
+        min_samples = max(int(getattr(gate_policy, "msf_min_samples", 3)), 2)
+        threshold = float(getattr(gate_policy, "msf_lambda_threshold", 0.0))
+        history = [float(value) for value in recent_phase_coherence][-window:]
+        result["sample_count"] = len(history)
+        if len(history) < min_samples:
+            result["status"] = "insufficient_history"
+            return result
+        gaps = [max(1.0 - value, 1e-9) for value in history]
+        log_ratios = [
+            float(np.log(gaps[idx + 1] / gaps[idx])) for idx in range(len(gaps) - 1)
+        ]
+        if not log_ratios:
+            result["status"] = "insufficient_history"
+            return result
+        lambda_hat = float(np.mean(log_ratios))
+        result["lambda_hat"] = lambda_hat
+        result["status"] = "unstable" if lambda_hat > threshold else "stable"
+        return result
 
     def _apply_control(
         self,

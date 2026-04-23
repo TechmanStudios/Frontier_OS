@@ -84,6 +84,15 @@ class HintGatingPolicy:
     near_pass_sample_gap_max: int = 0
     near_pass_observe_feedback_scale: float = 0.20
     enable_negative_collapse_stabilize: bool = False
+    # MSFGuard: paper-grounded transverse-stability gate (PhysRevLett.80.2109).
+    # Computes a discrete-time surrogate transverse Lyapunov exponent from a
+    # sliding window of phase_coherence_history; blocks bounded-nudge
+    # application when the synchronized state appears transversely unstable
+    # (lambda_hat > msf_lambda_threshold). Disabled by default.
+    enable_msf_guard: bool = False
+    msf_window: int = 4
+    msf_lambda_threshold: float = 0.0
+    msf_min_samples: int = 3
 
 
 @dataclass
@@ -832,7 +841,9 @@ class EntangledSOLPair:
         conjugated_b = self._phase_conjugate(signature_b)
         target_flux = 0.5 * (np.asarray(signature_a, dtype=float) + conjugated_b)
         updated_flux = (self.controls.damping * self.shared_flux) + (self.controls.aperture * target_flux)
-        return np.clip(updated_flux, -10.0, 10.0)
+        # Quantize to remove sub-ulp drift before it compounds through future
+        # ticks via inject_entangled_flux -> resonance accumulator -> next signature.
+        return np.round(np.clip(updated_flux, -10.0, 10.0), 12)
 
     def _phase_conjugate(self, signature: np.ndarray) -> np.ndarray:
         vector = np.asarray(signature, dtype=float).reshape(-1)
@@ -1807,6 +1818,7 @@ def summarize_sweep_variant(
         telemetry_records,
         forward_window=int(controls.hint_gate_policy.forward_window),
     )
+    msf_outcomes = replay.summarize_msf_guard_outcomes(telemetry_records)
     gate_decisions = replay.summarize_hint_gate_decisions(
         telemetry_records,
         confidence_threshold=float(controls.hint_gate_policy.confidence_threshold),
@@ -1860,6 +1872,10 @@ def summarize_sweep_variant(
         "negative_collapse_stabilize_enabled": bool(
             controls.hint_gate_policy.enable_negative_collapse_stabilize
         ),
+        "msf_guard_enabled": bool(controls.hint_gate_policy.enable_msf_guard),
+        "msf_window": int(controls.hint_gate_policy.msf_window),
+        "msf_lambda_threshold": float(controls.hint_gate_policy.msf_lambda_threshold),
+        "msf_min_samples": int(controls.hint_gate_policy.msf_min_samples),
         "nudge_reliability_floor": float(controls.hint_gate_policy.nudge_reliability_floor),
         "nudge_requires_stability": bool(controls.hint_gate_policy.nudge_requires_stability),
         "nudge_stability_window": int(controls.hint_gate_policy.nudge_stability_window),
@@ -1917,6 +1933,18 @@ def summarize_sweep_variant(
         "nudge_mean_abs_phase_delta": float(
             dict(nudge_outcomes.get("delta_abs_mean", {})).get("phase_offset", 0.0)
         ),
+        "msf_tick_count": int(msf_outcomes.get("tick_count", 0)),
+        "msf_enabled_tick_count": int(msf_outcomes.get("enabled_tick_count", 0)),
+        "msf_stable_count": int(msf_outcomes.get("stable_count", 0)),
+        "msf_unstable_count": int(msf_outcomes.get("unstable_count", 0)),
+        "msf_insufficient_history_count": int(msf_outcomes.get("insufficient_history_count", 0)),
+        "msf_disabled_count": int(msf_outcomes.get("disabled_count", 0)),
+        "msf_veto_count": int(msf_outcomes.get("veto_count", 0)),
+        "msf_veto_rate": float(msf_outcomes.get("veto_rate", 0.0)),
+        "msf_lambda_hat_mean": float(msf_outcomes.get("lambda_hat_mean", 0.0)),
+        "msf_lambda_hat_max": float(msf_outcomes.get("lambda_hat_max", 0.0)),
+        "msf_lambda_hat_p95": float(msf_outcomes.get("lambda_hat_p95", 0.0)),
+        "msf_status_counts": dict(msf_outcomes.get("status_counts", {})),
         "hint_gate_tick_count": int(gate_decisions.get("tick_count", 0)),
         "hint_gate_enabled_count": int(gate_decisions.get("enabled_count", 0)),
         "hint_gate_passed_count": int(gate_decisions.get("passed_count", 0)),
@@ -3038,6 +3066,10 @@ def build_pair_runtime_parser() -> argparse.ArgumentParser:
     parser.add_argument("--near-pass-reliability-gap-max", type=float, default=0.12)
     parser.add_argument("--near-pass-sample-gap-max", type=int, default=0)
     parser.add_argument("--near-pass-observe-feedback-scale", type=float, default=0.20)
+    parser.add_argument("--enable-msf-guard", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--msf-window", type=int, default=4)
+    parser.add_argument("--msf-lambda-threshold", type=float, default=0.0)
+    parser.add_argument("--msf-min-samples", type=int, default=3)
     parser.add_argument("--embedding-a-loc", type=float, default=0.50)
     parser.add_argument("--embedding-b-loc", type=float, default=0.55)
     parser.add_argument("--embedding-scale", type=float, default=0.20)
@@ -3082,6 +3114,10 @@ def build_controls_from_args(args: argparse.Namespace) -> EntanglementControls:
             near_pass_reliability_gap_max=float(args.near_pass_reliability_gap_max),
             near_pass_sample_gap_max=int(args.near_pass_sample_gap_max),
             near_pass_observe_feedback_scale=float(args.near_pass_observe_feedback_scale),
+            enable_msf_guard=bool(args.enable_msf_guard),
+            msf_window=int(args.msf_window),
+            msf_lambda_threshold=float(args.msf_lambda_threshold),
+            msf_min_samples=int(args.msf_min_samples),
         ),
     )
 

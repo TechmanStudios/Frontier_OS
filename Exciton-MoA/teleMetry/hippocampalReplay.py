@@ -824,6 +824,95 @@ class HippocampalReplay:
             "decision_outcomes": self._finalize_predictive_stats(decision_stats),
         }
 
+    def summarize_msf_guard_outcomes(
+        self,
+        telemetry_records: list[dict[str, object]],
+    ) -> dict[str, object]:
+        """Summarise per-tick MSFGuard surrogate observations.
+
+        Reads ``entangler_nudge_msf_*`` keys persisted by
+        :class:`TelemetryPanel`. Records with the guard disabled are still
+        counted in ``status_counts`` (status="disabled") so a sweep variant
+        can distinguish guard-off vs guard-on runs without needing the config
+        column. Returns zeroed defaults when no MSF-bearing records exist.
+        """
+        msf_records = [
+            record
+            for record in telemetry_records
+            if "entangler_nudge_msf_status" in record
+        ]
+        if not msf_records:
+            return {
+                "tick_count": 0,
+                "enabled_tick_count": 0,
+                "stable_count": 0,
+                "unstable_count": 0,
+                "insufficient_history_count": 0,
+                "disabled_count": 0,
+                "veto_count": 0,
+                "veto_rate": 0.0,
+                "lambda_hat_mean": 0.0,
+                "lambda_hat_max": 0.0,
+                "lambda_hat_p95": 0.0,
+                "status_counts": {},
+            }
+
+        status_counts: Counter[str] = Counter()
+        lambda_values: list[float] = []
+        enabled_tick_count = 0
+        veto_count = 0
+        for record in msf_records:
+            status = str(record.get("entangler_nudge_msf_status", "disabled"))
+            status_counts[status] += 1
+            if bool(record.get("entangler_nudge_msf_guard_enabled", False)):
+                enabled_tick_count += 1
+            lam = record.get("entangler_nudge_msf_lambda_hat")
+            if lam is not None:
+                try:
+                    lambda_values.append(float(lam))
+                except (TypeError, ValueError):
+                    pass
+            if (
+                status == "unstable"
+                and str(record.get("entangler_nudge_rejection_reason", "")) == "msf_unstable"
+            ):
+                veto_count += 1
+
+        sorted_lambda = sorted(lambda_values)
+        if sorted_lambda:
+            lambda_max = float(sorted_lambda[-1])
+            lambda_mean = float(np.mean(sorted_lambda))
+            # Discrete p95 with linear interpolation on small samples.
+            idx = 0.95 * (len(sorted_lambda) - 1)
+            lower = int(np.floor(idx))
+            upper = int(np.ceil(idx))
+            if lower == upper:
+                lambda_p95 = float(sorted_lambda[lower])
+            else:
+                frac = idx - lower
+                lambda_p95 = float(
+                    sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac
+                )
+        else:
+            lambda_max = 0.0
+            lambda_mean = 0.0
+            lambda_p95 = 0.0
+
+        return {
+            "tick_count": len(msf_records),
+            "enabled_tick_count": enabled_tick_count,
+            "stable_count": int(status_counts.get("stable", 0)),
+            "unstable_count": int(status_counts.get("unstable", 0)),
+            "insufficient_history_count": int(status_counts.get("insufficient_history", 0)),
+            "disabled_count": int(status_counts.get("disabled", 0)),
+            "veto_count": veto_count,
+            "veto_rate": float(veto_count / enabled_tick_count) if enabled_tick_count else 0.0,
+            "lambda_hat_mean": lambda_mean,
+            "lambda_hat_max": lambda_max,
+            "lambda_hat_p95": lambda_p95,
+            "status_counts": dict(status_counts.most_common()),
+        }
+
     def summarize_status_streaks(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
         coherence_records = [record for record in telemetry_records if "entangler_coherence_status" in record]
         if not coherence_records:

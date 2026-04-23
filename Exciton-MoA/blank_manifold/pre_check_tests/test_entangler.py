@@ -738,3 +738,175 @@ def test_entangler_near_pass_maturity_stays_blocked_by_default():
     assert report["hint_gate"]["near_pass_candidate"] is False
     assert report["hint_gate"]["nudge_applied"] is False
     assert report["hint_gate"]["nudge_rejection_reason"] == "gate_blocked"
+
+
+# ---------------------------------------------------------------------------
+# MSFGuard (paper-grounded transverse-stability gate, PhysRevLett.80.2109)
+# ---------------------------------------------------------------------------
+
+
+class _MSFNudgePolicy:
+    enabled = True
+    require_armed_status = True
+    confidence_threshold = 0.0
+    reliability_threshold = 0.0
+    max_age_ticks = 2
+    min_samples = 1
+    enable_bounded_nudges = True
+    nudge_aperture_max_step = 0.02
+    nudge_damping_max_step = 0.015
+    nudge_phase_max_step = 0.04
+    nudge_reliability_floor = 0.90
+    nudge_requires_stability = False
+    nudge_stability_window = 1
+    observe_nudge_feedback_scale = 0.35
+    enable_near_pass_maturity_nudges = False
+    near_pass_confidence_gap_max = 0.10
+    near_pass_reliability_gap_max = 0.12
+    near_pass_sample_gap_max = 0
+    near_pass_observe_feedback_scale = 0.20
+    enable_negative_collapse_stabilize = False
+    enable_msf_guard = True
+    msf_window = 4
+    msf_lambda_threshold = 0.0
+    msf_min_samples = 3
+
+
+def _msf_summary():
+    return {
+        "pair_clock": 9,
+        "shared_flux_vector": [0.3, 1.6, 0.4],
+        "shared_flux_norm": 1.68,
+        "phase_coherence": 0.55,
+        "bilateral_burst_count": 1,
+        "bilateral_node_ids": ["node_0001"],
+        "wormhole_nodes": ["node_0001", "node_0008"],
+        "resolved_channels": {
+            "node_0001": {
+                "consensus_confidence": 0.81,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 9,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.69,
+                "consensus_entropy": 0.22,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 8,
+            },
+        },
+    }
+
+
+def _msf_pair_metrics(history):
+    return {
+        "max_h_cross_domain": 7.4,
+        "recent_phase_coherence": list(history),
+        "recent_control_deltas": [{"aperture": 0.0, "damping": 0.0, "phase_offset": 0.0}],
+        "candidate_phonon_control_hint": {
+            "status": "armed",
+            "recommended_bias": "observe",
+            "confidence": 0.84,
+            "age_ticks": 1,
+        },
+        "phonon_hint_reliability": {
+            "recommendation_scores": {
+                "observe": {"reliability_score": 0.44, "sample_count": 4, "provisional": False}
+            }
+        },
+    }
+
+
+def test_entangler_msf_guard_blocks_nudge_when_transverse_perturbation_grows():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    controls.hint_gate_policy = _MSFNudgePolicy()
+    # 1 - c grows: 0.10 -> 0.18 -> 0.32 -> 0.55 (transversely unstable).
+    diverging = [0.90, 0.82, 0.68, 0.45]
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=_msf_pair_metrics(diverging),
+    )
+
+    gate = report["hint_gate"]
+    assert gate["passed"] is True, gate
+    assert gate["nudge_msf_guard_enabled"] is True
+    assert gate["nudge_msf_status"] == "unstable"
+    assert gate["nudge_msf_lambda_hat"] > 0.0
+    assert gate["nudge_applied"] is False
+    assert gate["nudge_rejection_reason"] == "msf_unstable"
+
+
+def test_entangler_msf_guard_allows_nudge_when_transverse_perturbation_contracts():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    controls.hint_gate_policy = _MSFNudgePolicy()
+    # 1 - c contracts: 0.55 -> 0.32 -> 0.18 -> 0.10 (transversely stable).
+    contracting = [0.45, 0.68, 0.82, 0.90]
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=_msf_pair_metrics(contracting),
+    )
+
+    gate = report["hint_gate"]
+    assert gate["passed"] is True, gate
+    assert gate["nudge_msf_guard_enabled"] is True
+    assert gate["nudge_msf_status"] == "stable"
+    assert gate["nudge_msf_lambda_hat"] < 0.0
+    assert gate["nudge_applied"] is True
+    assert gate["nudge_rejection_reason"] == "none"
+    assert gate["nudge_reason"] == "observe_via_feedback"
+
+
+def test_entangler_msf_guard_is_permissive_when_history_is_short():
+    entangler = EntanglerGiant()
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    controls.hint_gate_policy = _MSFNudgePolicy()
+    # Only two samples: below msf_min_samples=3, guard must not block.
+    history = [0.45, 0.68]
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=_msf_pair_metrics(history),
+    )
+
+    gate = report["hint_gate"]
+    assert gate["nudge_msf_status"] == "insufficient_history"
+    assert gate["nudge_applied"] is True
+    assert gate["nudge_rejection_reason"] == "none"
+
+
+def test_entangler_msf_guard_disabled_does_not_set_lambda_hat():
+    entangler = EntanglerGiant()
+
+    class _NoGuardPolicy(_MSFNudgePolicy):
+        enable_msf_guard = False
+
+    controls = _Controls(aperture=0.32, damping=0.78, phase_offset=0.28)
+    controls.entangler_mode = "active"
+    controls.hint_gate_policy = _NoGuardPolicy()
+    diverging = [0.90, 0.82, 0.68, 0.45]
+
+    report = entangler.control(
+        controls,
+        _msf_summary(),
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=_msf_pair_metrics(diverging),
+    )
+
+    gate = report["hint_gate"]
+    assert gate["nudge_msf_guard_enabled"] is False
+    assert gate["nudge_msf_status"] == "disabled"
+    assert gate["nudge_applied"] is True  # Unblocked when guard is off.
+

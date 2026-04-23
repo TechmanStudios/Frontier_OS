@@ -290,6 +290,20 @@ class TelemetryPanel:
             entry["entangler_nudge_aperture_clamped"] = bool(nudge_clamp_flags.get("aperture", False))
             entry["entangler_nudge_damping_clamped"] = bool(nudge_clamp_flags.get("damping", False))
             entry["entangler_nudge_phase_clamped"] = bool(nudge_clamp_flags.get("phase_offset", False))
+            entry["entangler_nudge_msf_guard_enabled"] = bool(
+                hint_gate.get("nudge_msf_guard_enabled", False)
+            )
+            entry["entangler_nudge_msf_lambda_hat"] = (
+                None
+                if hint_gate.get("nudge_msf_lambda_hat") is None
+                else float(hint_gate.get("nudge_msf_lambda_hat"))
+            )
+            entry["entangler_nudge_msf_status"] = str(
+                hint_gate.get("nudge_msf_status", "disabled")
+            )
+            entry["entangler_nudge_msf_sample_count"] = int(
+                hint_gate.get("nudge_msf_sample_count", 0)
+            )
 
         with self.history_path.open("a", encoding="utf-8") as history_file:
             history_file.write(json.dumps(entry) + "\n")

@@ -1519,3 +1519,96 @@ def test_hippocampal_replay_summarizes_real_multi_tick_pair_runs(tmp_path: Path)
     assert "Local phonon summary:" in output
     assert "Advisory hint summary:" in output
     assert "Wormhole weight summary:" in output
+
+
+# ---------------------------------------------------------------------------
+# MSFGuard outcome rollup (W1)
+# ---------------------------------------------------------------------------
+
+
+def _msf_record(
+    *,
+    enabled: bool,
+    status: str,
+    lambda_hat: float | None,
+    sample_count: int,
+    rejection_reason: str = "none",
+) -> dict[str, object]:
+    return {
+        "phase_coherence": 0.5,
+        "entangler_nudge_enabled": True,
+        "entangler_nudge_applied": rejection_reason == "none",
+        "entangler_nudge_rejection_reason": rejection_reason,
+        "entangler_nudge_msf_guard_enabled": enabled,
+        "entangler_nudge_msf_status": status,
+        "entangler_nudge_msf_lambda_hat": lambda_hat,
+        "entangler_nudge_msf_sample_count": sample_count,
+    }
+
+
+def test_summarize_msf_guard_outcomes_empty_when_no_records(tmp_path):
+    replay = HippocampalReplay(working_dir=tmp_path)
+    out = replay.summarize_msf_guard_outcomes([])
+    assert out["tick_count"] == 0
+    assert out["veto_count"] == 0
+    assert out["lambda_hat_p95"] == 0.0
+    assert out["status_counts"] == {}
+
+
+def test_summarize_msf_guard_outcomes_counts_status_and_vetoes(tmp_path):
+    records = [
+        _msf_record(enabled=True, status="stable", lambda_hat=-0.05, sample_count=4),
+        _msf_record(enabled=True, status="stable", lambda_hat=-0.02, sample_count=4),
+        _msf_record(
+            enabled=True,
+            status="unstable",
+            lambda_hat=0.08,
+            sample_count=4,
+            rejection_reason="msf_unstable",
+        ),
+        _msf_record(
+            enabled=True,
+            status="unstable",
+            lambda_hat=0.11,
+            sample_count=4,
+            rejection_reason="msf_unstable",
+        ),
+        _msf_record(
+            enabled=True,
+            status="insufficient_history",
+            lambda_hat=None,
+            sample_count=2,
+        ),
+        _msf_record(enabled=False, status="disabled", lambda_hat=None, sample_count=0),
+    ]
+    replay = HippocampalReplay(working_dir=tmp_path)
+    out = replay.summarize_msf_guard_outcomes(records)
+    assert out["tick_count"] == 6
+    assert out["enabled_tick_count"] == 5
+    assert out["stable_count"] == 2
+    assert out["unstable_count"] == 2
+    assert out["insufficient_history_count"] == 1
+    assert out["disabled_count"] == 1
+    assert out["veto_count"] == 2
+    # Two vetoes out of five enabled ticks.
+    assert out["veto_rate"] == 2 / 5
+    # lambda_hat aggregates: from the four numeric values [-0.05, -0.02, 0.08, 0.11]
+    assert out["lambda_hat_max"] == 0.11
+    assert abs(out["lambda_hat_mean"] - 0.03) < 1e-9
+    assert out["lambda_hat_p95"] >= 0.08
+
+
+def test_summarize_msf_guard_outcomes_disabled_run_has_no_lambda_signal(tmp_path):
+    records = [
+        _msf_record(enabled=False, status="disabled", lambda_hat=None, sample_count=0)
+        for _ in range(5)
+    ]
+    replay = HippocampalReplay(working_dir=tmp_path)
+    out = replay.summarize_msf_guard_outcomes(records)
+    assert out["tick_count"] == 5
+    assert out["enabled_tick_count"] == 0
+    assert out["veto_count"] == 0
+    assert out["veto_rate"] == 0.0
+    assert out["lambda_hat_max"] == 0.0
+    assert out["lambda_hat_mean"] == 0.0
+    assert out["status_counts"] == {"disabled": 5}

@@ -105,22 +105,32 @@ class StatisticalPrism:
         """
         Collapse a wormhole boundary into a compact 3-axis signature that can be
         exchanged with another manifold without copying full local state.
+
+        Reproducibility: wormhole node ids are visited in sorted order, neighbor
+        iteration is sorted (NetworkX neighbor order is otherwise insertion-order
+        dependent), and per-channel value lists are sorted before averaging so
+        the floating-point sum order is identical across runs. The returned
+        signature is then quantized to 12 decimal places so any sub-ulp drift
+        from upstream operators does not compound through the shared-flux loop.
         """
-        valid_nodes = [node_id for node_id in node_ids if node_id in self.graph]
+        valid_nodes = sorted(node_id for node_id in node_ids if node_id in self.graph)
         if not valid_nodes:
             return np.zeros(3, dtype=float)
 
-        density_values = []
-        shear_values = []
-        flux_values = []
+        density_values: list[float] = []
+        shear_values: list[float] = []
+        flux_values: list[float] = []
         for node_id in valid_nodes:
             node = self.graph.nodes[node_id]
             density_values.append(float(node.get("resonance_accumulator", 0.0)))
             shear_values.append(abs(float(node.get("semantic_potential", 0.0))))
-            for neighbor in self.graph.neighbors(node_id):
-                flux_values.append(abs(float(self.graph[node_id][neighbor].get("residual_flux", 0.0))))
+            for neighbor in sorted(self.graph.neighbors(node_id)):
+                flux_values.append(
+                    abs(float(self.graph[node_id][neighbor].get("residual_flux", 0.0)))
+                )
 
-        density = float(np.mean(density_values)) if density_values else 0.0
-        shear = float(np.mean(shear_values)) if shear_values else 0.0
-        vorticity = float(np.mean(flux_values)) if flux_values else 0.0
-        return np.array([density, shear, vorticity], dtype=float)
+        density = float(np.mean(sorted(density_values))) if density_values else 0.0
+        shear = float(np.mean(sorted(shear_values))) if shear_values else 0.0
+        vorticity = float(np.mean(sorted(flux_values))) if flux_values else 0.0
+        signature = np.array([density, shear, vorticity], dtype=float)
+        return np.round(signature, 12)

@@ -493,3 +493,141 @@ def test_render_report_contains_key_sections(tmp_path: Path):
     assert "natural Stabilizer entries: 0" in report
     assert "paper trigger: synchrony" in report
     assert "UNCERTAINTY TO PAPER RECOMMENDATION" in report
+
+
+# ---------------------------------------------------------------------------
+# W2: MSFGuard A/B alternation in daily explore/exploit
+# ---------------------------------------------------------------------------
+
+
+def test_decide_msf_ab_off_for_hold():
+    state = snowball_experiment.default_state()
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.regime == "hold"
+    assert "__msf_ab_treatment__" not in cfg.flags
+    assert "msf_ab" not in cfg.rationale
+
+
+def test_decide_msf_ab_off_for_pulse_even_when_explore():
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    cfg = snowball_experiment.decide_next_config(state, "pulse")
+    # Pulse never participates in the A/B series.
+    assert "__msf_ab_treatment__" not in cfg.flags
+    assert "msf_ab" not in cfg.rationale
+
+
+def test_decide_msf_ab_alternates_on_daily_explore():
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["msf_ab_alternation"] = 0
+    cfg_a = snowball_experiment.decide_next_config(state, "daily")
+    state["msf_ab_alternation"] = 1
+    cfg_b = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg_a.regime == "explore"
+    assert "__msf_ab_treatment__" not in cfg_a.flags
+    assert "msf_ab: control" in cfg_a.rationale
+    assert "__msf_ab_treatment__" in cfg_b.flags
+    assert "msf_ab: treatment" in cfg_b.rationale
+
+
+def test_build_engine_argv_msf_treatment_passes_enable_flag(tmp_path):
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["msf_ab_alternation"] = 1  # treatment arm
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(cfg, tmp_path / "runs/x")
+    # Bookkeeping flag must NOT leak into the engine CLI.
+    assert "__msf_ab_treatment__" not in argv
+    assert "--enable-msf-guard" in argv
+    assert "--no-enable-msf-guard" not in argv
+
+
+def test_build_engine_argv_msf_control_passes_disable_flag(tmp_path):
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    state["msf_ab_alternation"] = 0  # control arm
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(cfg, tmp_path / "runs/x")
+    assert "--no-enable-msf-guard" in argv
+    assert "--enable-msf-guard" not in argv
+
+
+def test_build_engine_argv_hold_does_not_request_msf_treatment(tmp_path):
+    state = snowball_experiment.default_state()
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    argv = snowball_experiment.build_engine_argv(cfg, tmp_path / "runs/x")
+    # Hold cycles default to control (no guard) so the engine still logs an
+    # explicit arm choice without polluting the historical baseline.
+    assert "--no-enable-msf-guard" in argv
+    assert "--enable-msf-guard" not in argv
+
+
+def test_apply_results_increments_msf_ab_alternation_on_daily_explore():
+    state = snowball_experiment.default_state()
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.regime == "explore"
+    results = {
+        "consensus_diagnosis": "low_variance_candidate",
+        "coupling_consensus": "weak",
+        "paper_trigger": "synchrony",
+        "natural_entries": 0,
+        "gate_pass_total": 0,
+        "positive_forward_window_total": 0,
+    }
+    s1 = snowball_experiment.apply_results_to_state(
+        state, tier="daily", config=cfg, results=results, argv=["--sweep"]
+    )
+    assert s1["msf_ab_alternation"] == 1
+    assert s1["last_msf_ab_arm"] == "control"
+    s2 = snowball_experiment.apply_results_to_state(
+        s1, tier="daily", config=cfg, results=results, argv=["--sweep"]
+    )
+    # Without re-deciding cfg, both bumps register; arm tag still reflects cfg.
+    assert s2["msf_ab_alternation"] == 2
+
+
+def test_apply_results_does_not_increment_msf_alt_on_hold_or_pulse():
+    state = snowball_experiment.default_state()
+    cfg_hold = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg_hold.regime == "hold"
+    s1 = snowball_experiment.apply_results_to_state(
+        state,
+        tier="daily",
+        config=cfg_hold,
+        results={
+            "consensus_diagnosis": "unknown",
+            "coupling_consensus": "unknown",
+            "paper_trigger": "none",
+            "natural_entries": 0,
+            "gate_pass_total": 0,
+            "positive_forward_window_total": 0,
+        },
+        argv=["--sweep"],
+    )
+    assert s1["msf_ab_alternation"] == 0
+
+    state["diagnosis_streak_label"] = "low_variance_candidate"
+    state["diagnosis_streak_count"] = 3
+    cfg_pulse = snowball_experiment.decide_next_config(state, "pulse")
+    s2 = snowball_experiment.apply_results_to_state(
+        state,
+        tier="pulse",
+        config=cfg_pulse,
+        results={
+            "consensus_diagnosis": "low_variance_candidate",
+            "coupling_consensus": "weak",
+            "paper_trigger": "none",
+            "natural_entries": 0,
+            "gate_pass_total": 0,
+            "positive_forward_window_total": 0,
+        },
+        argv=["--sweep"],
+    )
+    assert s2["msf_ab_alternation"] == 0
