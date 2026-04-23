@@ -1,0 +1,103 @@
+name: SOL Exciton Consumers — Daily
+
+on:
+  schedule:
+    # 07:47 UTC — 30 minutes after the snowball daily kicks off so a fresh
+    # ledger row is likely in place when the consumers run.
+    - cron: "47 6 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  # Joins the snowball concurrency group so consumers and the engine loop
+  # never race on state.json or the consumer artifact tree.
+  group: sol-exciton-snowball-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  consumers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: Exciton-MoA/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Exciton-MoA/requirements.txt
+
+      - name: Run replay-to-paper consumer
+        working-directory: Exciton-MoA
+        run: |
+          python scripts/replay_to_paper.py --ledger-tail 5 | tee replay_to_paper_outcome.json
+
+      - name: Run counterfactual probe consumer
+        working-directory: Exciton-MoA
+        run: |
+          python scripts/counterfactual_probe.py --ledger-tail 20 | tee counterfactual_outcome.json
+
+      - name: Commit consumer artifacts
+        run: |
+          git config user.name "sol-exciton-consumers[bot]"
+          git config user.email "sol-exciton-consumers@users.noreply.github.com"
+          git add Exciton-MoA/working_data/snowball/consumers || true
+          git add Exciton-MoA/working_data/snowball/state.json || true
+          if git diff --cached --quiet; then
+            echo "No consumer state changes to commit"
+            exit 0
+          fi
+          git commit -m "consumers(daily): run=${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            if git push; then break; fi
+            echo "Push attempt $attempt failed, rebasing..."
+            git pull --rebase
+          done
+
+      - name: Upload consumer artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-exciton-consumers-${{ github.run_id }}
+          path: |
+            Exciton-MoA/working_data/snowball/consumers
+            Exciton-MoA/replay_to_paper_outcome.json
+            Exciton-MoA/counterfactual_outcome.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        working-directory: Exciton-MoA
+        run: |
+          echo "## SOL Exciton Consumers — Daily" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Replay-to-paper outcome" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f replay_to_paper_outcome.json ]; then
+            cat replay_to_paper_outcome.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '{"status":"no_output"}' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Counterfactual probe outcome" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f counterfactual_outcome.json ]; then
+            cat counterfactual_outcome.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '{"status":"no_output"}' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

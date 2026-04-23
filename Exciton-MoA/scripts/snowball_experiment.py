@@ -210,6 +210,12 @@ def decide_next_config(
     rationale_parts: list[str] = []
     flags: list[str] = []
 
+    # Additive: surface consumer signals in the rationale when present. These
+    # reads are informational only — behavior stays deterministic.
+    fragility_delta = state.get("paper_basin_fragility_delta")
+    if fragility_delta in (-1, 1):
+        rationale_parts.append(f"counterfactual fragility_delta={fragility_delta} (informational)")
+
     if force_regime and force_regime != "auto":
         regime = force_regime
         rationale_parts.append(f"forced regime={force_regime}")
