@@ -28,19 +28,29 @@ def test_entangled_pair_selects_deterministic_wormholes(tmp_path: Path):
     config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
     controls = EntanglementControls(wormhole_count=6, seed=11)
 
-    pair_a = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path / "run_a")
-    pair_b = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path / "run_b")
+    pair_a = EntangledSOLPair(
+        config_a=config, config_b=config, controls=controls, working_dir=tmp_path / "run_a"
+    )
+    pair_b = EntangledSOLPair(
+        config_a=config, config_b=config, controls=controls, working_dir=tmp_path / "run_b"
+    )
 
     assert pair_a.wormhole_nodes == pair_b.wormhole_nodes
     assert len(pair_a.wormhole_nodes) == 6
     assert len(set(pair_a.wormhole_nodes)) == 6
-    assert pair_a._build_manifold_checkpoint(pair_a.manifold_a) == pair_b._build_manifold_checkpoint(pair_b.manifold_a)
-    assert pair_a._build_manifold_checkpoint(pair_a.manifold_b) == pair_b._build_manifold_checkpoint(pair_b.manifold_b)
+    assert pair_a._build_manifold_checkpoint(pair_a.manifold_a) == pair_b._build_manifold_checkpoint(
+        pair_b.manifold_a
+    )
+    assert pair_a._build_manifold_checkpoint(pair_a.manifold_b) == pair_b._build_manifold_checkpoint(
+        pair_b.manifold_b
+    )
 
 
 def test_entangled_pair_records_pair_metrics_and_bounded_flux(tmp_path: Path):
     config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
-    controls = EntanglementControls(wormhole_count=6, seed=7, aperture=0.22, damping=0.88, phase_offset=0.2, entangler_mode="Stabilizer")
+    controls = EntanglementControls(
+        wormhole_count=6, seed=7, aperture=0.22, damping=0.88, phase_offset=0.2, entangler_mode="Stabilizer"
+    )
     pair = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path)
     controls_before = (pair.controls.aperture, pair.controls.damping, pair.controls.phase_offset)
 
@@ -61,11 +71,17 @@ def test_entangled_pair_records_pair_metrics_and_bounded_flux(tmp_path: Path):
     assert result["pair_metrics"]["entangler_control"]["coherence_mode"] == "Stabilizer"
     assert result["pair_metrics"]["entangler_control"]["hint_gate"]["enabled"] is False
     assert result["pair_metrics"]["entangler_control"]["hint_gate"]["rejection_reason"] == "disabled"
-    assert result["pair_metrics"]["entangler_control"]["coherence_feedback"]["status"] in {"stable", "improving", "decaying"}
+    assert result["pair_metrics"]["entangler_control"]["coherence_feedback"]["status"] in {
+        "stable",
+        "improving",
+        "decaying",
+    }
     assert result["pair_metrics"]["wormhole_weight_map"]
     assert set(result["pair_metrics"]["wormhole_weight_map"]) == set(pair.wormhole_nodes)
     assert result["pair_metrics"]["local_phonon_bundle_count"] == 4
-    assert result["pair_metrics"]["latest_local_phonon_bundle"]["source_tier"].startswith("local_post_injection")
+    assert result["pair_metrics"]["latest_local_phonon_bundle"]["source_tier"].startswith(
+        "local_post_injection"
+    )
     assert result["pair_metrics"]["phonon_control_hint"]["status"] == "suppressed"
     assert result["pair_metrics"]["phonon_control_hint"]["suppression_reason"] == "insufficient_history"
     assert result["pair_metrics"]["phonon_control_hint"]["decision_reason"] == "insufficient_history"
@@ -81,7 +97,10 @@ def test_entangled_pair_records_pair_metrics_and_bounded_flux(tmp_path: Path):
     assert (pair.controls.aperture, pair.controls.damping, pair.controls.phase_offset) != controls_before
     assert len(pair.local_phonon_bundles) == 4
     assert len(pair.phonon_control_hints) == 1
-    assert {bundle.source_tier for bundle in pair.local_phonon_bundles} == {"local_post_giant", "local_post_injection"}
+    assert {bundle.source_tier for bundle in pair.local_phonon_bundles} == {
+        "local_post_giant",
+        "local_post_injection",
+    }
     assert "local phonon:" in registry
     assert "phonon hint:" in registry
     assert "hint gate: state=off" in registry
@@ -146,13 +165,30 @@ def test_entangled_pair_uses_previous_tick_candidate_hint_after_pair_state_refre
             },
             "wormhole_weight_map": {node_id: 1.0 for node_id in pair.wormhole_nodes},
             "wormhole_weight_summary": {"min_weight": 1.0, "max_weight": 1.0, "top_weighted_wormholes": []},
-            "controls_before": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
-            "targets": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
-            "controls_after": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
+            "controls_before": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
+            "targets": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
+            "controls_after": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
             "control_delta": {"aperture": 0.0, "damping": 0.0, "phase_offset": 0.0},
             "clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
             "features": {"coherence_mode": current_mode},
-            "hint_gate": {"enabled": False, "passed": False, "applied": False, "rejection_reason": "disabled"},
+            "hint_gate": {
+                "enabled": False,
+                "passed": False,
+                "applied": False,
+                "rejection_reason": "disabled",
+            },
             "wormhole_health": {},
             "reasoning_summary": "test candidate hint carry-forward",
         }
@@ -187,7 +223,10 @@ def test_entangled_pair_archives_pair_context_for_replay(tmp_path: Path):
     assert "Coherence trend over" in output
     assert shared_locus_path.exists()
     assert pair.last_pair_metrics["shared_locus"]["cross_domain_giant"] == "Entanglement Locus"
-    assert pair.last_pair_metrics["shared_locus"]["latest_phonon_control_hint"] == pair.last_pair_metrics["phonon_control_hint"]
+    assert (
+        pair.last_pair_metrics["shared_locus"]["latest_phonon_control_hint"]
+        == pair.last_pair_metrics["phonon_control_hint"]
+    )
     assert pair.last_pair_metrics["entangler_control"]["controller"] == "Entangler Giant"
     assert pair.last_pair_metrics["entangler_control"]["hint_gate"]["enabled"] is False
     assert "Wormhole weight summary:" in output
@@ -291,14 +330,18 @@ def test_entangled_flux_injection_respects_per_node_weighting(tmp_path: Path):
 
 def test_entangled_pair_persists_coherence_feedback_summary(tmp_path: Path):
     config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
-    controls = EntanglementControls(wormhole_count=6, seed=3, aperture=0.24, damping=0.84, phase_offset=0.19, entangler_mode="Stabilizer")
+    controls = EntanglementControls(
+        wormhole_count=6, seed=3, aperture=0.24, damping=0.84, phase_offset=0.19, entangler_mode="Stabilizer"
+    )
     pair = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path)
     pair.coherence_history = [0.83, 0.72, 0.61]
     pair.control_delta_history = [{"aperture": 0.05, "damping": -0.02, "phase_offset": 0.09}]
 
     pair.tick(embedding_a=np.linspace(0.2, 1.2, 256), embedding_b=np.linspace(0.4, 1.4, 256))
     feedback = pair.last_pair_metrics["entangler_control"]["coherence_feedback"]
-    restored = json.loads((tmp_path / f"shared_entanglement_locus_{pair.pair_id}.json").read_text(encoding="utf-8"))
+    restored = json.loads(
+        (tmp_path / f"shared_entanglement_locus_{pair.pair_id}.json").read_text(encoding="utf-8")
+    )
 
     assert feedback["history_count"] == 3
     assert feedback["mode"] == "Stabilizer"
@@ -427,7 +470,11 @@ def test_entangled_pair_switch_policy_requires_history_streak_and_dwell(tmp_path
 
     first = {
         "coherence_mode": "active",
-        "controls_after": {"aperture": pair.controls.aperture, "damping": pair.controls.damping, "phase_offset": pair.controls.phase_offset},
+        "controls_after": {
+            "aperture": pair.controls.aperture,
+            "damping": pair.controls.damping,
+            "phase_offset": pair.controls.phase_offset,
+        },
         "coherence_feedback": {"status": "decaying", "history_count": 1},
     }
     pair._apply_entangler_control(first)
@@ -437,7 +484,11 @@ def test_entangled_pair_switch_policy_requires_history_streak_and_dwell(tmp_path
 
     second = {
         "coherence_mode": "active",
-        "controls_after": {"aperture": pair.controls.aperture, "damping": pair.controls.damping, "phase_offset": pair.controls.phase_offset},
+        "controls_after": {
+            "aperture": pair.controls.aperture,
+            "damping": pair.controls.damping,
+            "phase_offset": pair.controls.phase_offset,
+        },
         "coherence_feedback": {"status": "decaying", "history_count": 2},
     }
     pair._apply_entangler_control(second)
@@ -449,7 +500,11 @@ def test_entangled_pair_switch_policy_requires_history_streak_and_dwell(tmp_path
 
     third = {
         "coherence_mode": "Stabilizer",
-        "controls_after": {"aperture": pair.controls.aperture, "damping": pair.controls.damping, "phase_offset": pair.controls.phase_offset},
+        "controls_after": {
+            "aperture": pair.controls.aperture,
+            "damping": pair.controls.damping,
+            "phase_offset": pair.controls.phase_offset,
+        },
         "coherence_feedback": {"status": "improving", "history_count": 3},
     }
     pair._apply_entangler_control(third)
@@ -458,7 +513,11 @@ def test_entangled_pair_switch_policy_requires_history_streak_and_dwell(tmp_path
 
     fourth = {
         "coherence_mode": "Stabilizer",
-        "controls_after": {"aperture": pair.controls.aperture, "damping": pair.controls.damping, "phase_offset": pair.controls.phase_offset},
+        "controls_after": {
+            "aperture": pair.controls.aperture,
+            "damping": pair.controls.damping,
+            "phase_offset": pair.controls.phase_offset,
+        },
         "coherence_feedback": {"status": "improving", "history_count": 4},
     }
     pair._apply_entangler_control(fourth)
@@ -468,7 +527,11 @@ def test_entangled_pair_switch_policy_requires_history_streak_and_dwell(tmp_path
 
     fifth = {
         "coherence_mode": "Stabilizer",
-        "controls_after": {"aperture": pair.controls.aperture, "damping": pair.controls.damping, "phase_offset": pair.controls.phase_offset},
+        "controls_after": {
+            "aperture": pair.controls.aperture,
+            "damping": pair.controls.damping,
+            "phase_offset": pair.controls.phase_offset,
+        },
         "coherence_feedback": {"status": "improving", "history_count": 5},
     }
     pair._apply_entangler_control(fifth)
@@ -518,9 +581,21 @@ def test_entangled_pair_records_mode_transitions_in_runtime_and_replay(tmp_path:
             },
             "wormhole_weight_map": {node_id: 1.0 for node_id in pair.wormhole_nodes},
             "wormhole_weight_summary": {"min_weight": 1.0, "max_weight": 1.0, "top_weighted_wormholes": []},
-            "controls_before": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
-            "targets": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
-            "controls_after": {"aperture": controls.aperture, "damping": controls.damping, "phase_offset": controls.phase_offset},
+            "controls_before": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
+            "targets": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
+            "controls_after": {
+                "aperture": controls.aperture,
+                "damping": controls.damping,
+                "phase_offset": controls.phase_offset,
+            },
             "control_delta": {"aperture": 0.0, "damping": 0.0, "phase_offset": 0.0},
             "clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
             "features": {"coherence_mode": current_mode},
@@ -533,11 +608,17 @@ def test_entangled_pair_records_mode_transitions_in_runtime_and_replay(tmp_path:
     for _ in range(5):
         pair.tick(embedding_a=np.linspace(0.2, 1.2, 256), embedding_b=np.linspace(0.4, 1.4, 256))
 
-    history_records = [json.loads(line) for line in (tmp_path / "adaptive_tau_history.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    history_records = [
+        json.loads(line)
+        for line in (tmp_path / "adaptive_tau_history.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     transition_records = [record for record in history_records if record.get("entangler_mode_changed")]
     replay = HippocampalReplay(working_dir=tmp_path)
     output = replay.replay(pair_id=pair.pair_id, top_n=4)
-    restored = json.loads((tmp_path / f"shared_entanglement_locus_{pair.pair_id}.json").read_text(encoding="utf-8"))
+    restored = json.loads(
+        (tmp_path / f"shared_entanglement_locus_{pair.pair_id}.json").read_text(encoding="utf-8")
+    )
 
     assert len(transition_records) == 2
     assert transition_records[0]["entangler_previous_mode"] == "active"
@@ -1018,10 +1099,16 @@ def test_pair_runtime_sweep_persists_aggregate_and_variant_outputs(tmp_path: Pat
     summary_lines = (tmp_path / "sweep_runs" / "sweep_summary.jsonl").read_text(encoding="utf-8").splitlines()
     csv_text = (tmp_path / "sweep_runs" / "sweep_summary.csv").read_text(encoding="utf-8")
     ranked_summary = (tmp_path / "sweep_runs" / "sweep_ranked_summary.txt").read_text(encoding="utf-8")
-    compact_comparison = (tmp_path / "sweep_runs" / "sweep_compact_comparison.txt").read_text(encoding="utf-8")
+    compact_comparison = (tmp_path / "sweep_runs" / "sweep_compact_comparison.txt").read_text(
+        encoding="utf-8"
+    )
     paper_diagnostics = (tmp_path / "sweep_runs" / "sweep_paper_diagnostics.txt").read_text(encoding="utf-8")
-    paper_handoff = (tmp_path / "sweep_runs" / "sweep_uncertainty_paper_handoff.md").read_text(encoding="utf-8")
-    paper_recommendation = (tmp_path / "sweep_runs" / "paper_finder_recommendation.md").read_text(encoding="utf-8")
+    paper_handoff = (tmp_path / "sweep_runs" / "sweep_uncertainty_paper_handoff.md").read_text(
+        encoding="utf-8"
+    )
+    paper_recommendation = (tmp_path / "sweep_runs" / "paper_finder_recommendation.md").read_text(
+        encoding="utf-8"
+    )
     record = result["records"][0]
 
     assert len(result["variants"]) == 1
@@ -1062,12 +1149,32 @@ def test_pair_runtime_sweep_persists_aggregate_and_variant_outputs(tmp_path: Pat
     assert "Coupling postures:" in compact_comparison
     assert "Diagnosis-grouped leaders:" in compact_comparison
     assert "Parameter pockets:" in compact_comparison
-    assert "[cycles] key | runs | entries | mean_span | mean_decay | top_variant | top_reason" in compact_comparison
-    assert "[drift] key | runs | entries | mean_span | mean_decay | top_variant | top_reason" in compact_comparison
-    assert "[loc_pair] key | runs | entries | mean_span | mean_decay | top_variant | top_reason" in compact_comparison
-    assert "rank | variant_id | cycles | seed | locA | locB | drift | mode | a2s | decay" in compact_comparison
-    assert "nudges | gate | n+ | sync | basin | paper | policy | switch_tick | policy_tick | diagnosis | rank_reason | working_dir" in compact_comparison
-    assert "threshold_ready_no_switch" in compact_comparison or "too_short" in compact_comparison or "calm" in compact_comparison or "decay_pressure" in compact_comparison or "entered" in compact_comparison
+    assert (
+        "[cycles] key | runs | entries | mean_span | mean_decay | top_variant | top_reason"
+        in compact_comparison
+    )
+    assert (
+        "[drift] key | runs | entries | mean_span | mean_decay | top_variant | top_reason"
+        in compact_comparison
+    )
+    assert (
+        "[loc_pair] key | runs | entries | mean_span | mean_decay | top_variant | top_reason"
+        in compact_comparison
+    )
+    assert (
+        "rank | variant_id | cycles | seed | locA | locB | drift | mode | a2s | decay" in compact_comparison
+    )
+    assert (
+        "nudges | gate | n+ | sync | basin | paper | policy | switch_tick | policy_tick | diagnosis | rank_reason | working_dir"
+        in compact_comparison
+    )
+    assert (
+        "threshold_ready_no_switch" in compact_comparison
+        or "too_short" in compact_comparison
+        or "calm" in compact_comparison
+        or "decay_pressure" in compact_comparison
+        or "entered" in compact_comparison
+    )
     assert "[PAIR SWEEP PAPER] variants=1" in paper_diagnostics
     assert "Synchrony boundary states:" in paper_diagnostics
     assert "Coupling postures:" in paper_diagnostics
@@ -1082,10 +1189,23 @@ def test_pair_runtime_sweep_persists_aggregate_and_variant_outputs(tmp_path: Pat
     assert record["hint_gate_enabled_count"] >= 1
     assert record["hint_gate_near_pass_count"] >= 0
     assert record["paper_synchrony_margin"] in {"favorable", "borderline", "unfavorable", "unknown"}
-    assert record["paper_synchrony_basis"] in {"response_led", "boundary_led", "structure_led", "mixed", "unknown"}
+    assert record["paper_synchrony_basis"] in {
+        "response_led",
+        "boundary_led",
+        "structure_led",
+        "mixed",
+        "unknown",
+    }
     assert record["paper_synchrony_coupling_posture"] in {"permissive", "strained", "weak", "unknown"}
     assert record["paper_synchrony_contradiction"] in {"low", "medium", "high", "unknown"}
-    assert record["paper_synchrony_boundary_state"] in {"converting", "mixed_conversion", "non_converting", "blocked", "clear", "unknown"}
+    assert record["paper_synchrony_boundary_state"] in {
+        "converting",
+        "mixed_conversion",
+        "non_converting",
+        "blocked",
+        "clear",
+        "unknown",
+    }
     assert record["paper_basin_fragility"] in {"broad", "narrow", "fragile", "unknown"}
     assert isinstance(record["paper_uncertainty_triggered"], bool)
     assert isinstance(record["hint_gate_reason_counts"], dict)
@@ -1186,8 +1306,14 @@ def test_render_sweep_uncertainty_paper_handoff_selects_best_triggered_variant()
     assert "# UNCERTAINTY TO PAPER RECOMMENDATION" in rendered
     assert "Selected variant: variant_high" in rendered
     assert "Sweep trigger coverage: 2/3 variants" in rendered
-    assert "Selection basis: highest-priority triggered variant chosen by risk, contradiction count, and near-pass maturity" in rendered
-    assert "Consensus pattern: dominant triggered pattern: intervention=control policy (2/2), sync=borderline (2/2), basin=narrow (2/2), diagnosis=threshold_conservative_candidate (2/2)" in rendered
+    assert (
+        "Selection basis: highest-priority triggered variant chosen by risk, contradiction count, and near-pass maturity"
+        in rendered
+    )
+    assert (
+        "Consensus pattern: dominant triggered pattern: intervention=control policy (2/2), sync=borderline (2/2), basin=narrow (2/2), diagnosis=threshold_conservative_candidate (2/2)"
+        in rendered
+    )
     assert "- intervention class: control policy" in rendered
 
 
@@ -1219,14 +1345,32 @@ def test_render_sweep_uncertainty_paper_handoff_reflects_topology_route():
 
     rendered = render_sweep_uncertainty_paper_handoff(records)
 
-    assert "- key telemetry fields: phase_coherence, entangler_coherence_delta, entangler_coherence_status, wormhole_aperture, damping, phase_offset, entanglement_strength" in rendered
-    assert "- key replay or sweep signals: coherence trend, coupling posture summary, paper diagnostic summary, sweep ranking" in rendered
-    assert "- recent regimes or labels involved: borderline, coupling:weak, broad, low_variance_candidate" in rendered
-    assert "- working hypothesis 1: The pair may sit outside a favorable synchronizable region because the current coupling posture is too weak or misaligned." in rendered
+    assert (
+        "- key telemetry fields: phase_coherence, entangler_coherence_delta, entangler_coherence_status, wormhole_aperture, damping, phase_offset, entanglement_strength"
+        in rendered
+    )
+    assert (
+        "- key replay or sweep signals: coherence trend, coupling posture summary, paper diagnostic summary, sweep ranking"
+        in rendered
+    )
+    assert (
+        "- recent regimes or labels involved: borderline, coupling:weak, broad, low_variance_candidate"
+        in rendered
+    )
+    assert (
+        "- working hypothesis 1: The pair may sit outside a favorable synchronizable region because the current coupling posture is too weak or misaligned."
+        in rendered
+    )
     assert "- intervention class: topology design" in rendered
-    assert "- novelty relative to current `working_mind`: Extend beyond the current synchrony-margin and basin-stability seeds with a more specific topology-aware synchronization or controllability source." in rendered
+    assert (
+        "- novelty relative to current `working_mind`: Extend beyond the current synchrony-margin and basin-stability seeds with a more specific topology-aware synchronization or controllability source."
+        in rendered
+    )
     assert "- preferred search envelope: one paper" in rendered
-    assert "current bottleneck: The pair shows unresolved synchrony uncertainty under weak coupling posture." in rendered
+    assert (
+        "current bottleneck: The pair shows unresolved synchrony uncertainty under weak coupling posture."
+        in rendered
+    )
 
 
 def test_render_sweep_uncertainty_paper_handoff_reports_sweepwide_consensus():
@@ -1280,4 +1424,7 @@ def test_render_sweep_uncertainty_paper_handoff_reports_sweepwide_consensus():
     assert "Selected variant: variant_b" in rendered
     assert "Sweep trigger coverage: 2/2 variants" in rendered
     assert "Selection basis: representative triggered variant chosen from a sweep-wide consensus" in rendered
-    assert "Consensus pattern: unanimous sweep consensus: intervention=control policy (2/2), sync=borderline (2/2), basin=broad (2/2), diagnosis=low_variance_candidate (2/2)" in rendered
+    assert (
+        "Consensus pattern: unanimous sweep consensus: intervention=control policy (2/2), sync=borderline (2/2), basin=broad (2/2), diagnosis=low_variance_candidate (2/2)"
+        in rendered
+    )

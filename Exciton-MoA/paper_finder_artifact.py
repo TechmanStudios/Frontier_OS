@@ -135,12 +135,25 @@ def write_paper_finder_recommendation(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write a bounded paper finder recommendation artifact next to a sweep uncertainty handoff.")
-    parser.add_argument("--uncertainty-handoff", type=Path, required=True, help="Path to sweep_uncertainty_paper_handoff.md.")
-    parser.add_argument("--output-path", type=Path, default=None, help="Optional output path for paper_finder_recommendation.md.")
+    parser = argparse.ArgumentParser(
+        description="Write a bounded paper finder recommendation artifact next to a sweep uncertainty handoff."
+    )
+    parser.add_argument(
+        "--uncertainty-handoff", type=Path, required=True, help="Path to sweep_uncertainty_paper_handoff.md."
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        help="Optional output path for paper_finder_recommendation.md.",
+    )
     parser.add_argument("--source-url", default="", help="Recommended paper source URL.")
-    parser.add_argument("--suggested-filename", default="", help="Suggested local filename for the recommended paper.")
-    parser.add_argument("--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded.")
+    parser.add_argument(
+        "--suggested-filename", default="", help="Suggested local filename for the recommended paper."
+    )
+    parser.add_argument(
+        "--local-file-path", default="[UNKNOWN]", help="Local file path if the paper is already downloaded."
+    )
     parser.add_argument("--title", default="[TO_FILL]", help="Recommended paper title.")
     parser.add_argument("--authors", default="[TO_FILL]", help="Recommended paper authors.")
     parser.add_argument("--year", default="[TO_FILL]", help="Recommended paper year.")
@@ -148,7 +161,9 @@ def main() -> None:
     parser.add_argument("--subject-folder", default=None, help="Optional canonical subject folder override.")
     parser.add_argument("--source-status", default=None, help="Optional source status override.")
     parser.add_argument("--current-relevance-note", default=None, help="Optional relevance note override.")
-    parser.add_argument("--recommendation-rationale", default="[TO_FILL]", help="Recommendation rationale text.")
+    parser.add_argument(
+        "--recommendation-rationale", default="[TO_FILL]", help="Recommendation rationale text."
+    )
     args = parser.parse_args()
 
     output_path = write_paper_finder_recommendation(

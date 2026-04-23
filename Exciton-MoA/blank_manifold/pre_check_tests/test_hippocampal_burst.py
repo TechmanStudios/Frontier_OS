@@ -17,22 +17,24 @@ def test_hippocampal_burst_archive(tmp_path: Path):
 
     transducer = HippocampalTransducer(output_dir=tmp_path, burst_flush_threshold=1)
     burst_path = transducer.capture_bursts(
-        [(
-            "node_0000",
-            {
-                "H_total": 2.0,
-                "tau_threshold": 1.75,
-                "density": 1.0,
-                "density_signal": 0.7,
-                "density_contrib": 1.05,
-                "shear": 0.5,
-                "shear_signal": 0.4,
-                "shear_contrib": 0.4,
-                "vorticity": 0.25,
-                "vorticity_signal": 0.2,
-                "vorticity_contrib": 0.15,
-            },
-        )],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 2.0,
+                    "tau_threshold": 1.75,
+                    "density": 1.0,
+                    "density_signal": 0.7,
+                    "density_contrib": 1.05,
+                    "shear": 0.5,
+                    "shear_signal": 0.4,
+                    "shear_contrib": 0.4,
+                    "vorticity": 0.25,
+                    "vorticity_signal": 0.2,
+                    "vorticity_contrib": 0.15,
+                },
+            )
+        ],
         manifold_core.graph,
     )
 
@@ -49,19 +51,21 @@ def test_hippocampal_burst_archive_with_pair_context(tmp_path: Path):
 
     transducer = HippocampalTransducer(output_dir=tmp_path, burst_flush_threshold=1)
     burst_path = transducer.capture_bursts(
-        [(
-            "node_0000",
-            {
-                "H_total": 2.5,
-                "tau_threshold": 2.0,
-                "density": 1.1,
-                "density_contrib": 1.2,
-                "shear": 0.7,
-                "shear_contrib": 0.8,
-                "vorticity": 0.4,
-                "vorticity_contrib": 0.5,
-            },
-        )],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 2.5,
+                    "tau_threshold": 2.0,
+                    "density": 1.1,
+                    "density_contrib": 1.2,
+                    "shear": 0.7,
+                    "shear_contrib": 0.8,
+                    "vorticity": 0.4,
+                    "vorticity_contrib": 0.5,
+                },
+            )
+        ],
         manifold_core.graph,
         pair_context={
             "pair_id": "primary-secondary",

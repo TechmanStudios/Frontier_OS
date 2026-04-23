@@ -26,10 +26,30 @@ def test_entangler_giant_computes_deterministic_control_from_shared_locus():
         "wormhole_nodes": ["node_0001", "node_0008", "node_0015", "node_0021"],
         "top_events": [{"manifold_id": "primary", "node_id": "node_0001", "h_total": 7.8}],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.92, "consensus_entropy": 0.12, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0008": {"consensus_confidence": 0.88, "consensus_entropy": 0.14, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0015": {"consensus_confidence": 0.76, "consensus_entropy": 0.20, "dominant_giant": "The Integrator", "vector_clock": 6},
-            "node_0021": {"consensus_confidence": 0.72, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 5},
+            "node_0001": {
+                "consensus_confidence": 0.92,
+                "consensus_entropy": 0.12,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.88,
+                "consensus_entropy": 0.14,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0015": {
+                "consensus_confidence": 0.76,
+                "consensus_entropy": 0.20,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 6,
+            },
+            "node_0021": {
+                "consensus_confidence": 0.72,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 5,
+            },
         },
     }
     history = [np.array([0.2, 0.7, 0.1]), np.array([0.5, 1.4, 0.3]), np.array([0.9, 2.4, 0.5])]
@@ -54,7 +74,10 @@ def test_entangler_giant_computes_deterministic_control_from_shared_locus():
     assert first["dominant_giant_consensus"] == "The Graph Navigator"
     assert 0.0 <= first["entanglement_strength"] <= 1.0
     assert first["wormhole_weight_map"]["node_0001"] > first["wormhole_weight_map"]["node_0015"]
-    assert first["controls_after"]["aperture"] != controls.aperture or first["controls_after"]["phase_offset"] != controls.phase_offset
+    assert (
+        first["controls_after"]["aperture"] != controls.aperture
+        or first["controls_after"]["phase_offset"] != controls.phase_offset
+    )
 
 
 def test_entangler_giant_clamps_control_outputs_when_targets_run_hot():
@@ -70,11 +93,26 @@ def test_entangler_giant_clamps_control_outputs_when_targets_run_hot():
         "bilateral_node_ids": [],
         "wormhole_nodes": ["node_0001", "node_0008"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.18, "consensus_entropy": 0.9, "dominant_giant": "The Statistician", "vector_clock": 7},
-            "node_0008": {"consensus_confidence": 0.22, "consensus_entropy": 1.1, "dominant_giant": "The Statistician", "vector_clock": 6},
+            "node_0001": {
+                "consensus_confidence": 0.18,
+                "consensus_entropy": 0.9,
+                "dominant_giant": "The Statistician",
+                "vector_clock": 7,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.22,
+                "consensus_entropy": 1.1,
+                "dominant_giant": "The Statistician",
+                "vector_clock": 6,
+            },
         },
     }
-    history = [np.array([0.1, 0.1, 0.1]), np.array([2.8, 0.3, 2.0]), np.array([-2.5, 0.1, -2.4]), np.array([3.0, 0.2, 2.5])]
+    history = [
+        np.array([0.1, 0.1, 0.1]),
+        np.array([2.8, 0.3, 2.0]),
+        np.array([-2.5, 0.1, -2.4]),
+        np.array([3.0, 0.2, 2.5]),
+    ]
 
     report = entangler.control(controls, summary, history, pair_metrics={"max_h_cross_domain": 8.8})
 
@@ -82,7 +120,11 @@ def test_entangler_giant_clamps_control_outputs_when_targets_run_hot():
     assert 0.5 <= report["controls_after"]["damping"] <= 0.99
     assert 0.0 <= report["controls_after"]["phase_offset"] <= float(2.0 * np.pi)
     assert all(0.8 <= value <= 1.5 for value in report["wormhole_weight_map"].values())
-    assert report["clamp_flags"]["aperture"] or report["clamp_flags"]["damping"] or report["clamp_flags"]["phase_offset"]
+    assert (
+        report["clamp_flags"]["aperture"]
+        or report["clamp_flags"]["damping"]
+        or report["clamp_flags"]["phase_offset"]
+    )
 
 
 def test_entangler_giant_reverses_phase_bias_when_recent_controls_degrade_coherence():
@@ -98,8 +140,18 @@ def test_entangler_giant_reverses_phase_bias_when_recent_controls_degrade_cohere
         "bilateral_node_ids": ["node_0001"],
         "wormhole_nodes": ["node_0001", "node_0008"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.81, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 9},
-            "node_0008": {"consensus_confidence": 0.69, "consensus_entropy": 0.22, "dominant_giant": "The Integrator", "vector_clock": 8},
+            "node_0001": {
+                "consensus_confidence": 0.81,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 9,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.69,
+                "consensus_entropy": 0.22,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 8,
+            },
         },
     }
 
@@ -138,8 +190,18 @@ def test_entangler_stabilizer_mode_is_more_conservative_during_decay():
         "bilateral_node_ids": ["node_0001"],
         "wormhole_nodes": ["node_0001", "node_0008"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.81, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 9},
-            "node_0008": {"consensus_confidence": 0.69, "consensus_entropy": 0.22, "dominant_giant": "The Integrator", "vector_clock": 8},
+            "node_0001": {
+                "consensus_confidence": 0.81,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 9,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.69,
+                "consensus_entropy": 0.22,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 8,
+            },
         },
     }
     pair_metrics = {
@@ -148,15 +210,37 @@ def test_entangler_stabilizer_mode_is_more_conservative_during_decay():
         "recent_control_deltas": [{"aperture": 0.06, "damping": -0.02, "phase_offset": 0.11}],
     }
 
-    active_report = entangler.control(active_controls, summary, shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])], pair_metrics=pair_metrics)
-    stabilizer_report = entangler.control(stabilizer_controls, summary, shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])], pair_metrics={**pair_metrics, "entangler_mode": "Stabilizer"})
+    active_report = entangler.control(
+        active_controls,
+        summary,
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics=pair_metrics,
+    )
+    stabilizer_report = entangler.control(
+        stabilizer_controls,
+        summary,
+        shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
+        pair_metrics={**pair_metrics, "entangler_mode": "Stabilizer"},
+    )
 
     assert stabilizer_report["coherence_mode"] == "Stabilizer"
     assert stabilizer_report["coherence_feedback"]["mode"] == "Stabilizer"
-    assert stabilizer_report["coherence_feedback"]["damping_correction"] >= active_report["coherence_feedback"]["damping_correction"]
-    assert stabilizer_report["coherence_feedback"]["phase_correction"] <= active_report["coherence_feedback"]["phase_correction"]
-    active_spread = active_report["wormhole_weight_summary"]["max_weight"] - active_report["wormhole_weight_summary"]["min_weight"]
-    stabilizer_spread = stabilizer_report["wormhole_weight_summary"]["max_weight"] - stabilizer_report["wormhole_weight_summary"]["min_weight"]
+    assert (
+        stabilizer_report["coherence_feedback"]["damping_correction"]
+        >= active_report["coherence_feedback"]["damping_correction"]
+    )
+    assert (
+        stabilizer_report["coherence_feedback"]["phase_correction"]
+        <= active_report["coherence_feedback"]["phase_correction"]
+    )
+    active_spread = (
+        active_report["wormhole_weight_summary"]["max_weight"]
+        - active_report["wormhole_weight_summary"]["min_weight"]
+    )
+    stabilizer_spread = (
+        stabilizer_report["wormhole_weight_summary"]["max_weight"]
+        - stabilizer_report["wormhole_weight_summary"]["min_weight"]
+    )
     assert stabilizer_spread <= active_spread
 
 
@@ -183,12 +267,37 @@ def test_entangler_annotation_only_hint_gate_reports_pass_without_changing_contr
         "wormhole_nodes": ["node_0001", "node_0008", "node_0015", "node_0021"],
         "top_events": [{"manifold_id": "primary", "node_id": "node_0001", "h_total": 7.8}],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.92, "consensus_entropy": 0.12, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0008": {"consensus_confidence": 0.88, "consensus_entropy": 0.14, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0015": {"consensus_confidence": 0.76, "consensus_entropy": 0.20, "dominant_giant": "The Integrator", "vector_clock": 6},
-            "node_0021": {"consensus_confidence": 0.72, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 5},
+            "node_0001": {
+                "consensus_confidence": 0.92,
+                "consensus_entropy": 0.12,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.88,
+                "consensus_entropy": 0.14,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0015": {
+                "consensus_confidence": 0.76,
+                "consensus_entropy": 0.20,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 6,
+            },
+            "node_0021": {
+                "consensus_confidence": 0.72,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 5,
+            },
         },
-        "latest_phonon_control_hint": {"status": "armed", "recommended_bias": "stabilize", "confidence": 0.83, "age_ticks": 1},
+        "latest_phonon_control_hint": {
+            "status": "armed",
+            "recommended_bias": "stabilize",
+            "confidence": 0.83,
+            "age_ticks": 1,
+        },
     }
     history = [np.array([0.2, 0.7, 0.1]), np.array([0.5, 1.4, 0.3]), np.array([0.9, 2.4, 0.5])]
 
@@ -199,7 +308,12 @@ def test_entangler_annotation_only_hint_gate_reports_pass_without_changing_contr
         history,
         pair_metrics={
             "max_h_cross_domain": 7.8,
-            "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "stabilize", "confidence": 0.83, "age_ticks": 1},
+            "candidate_phonon_control_hint": {
+                "status": "armed",
+                "recommended_bias": "stabilize",
+                "confidence": 0.83,
+                "age_ticks": 1,
+            },
             "phonon_hint_reliability": {
                 "recommendation_scores": {
                     "stabilize": {"reliability_score": 0.82, "sample_count": 4, "provisional": False}
@@ -249,10 +363,30 @@ def test_entangler_bounded_nudge_applies_within_policy_rails():
         "bilateral_node_ids": ["node_0001", "node_0008"],
         "wormhole_nodes": ["node_0001", "node_0008", "node_0015", "node_0021"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.92, "consensus_entropy": 0.12, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0008": {"consensus_confidence": 0.88, "consensus_entropy": 0.14, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0015": {"consensus_confidence": 0.76, "consensus_entropy": 0.20, "dominant_giant": "The Integrator", "vector_clock": 6},
-            "node_0021": {"consensus_confidence": 0.72, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 5},
+            "node_0001": {
+                "consensus_confidence": 0.92,
+                "consensus_entropy": 0.12,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.88,
+                "consensus_entropy": 0.14,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0015": {
+                "consensus_confidence": 0.76,
+                "consensus_entropy": 0.20,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 6,
+            },
+            "node_0021": {
+                "consensus_confidence": 0.72,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 5,
+            },
         },
     }
     history = [np.array([0.2, 0.7, 0.1]), np.array([0.5, 1.4, 0.3]), np.array([0.9, 2.4, 0.5])]
@@ -260,7 +394,12 @@ def test_entangler_bounded_nudge_applies_within_policy_rails():
         "max_h_cross_domain": 7.8,
         "recent_phase_coherence": [0.62],
         "recent_control_deltas": [{"aperture": 0.0, "damping": 0.0, "phase_offset": -0.02}],
-        "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "stabilize", "confidence": 0.84, "age_ticks": 1},
+        "candidate_phonon_control_hint": {
+            "status": "armed",
+            "recommended_bias": "stabilize",
+            "confidence": 0.84,
+            "age_ticks": 1,
+        },
         "phonon_hint_reliability": {
             "recommendation_scores": {
                 "stabilize": {"reliability_score": 0.88, "sample_count": 4, "provisional": False}
@@ -311,8 +450,18 @@ def test_entangler_bounded_nudge_is_blocked_by_reliability_floor():
         "bilateral_node_ids": ["node_0001", "node_0008"],
         "wormhole_nodes": ["node_0001", "node_0008", "node_0015", "node_0021"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.92, "consensus_entropy": 0.12, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
-            "node_0008": {"consensus_confidence": 0.88, "consensus_entropy": 0.14, "dominant_giant": "The Graph Navigator", "vector_clock": 7},
+            "node_0001": {
+                "consensus_confidence": 0.92,
+                "consensus_entropy": 0.12,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.88,
+                "consensus_entropy": 0.14,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 7,
+            },
         },
     }
     report = entangler.control(
@@ -323,7 +472,12 @@ def test_entangler_bounded_nudge_is_blocked_by_reliability_floor():
             "max_h_cross_domain": 7.8,
             "recent_phase_coherence": [0.62],
             "recent_control_deltas": [{"aperture": 0.0, "damping": 0.0, "phase_offset": -0.02}],
-            "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "stabilize", "confidence": 0.84, "age_ticks": 1},
+            "candidate_phonon_control_hint": {
+                "status": "armed",
+                "recommended_bias": "stabilize",
+                "confidence": 0.84,
+                "age_ticks": 1,
+            },
             "phonon_hint_reliability": {
                 "recommendation_scores": {
                     "stabilize": {"reliability_score": 0.82, "sample_count": 4, "provisional": False}
@@ -371,15 +525,30 @@ def test_entangler_observe_hint_applies_small_feedback_nudge():
         "bilateral_node_ids": ["node_0001"],
         "wormhole_nodes": ["node_0001", "node_0008"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.81, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 9},
-            "node_0008": {"consensus_confidence": 0.69, "consensus_entropy": 0.22, "dominant_giant": "The Integrator", "vector_clock": 8},
+            "node_0001": {
+                "consensus_confidence": 0.81,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 9,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.69,
+                "consensus_entropy": 0.22,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 8,
+            },
         },
     }
     pair_metrics = {
         "max_h_cross_domain": 7.4,
         "recent_phase_coherence": [0.82, 0.71, 0.58],
         "recent_control_deltas": [{"aperture": 0.06, "damping": -0.02, "phase_offset": 0.11}],
-        "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "observe", "confidence": 0.84, "age_ticks": 1},
+        "candidate_phonon_control_hint": {
+            "status": "armed",
+            "recommended_bias": "observe",
+            "confidence": 0.84,
+            "age_ticks": 1,
+        },
         "phonon_hint_reliability": {
             "recommendation_scores": {
                 "observe": {"reliability_score": 0.44, "sample_count": 4, "provisional": False}
@@ -447,8 +616,18 @@ def test_entangler_near_pass_maturity_can_apply_small_observe_override():
         "bilateral_node_ids": ["node_0001"],
         "wormhole_nodes": ["node_0001", "node_0008"],
         "resolved_channels": {
-            "node_0001": {"consensus_confidence": 0.81, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 9},
-            "node_0008": {"consensus_confidence": 0.69, "consensus_entropy": 0.22, "dominant_giant": "The Integrator", "vector_clock": 8},
+            "node_0001": {
+                "consensus_confidence": 0.81,
+                "consensus_entropy": 0.18,
+                "dominant_giant": "The Graph Navigator",
+                "vector_clock": 9,
+            },
+            "node_0008": {
+                "consensus_confidence": 0.69,
+                "consensus_entropy": 0.22,
+                "dominant_giant": "The Integrator",
+                "vector_clock": 8,
+            },
         },
     }
     report = entangler.control(
@@ -459,7 +638,12 @@ def test_entangler_near_pass_maturity_can_apply_small_observe_override():
             "max_h_cross_domain": 7.4,
             "recent_phase_coherence": [0.82, 0.71, 0.58],
             "recent_control_deltas": [{"aperture": 0.06, "damping": -0.02, "phase_offset": 0.11}],
-            "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "observe", "confidence": 0.49, "age_ticks": 1},
+            "candidate_phonon_control_hint": {
+                "status": "armed",
+                "recommended_bias": "observe",
+                "confidence": 0.49,
+                "age_ticks": 1,
+            },
             "phonon_hint_reliability": {
                 "recommendation_scores": {
                     "observe": {"reliability_score": 0.58, "sample_count": 3, "provisional": False}
@@ -517,8 +701,18 @@ def test_entangler_near_pass_maturity_stays_blocked_by_default():
             "bilateral_node_ids": ["node_0001"],
             "wormhole_nodes": ["node_0001", "node_0008"],
             "resolved_channels": {
-                "node_0001": {"consensus_confidence": 0.81, "consensus_entropy": 0.18, "dominant_giant": "The Graph Navigator", "vector_clock": 9},
-                "node_0008": {"consensus_confidence": 0.69, "consensus_entropy": 0.22, "dominant_giant": "The Integrator", "vector_clock": 8},
+                "node_0001": {
+                    "consensus_confidence": 0.81,
+                    "consensus_entropy": 0.18,
+                    "dominant_giant": "The Graph Navigator",
+                    "vector_clock": 9,
+                },
+                "node_0008": {
+                    "consensus_confidence": 0.69,
+                    "consensus_entropy": 0.22,
+                    "dominant_giant": "The Integrator",
+                    "vector_clock": 8,
+                },
             },
         },
         shared_flux_history=[np.array([0.2, 0.8, 0.2]), np.array([0.3, 1.6, 0.4])],
@@ -526,7 +720,12 @@ def test_entangler_near_pass_maturity_stays_blocked_by_default():
             "max_h_cross_domain": 7.4,
             "recent_phase_coherence": [0.82, 0.71, 0.58],
             "recent_control_deltas": [{"aperture": 0.06, "damping": -0.02, "phase_offset": 0.11}],
-            "candidate_phonon_control_hint": {"status": "armed", "recommended_bias": "observe", "confidence": 0.49, "age_ticks": 1},
+            "candidate_phonon_control_hint": {
+                "status": "armed",
+                "recommended_bias": "observe",
+                "confidence": 0.49,
+                "age_ticks": 1,
+            },
             "phonon_hint_reliability": {
                 "recommendation_scores": {
                     "observe": {"reliability_score": 0.58, "sample_count": 3, "provisional": False}

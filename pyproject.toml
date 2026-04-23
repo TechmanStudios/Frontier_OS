@@ -29,6 +29,13 @@ extend-exclude = [
     ".venv",
     "Exciton-MoA/working_data",
     "references",
+    # Conceptual exciton method-fragment stubs: standalone def bodies that use
+    # `self`/`np` at module scope (not importable modules). They are kept as
+    # design-reference snippets and intentionally excluded from linting.
+    "Exciton-MoA/firmWare/ExcitonEngine/linearAlgebraist.py",
+    "Exciton-MoA/firmWare/ExcitonEngine/theAligner.py",
+    "Exciton-MoA/firmWare/ExcitonEngine/theIntegrator.py",
+    "Exciton-MoA/firmWare/ExcitonEngine/graphNavigator.py",
 ]
 
 [tool.ruff.lint]
@@ -45,3 +52,4 @@ indent-style = "space"
 [tool.pytest.ini_options]
 testpaths = ["Exciton-MoA/blank_manifold/pre_check_tests"]
 addopts = "-q"
+pythonpath = ["Exciton-MoA"]

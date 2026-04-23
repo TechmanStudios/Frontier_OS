@@ -38,11 +38,17 @@ class EntanglerGiant:
         pair_metrics: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         pair_metrics = dict(pair_metrics or {})
-        mode_name = self._normalize_mode_name(pair_metrics.get("entangler_mode", getattr(controls, "entangler_mode", "active")))
+        mode_name = self._normalize_mode_name(
+            pair_metrics.get("entangler_mode", getattr(controls, "entangler_mode", "active"))
+        )
         pair_clock = int(shared_locus_summary.get("pair_clock", 0))
         shared_flux_vector = self._vector(shared_locus_summary.get("shared_flux_vector", [0.0, 0.0, 0.0]))
-        shared_flux_norm = float(shared_locus_summary.get("shared_flux_norm", np.linalg.norm(shared_flux_vector)))
-        phase_coherence = float(shared_locus_summary.get("phase_coherence", pair_metrics.get("phase_coherence", 0.0)))
+        shared_flux_norm = float(
+            shared_locus_summary.get("shared_flux_norm", np.linalg.norm(shared_flux_vector))
+        )
+        phase_coherence = float(
+            shared_locus_summary.get("phase_coherence", pair_metrics.get("phase_coherence", 0.0))
+        )
         coherence_strength = float(np.clip((phase_coherence + 1.0) * 0.5, 0.0, 1.0))
         wormhole_nodes = [str(node_id) for node_id in shared_locus_summary.get("wormhole_nodes", [])]
         bilateral_node_ids = [str(node_id) for node_id in shared_locus_summary.get("bilateral_node_ids", [])]
@@ -93,8 +99,10 @@ class EntanglerGiant:
         if phase_drive_direction == 0.0:
             phase_drive_direction = float(np.sign(shared_flux_vector[2])) or 1.0
         phase_pressure = (0.5 - coherence_strength) + (0.5 * (0.35 - bilateral_ratio)) + (0.15 * oscillation)
-        phase_target = phase_before + (phase_drive_direction * 0.35 * phase_pressure) + float(
-            coherence_feedback["phase_correction"]
+        phase_target = (
+            phase_before
+            + (phase_drive_direction * 0.35 * phase_pressure)
+            + float(coherence_feedback["phase_correction"])
         )
         hint_gate = self._evaluate_hint_gate(
             controls=controls,
@@ -143,7 +151,9 @@ class EntanglerGiant:
         weight_values = list(wormhole_weight_map.values())
         top_weighted_wormholes = [
             {"node_id": node_id, "weight": weight}
-            for node_id, weight in sorted(wormhole_weight_map.items(), key=lambda item: item[1], reverse=True)[:4]
+            for node_id, weight in sorted(
+                wormhole_weight_map.items(), key=lambda item: item[1], reverse=True
+            )[:4]
         ]
 
         reasoning_summary = (
@@ -200,7 +210,9 @@ class EntanglerGiant:
                 "phase_coherence": phase_coherence,
                 "coherence_strength": coherence_strength,
                 "bilateral_ratio": bilateral_ratio,
-                "bilateral_burst_count": int(shared_locus_summary.get("bilateral_burst_count", len(bilateral_node_ids))),
+                "bilateral_burst_count": int(
+                    shared_locus_summary.get("bilateral_burst_count", len(bilateral_node_ids))
+                ),
                 "wormhole_count": len(wormhole_nodes),
                 "shared_flux_vector": shared_flux_vector.tolist(),
                 "shared_flux_norm": shared_flux_norm,
@@ -212,7 +224,9 @@ class EntanglerGiant:
                 "weight_ceiling": self.wormhole_weight_bounds[1],
                 "coherence_target": self.coherence_target,
                 "coherence_mode": mode_name,
-                "top_events": list(shared_locus_summary.get("top_events", pair_metrics.get("top_events", []))),
+                "top_events": list(
+                    shared_locus_summary.get("top_events", pair_metrics.get("top_events", []))
+                ),
             },
             "hint_gate": hint_gate,
             "reasoning_summary": reasoning_summary,
@@ -229,7 +243,9 @@ class EntanglerGiant:
         candidate_hint = dict(
             pair_metrics.get(
                 "candidate_phonon_control_hint",
-                pair_metrics.get("phonon_control_hint", shared_locus_summary.get("latest_phonon_control_hint", {})),
+                pair_metrics.get(
+                    "phonon_control_hint", shared_locus_summary.get("latest_phonon_control_hint", {})
+                ),
             )
         )
         recommendation = str(candidate_hint.get("recommended_bias", "observe"))
@@ -242,8 +258,12 @@ class EntanglerGiant:
         reliability_score = float(recommendation_summary.get("reliability_score", 0.0))
         sample_count = int(recommendation_summary.get("sample_count", 0))
         provisional = bool(recommendation_summary.get("provisional", True))
-        confidence_threshold = float(getattr(gate_policy, "confidence_threshold", 0.55)) if gate_policy is not None else 0.55
-        reliability_threshold = float(getattr(gate_policy, "reliability_threshold", 0.60)) if gate_policy is not None else 0.60
+        confidence_threshold = (
+            float(getattr(gate_policy, "confidence_threshold", 0.55)) if gate_policy is not None else 0.55
+        )
+        reliability_threshold = (
+            float(getattr(gate_policy, "reliability_threshold", 0.60)) if gate_policy is not None else 0.60
+        )
         min_samples = int(getattr(gate_policy, "min_samples", 3)) if gate_policy is not None else 3
         confidence_gap = max(confidence_threshold - confidence, 0.0)
         reliability_gap = max(reliability_threshold - reliability_score, 0.0)
@@ -328,7 +348,9 @@ class EntanglerGiant:
         coherence_feedback: dict[str, Any],
     ) -> dict[str, Any]:
         gate_policy = getattr(controls, "hint_gate_policy", None)
-        nudge_enabled = bool(getattr(gate_policy, "enable_bounded_nudges", False)) if gate_policy is not None else False
+        nudge_enabled = (
+            bool(getattr(gate_policy, "enable_bounded_nudges", False)) if gate_policy is not None else False
+        )
         recommendation = str(hint_gate.get("considered_recommendation", "observe"))
         confidence = float(hint_gate.get("considered_confidence", 0.0))
         reliability = float(hint_gate.get("considered_reliability", 0.0))
@@ -339,7 +361,9 @@ class EntanglerGiant:
         trend = float(coherence_feedback.get("trend", 0.0))
         stability_score = float(
             np.clip(
-                1.0 - max(-trend, 0.0) - (0.15 if status == "improving" else (0.0 if status == "stable" else 0.65)),
+                1.0
+                - max(-trend, 0.0)
+                - (0.15 if status == "improving" else (0.0 if status == "stable" else 0.65)),
                 0.0,
                 1.0,
             )
@@ -357,8 +381,16 @@ class EntanglerGiant:
             "nudge_clamp_flags": {"aperture": False, "damping": False, "phase_offset": False},
             "nudge_override_source": "none",
         }
-        observe_feedback_scale = float(getattr(gate_policy, "observe_nudge_feedback_scale", 0.35)) if gate_policy is not None else 0.35
-        near_pass_observe_feedback_scale = float(getattr(gate_policy, "near_pass_observe_feedback_scale", 0.20)) if gate_policy is not None else 0.20
+        observe_feedback_scale = (
+            float(getattr(gate_policy, "observe_nudge_feedback_scale", 0.35))
+            if gate_policy is not None
+            else 0.35
+        )
+        near_pass_observe_feedback_scale = (
+            float(getattr(gate_policy, "near_pass_observe_feedback_scale", 0.20))
+            if gate_policy is not None
+            else 0.20
+        )
         observe_feedback_only = recommendation == "observe"
         if not nudge_enabled:
             return result
@@ -371,7 +403,9 @@ class EntanglerGiant:
         if provisional:
             result["nudge_rejection_reason"] = "provisional"
             return result
-        if not observe_feedback_only and reliability < float(getattr(gate_policy, "nudge_reliability_floor", 0.75)):
+        if not observe_feedback_only and reliability < float(
+            getattr(gate_policy, "nudge_reliability_floor", 0.75)
+        ):
             result["nudge_rejection_reason"] = "low_reliability"
             return result
         if bool(getattr(gate_policy, "nudge_requires_stability", True)):
@@ -383,7 +417,9 @@ class EntanglerGiant:
                 return result
 
         strength = float(np.clip((confidence + reliability) * 0.5, 0.0, 1.0))
-        aperture_max = min(float(getattr(gate_policy, "nudge_aperture_max_step", 0.04)), self.max_aperture_step)
+        aperture_max = min(
+            float(getattr(gate_policy, "nudge_aperture_max_step", 0.04)), self.max_aperture_step
+        )
         damping_max = min(float(getattr(gate_policy, "nudge_damping_max_step", 0.025)), self.max_damping_step)
         phase_max = min(float(getattr(gate_policy, "nudge_phase_max_step", 0.08)), self.max_phase_step)
         phase_anchor = float(np.sign(float(coherence_feedback.get("phase_correction", 0.0))))
@@ -392,13 +428,23 @@ class EntanglerGiant:
 
         raw_delta = {"aperture": 0.0, "damping": 0.0, "phase_offset": 0.0}
         if recommendation == "observe":
-            feedback_scale = near_pass_observe_feedback_scale if near_pass_override else observe_feedback_scale
+            feedback_scale = (
+                near_pass_observe_feedback_scale if near_pass_override else observe_feedback_scale
+            )
             raw_delta = {
-                "aperture": float(coherence_feedback.get("aperture_correction", 0.0)) * feedback_scale * strength,
-                "damping": float(coherence_feedback.get("damping_correction", 0.0)) * feedback_scale * strength,
-                "phase_offset": float(coherence_feedback.get("phase_correction", 0.0)) * feedback_scale * strength,
+                "aperture": float(coherence_feedback.get("aperture_correction", 0.0))
+                * feedback_scale
+                * strength,
+                "damping": float(coherence_feedback.get("damping_correction", 0.0))
+                * feedback_scale
+                * strength,
+                "phase_offset": float(coherence_feedback.get("phase_correction", 0.0))
+                * feedback_scale
+                * strength,
             }
-            result["nudge_reason"] = "observe_via_near_pass_maturity" if near_pass_override else "observe_via_feedback"
+            result["nudge_reason"] = (
+                "observe_via_near_pass_maturity" if near_pass_override else "observe_via_feedback"
+            )
         elif recommendation == "stabilize":
             raw_delta = {
                 "aperture": -0.60 * aperture_max * strength,
@@ -474,7 +520,10 @@ class EntanglerGiant:
         history = [self._vector(item) for item in shared_flux_history[-4:]]
         if len(history) < 2:
             return 0.0
-        diffs = [float(np.linalg.norm(current - previous)) for previous, current in zip(history[:-1], history[1:], strict=False)]
+        diffs = [
+            float(np.linalg.norm(current - previous))
+            for previous, current in zip(history[:-1], history[1:], strict=False)
+        ]
         average_norm = float(np.mean([np.linalg.norm(vector) for vector in history]))
         return float(np.clip(np.mean(diffs) / max(average_norm + 1.0, 1.0), 0.0, 1.0))
 
@@ -512,7 +561,9 @@ class EntanglerGiant:
             raw_weight = base_offset + (0.42 * health) + bilateral_bonus
             if stabilizer_mode:
                 raw_weight = 1.0 + ((raw_weight - 1.0) * 0.55)
-            bounded_weight = float(np.clip(raw_weight, self.wormhole_weight_bounds[0], self.wormhole_weight_bounds[1]))
+            bounded_weight = float(
+                np.clip(raw_weight, self.wormhole_weight_bounds[0], self.wormhole_weight_bounds[1])
+            )
             weight_map[str(node_id)] = bounded_weight
 
         return weight_map
@@ -535,9 +586,15 @@ class EntanglerGiant:
         positive_trend = max(coherence_trend, 0.0)
         stabilizer_mode = mode_name.lower() == "stabilizer"
 
-        aperture_reversal = -np.sign(float(last_control_delta.get("aperture", 0.0))) if negative_trend > 0.0 else 0.0
-        damping_reversal = -np.sign(float(last_control_delta.get("damping", 0.0))) if negative_trend > 0.0 else 0.0
-        phase_reversal = -np.sign(float(last_control_delta.get("phase_offset", 0.0))) if negative_trend > 0.0 else 0.0
+        aperture_reversal = (
+            -np.sign(float(last_control_delta.get("aperture", 0.0))) if negative_trend > 0.0 else 0.0
+        )
+        damping_reversal = (
+            -np.sign(float(last_control_delta.get("damping", 0.0))) if negative_trend > 0.0 else 0.0
+        )
+        phase_reversal = (
+            -np.sign(float(last_control_delta.get("phase_offset", 0.0))) if negative_trend > 0.0 else 0.0
+        )
 
         aperture_gain = 0.10
         aperture_reversal_gain = 0.05
@@ -551,8 +608,14 @@ class EntanglerGiant:
             damping_reversal_gain = 0.05
             phase_gain = 0.26
 
-        aperture_correction = float((aperture_gain * coherence_error) + (aperture_reversal_gain * negative_trend * aperture_reversal))
-        damping_correction = float((damping_gain * negative_trend) + (damping_reversal_gain * negative_trend * damping_reversal) - (0.02 * positive_trend))
+        aperture_correction = float(
+            (aperture_gain * coherence_error) + (aperture_reversal_gain * negative_trend * aperture_reversal)
+        )
+        damping_correction = float(
+            (damping_gain * negative_trend)
+            + (damping_reversal_gain * negative_trend * damping_reversal)
+            - (0.02 * positive_trend)
+        )
         phase_correction = float(phase_gain * negative_trend * phase_reversal)
 
         if stabilizer_mode and negative_trend > 0.0:

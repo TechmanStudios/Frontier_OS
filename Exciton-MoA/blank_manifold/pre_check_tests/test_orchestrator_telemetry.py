@@ -28,35 +28,37 @@ from telemetry import OntologicalOrchestrator
 
 
 def test_telemetry_thresholding():
-  print("Running Pre-Check: Macroscopic Telemetry & Hotspot Detection...")
+    print("Running Pre-Check: Macroscopic Telemetry & Hotspot Detection...")
 
-  manifold_core = BlankManifoldCore(BlankManifoldConfig())
-  graph = manifold_core.generate_manifold()
+    manifold_core = BlankManifoldCore(BlankManifoldConfig())
+    graph = manifold_core.generate_manifold()
 
-  orchestrator = OntologicalOrchestrator(manifold_core, tau_threshold=4.5)
+    orchestrator = OntologicalOrchestrator(manifold_core, tau_threshold=4.5)
 
-  test_node = "node_0042"
-  graph.nodes[test_node]["resonance_accumulator"] = 5.0
-  graph.nodes[test_node]["state_vector"] = np.array([5.0, 5.0, 5.0])
+    test_node = "node_0042"
+    graph.nodes[test_node]["resonance_accumulator"] = 5.0
+    graph.nodes[test_node]["state_vector"] = np.array([5.0, 5.0, 5.0])
 
-  bursts = orchestrator.scan_manifold()
+    bursts = orchestrator.scan_manifold()
 
-  assert len(bursts) > 0, "FAIL: Orchestrator failed to detect the massive anomaly."
+    assert len(bursts) > 0, "FAIL: Orchestrator failed to detect the massive anomaly."
 
-  detected_nodes = [burst[0] for burst in bursts]
-  assert test_node in detected_nodes, f"FAIL: Orchestrator missed the epicenter {test_node}."
+    detected_nodes = [burst[0] for burst in bursts]
+    assert test_node in detected_nodes, f"FAIL: Orchestrator missed the epicenter {test_node}."
 
-  metrics = orchestrator.compute_local_hotspot(test_node)
-  assert metrics["H_total"] > 0.0, f"FAIL: H-Score {metrics['H_total']} failed to compute."
-  assert metrics["density"] > 0.0, "FAIL: Z-Axis gravity gradient failed to compute."
-  assert metrics["shear"] > 0.0, "FAIL: Epistemic friction failed to compute."
-  assert metrics["density_contrib"] > 0.0, "FAIL: Density contribution failed to compute."
-  assert metrics["shear_contrib"] > 0.0, "FAIL: Shear contribution failed to compute."
-  assert metrics["H_total"] >= orchestrator.tau, "FAIL: Adaptive tau exceeded the anomaly response."
-  assert orchestrator.tau >= orchestrator.base_tau, "FAIL: Adaptive tau should not fall below the base calibration."
+    metrics = orchestrator.compute_local_hotspot(test_node)
+    assert metrics["H_total"] > 0.0, f"FAIL: H-Score {metrics['H_total']} failed to compute."
+    assert metrics["density"] > 0.0, "FAIL: Z-Axis gravity gradient failed to compute."
+    assert metrics["shear"] > 0.0, "FAIL: Epistemic friction failed to compute."
+    assert metrics["density_contrib"] > 0.0, "FAIL: Density contribution failed to compute."
+    assert metrics["shear_contrib"] > 0.0, "FAIL: Shear contribution failed to compute."
+    assert metrics["H_total"] >= orchestrator.tau, "FAIL: Adaptive tau exceeded the anomaly response."
+    assert orchestrator.tau >= orchestrator.base_tau, (
+        "FAIL: Adaptive tau should not fall below the base calibration."
+    )
 
-  print(f"PASS: Telemetry functional H(x,t) successfully caught Threshold Burst at {test_node}.")
+    print(f"PASS: Telemetry functional H(x,t) successfully caught Threshold Burst at {test_node}.")
 
 
 if __name__ == "__main__":
-  test_telemetry_thresholding()
+    test_telemetry_thresholding()

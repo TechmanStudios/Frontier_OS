@@ -113,19 +113,33 @@ def parse_paper_intake_handoff(path: Path) -> IntakePayload:
         current_relevance_note=clean_value(metadata.get("current relevance note", "[TO_FILL]")),
         why_this_matters_now=clean_value(applied.get("why this matters now", "[TO_FILL]")),
         actionable_concept=clean_value(applied.get("most actionable concept", "[TO_FILL]")),
-        next_influence_target=clean_value(applied.get("what in the current codebase or workflow it should influence next", "[TO_FILL]")),
+        next_influence_target=clean_value(
+            applied.get("what in the current codebase or workflow it should influence next", "[TO_FILL]")
+        ),
         telemetry_fields=clean_value(translation.get("nearest telemetry fields", "[TO_FILL]")),
         replay_signals=clean_value(translation.get("nearest replay or sweep signals", "[TO_FILL]")),
         sol_concepts=clean_value(translation.get("nearest SOL concepts or subsystem names", "[TO_FILL]")),
         intervention_class=clean_value(translation.get("intervention class", "diagnostics")),
-        uncertainty_signal=clean_value(uncertainty.get("uncertainty signal that would justify using this paper later", "[TO_FILL]")),
-        forward_use_signal=clean_value(uncertainty.get("what would count as a strong outside-the-box or forward-looking use", "[TO_FILL]")),
-        rediscovery_policy=clean_value(uncertainty.get("should this stay manual-first or be queued for future agent rediscovery", "[TO_FILL]")),
+        uncertainty_signal=clean_value(
+            uncertainty.get("uncertainty signal that would justify using this paper later", "[TO_FILL]")
+        ),
+        forward_use_signal=clean_value(
+            uncertainty.get(
+                "what would count as a strong outside-the-box or forward-looking use", "[TO_FILL]"
+            )
+        ),
+        rediscovery_policy=clean_value(
+            uncertainty.get(
+                "should this stay manual-first or be queued for future agent rediscovery", "[TO_FILL]"
+            )
+        ),
         working_mind_root=clean_value(targets.get("working_mind root", str(DEFAULT_WORKING_MIND_ROOT))),
         target_local_paper_path=clean_value(targets.get("target local paper path", "[UNKNOWN]")),
         target_summary_path=clean_value(targets.get("target summary path", "[UNKNOWN]")),
         trigger_artifact=clean_value(provenance.get("source uncertainty handoff", "[UNKNOWN]")),
-        recommendation_rationale=clean_value(provenance.get("retained recommendation rationale", "[NONE PROVIDED]")),
+        recommendation_rationale=clean_value(
+            provenance.get("retained recommendation rationale", "[NONE PROVIDED]")
+        ),
         working_hypothesis_1=clean_value(provenance.get("retained working hypothesis 1", "[TO_FILL]")),
         working_hypothesis_2=clean_value(provenance.get("retained working hypothesis 2", "[TO_FILL]")),
         unresolved_note=clean_value(provenance.get("retained unresolved note", "[TO_FILL]")),
@@ -237,16 +251,16 @@ def render_applied_summary(payload: IntakePayload, *, source_status: str) -> str
 
 def render_learning_ledger_section(payload: IntakePayload, *, papers: list[str]) -> str:
     evidence_count = len(papers)
-    promotion_status = "candidate knowledge note" if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD else "hold in working_mind"
+    promotion_status = (
+        "candidate knowledge note" if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD else "hold in working_mind"
+    )
     knowledge_note_path = (
         f"{DEFAULT_KNOWLEDGE_NOTES_DIR}/{payload.subject_folder}.knowledge-note.md"
         if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD
         else "[PENDING]"
     )
     repo_memory_status = "ready-to-mirror" if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD else "not-ready"
-    candidate_lesson = (
-        f"Repeated `{payload.subject_folder}` ingests are converging on `{payload.actionable_concept}` for `{payload.next_influence_target}`."
-    )
+    candidate_lesson = f"Repeated `{payload.subject_folder}` ingests are converging on `{payload.actionable_concept}` for `{payload.next_influence_target}`."
     lines = [
         f"## {payload.subject_folder}",
         f"- Evidence count: {evidence_count}",
@@ -303,7 +317,9 @@ def upsert_learning_ledger(ledger_path: Path, payload: IntakePayload) -> dict[st
             if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD
             else ""
         ),
-        "repo_memory_status": "ready-to-mirror" if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD else "not-ready",
+        "repo_memory_status": "ready-to-mirror"
+        if evidence_count >= KNOWLEDGE_NOTE_THRESHOLD
+        else "not-ready",
     }
 
 
@@ -312,9 +328,7 @@ def titleize_subject_folder(subject_folder: str) -> str:
 
 
 def render_knowledge_note(payload: IntakePayload, *, papers: list[str]) -> str:
-    candidate_lesson = (
-        f"Repeated `{payload.subject_folder}` ingests converge on `{payload.actionable_concept}` for `{payload.next_influence_target}`."
-    )
+    candidate_lesson = f"Repeated `{payload.subject_folder}` ingests converge on `{payload.actionable_concept}` for `{payload.next_influence_target}`."
     lines = [
         f"# Frontier Knowledge Note: {titleize_subject_folder(payload.subject_folder)}",
         "",
@@ -355,7 +369,9 @@ def upsert_knowledge_note(knowledge_note_path: Path, payload: IntakePayload, *, 
     knowledge_note_path.write_text(render_knowledge_note(payload, papers=papers) + "\n", encoding="utf-8")
 
 
-def render_repo_memory_promotion(payload: IntakePayload, *, papers: list[str], knowledge_note_relative: str) -> str:
+def render_repo_memory_promotion(
+    payload: IntakePayload, *, papers: list[str], knowledge_note_relative: str
+) -> str:
     memory_line = (
         f"- {payload.subject_folder} knowledge candidate: {len(papers)} corroborating working_mind ingests converge on "
         f"{payload.actionable_concept} for {payload.next_influence_target}; see {knowledge_note_relative}."
@@ -434,7 +450,9 @@ def ingest_paper_intake_handoff(
     stage_local_file: bool = True,
 ) -> dict[str, str]:
     payload = parse_paper_intake_handoff(Path(intake_handoff_path))
-    resolved_root = Path(working_mind_root) if working_mind_root is not None else Path(payload.working_mind_root)
+    resolved_root = (
+        Path(working_mind_root) if working_mind_root is not None else Path(payload.working_mind_root)
+    )
     resolved_root.mkdir(parents=True, exist_ok=True)
 
     resolved_source_status = stage_local_pdf(
@@ -445,7 +463,9 @@ def ingest_paper_intake_handoff(
 
     summary_path = resolved_root / Path(payload.target_summary_path)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text(render_applied_summary(payload, source_status=resolved_source_status) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        render_applied_summary(payload, source_status=resolved_source_status) + "\n", encoding="utf-8"
+    )
 
     index_path = resolved_root / "papers-index.md"
     entry_body = render_papers_index_entry(
@@ -494,10 +514,23 @@ def ingest_paper_intake_handoff(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write working_mind artifacts from a paper intake handoff.")
-    parser.add_argument("--intake-handoff", type=Path, required=True, help="Path to approved_paper_intake_handoff.md or a compatible intake payload.")
-    parser.add_argument("--working-mind-root", type=Path, default=None, help="Optional override for the working_mind root.")
-    parser.add_argument("--ingested-on", default=None, help="Optional ingestion date override in YYYY-MM-DD form.")
-    parser.add_argument("--no-stage-local-file", action="store_true", help="Do not copy a local PDF into working_mind even if one is available.")
+    parser.add_argument(
+        "--intake-handoff",
+        type=Path,
+        required=True,
+        help="Path to approved_paper_intake_handoff.md or a compatible intake payload.",
+    )
+    parser.add_argument(
+        "--working-mind-root", type=Path, default=None, help="Optional override for the working_mind root."
+    )
+    parser.add_argument(
+        "--ingested-on", default=None, help="Optional ingestion date override in YYYY-MM-DD form."
+    )
+    parser.add_argument(
+        "--no-stage-local-file",
+        action="store_true",
+        help="Do not copy a local PDF into working_mind even if one is available.",
+    )
     args = parser.parse_args()
 
     outputs = ingest_paper_intake_handoff(

@@ -13,7 +13,11 @@ import numpy as np
 
 class HippocampalReplay:
     def __init__(self, working_dir: Path | None = None):
-        self.working_dir = Path(working_dir) if working_dir is not None else Path(__file__).resolve().parents[1] / "working_data"
+        self.working_dir = (
+            Path(working_dir)
+            if working_dir is not None
+            else Path(__file__).resolve().parents[1] / "working_data"
+        )
 
     def list_burst_files(self) -> list[Path]:
         return sorted(self.working_dir.glob("**/hippocampal_burst_*.json"))
@@ -70,7 +74,9 @@ class HippocampalReplay:
 
         h_values = [float(record.get("h_total", 0.0)) for record in records]
         tau_values = [float(record.get("tau_threshold", 0.0)) for record in records]
-        giant_counts = Counter(self._normalize_giant_label(record.get("dominant_giant")) for record in records)
+        giant_counts = Counter(
+            self._normalize_giant_label(record.get("dominant_giant")) for record in records
+        )
         return {
             "total_bursts": len(records),
             "max_h": max(h_values),
@@ -98,7 +104,9 @@ class HippocampalReplay:
 
         base = self.summarize(pair_records)
         source_counts = Counter(str(record.get("source_manifold_id", "unknown")) for record in pair_records)
-        cross_domain_giants = Counter(str(record.get("cross_domain_giant", "Entanglement Locus")) for record in pair_records)
+        cross_domain_giants = Counter(
+            str(record.get("cross_domain_giant", "Entanglement Locus")) for record in pair_records
+        )
         bilateral_bursts = int(base["bilateral_bursts"])
         return {
             "pair_id": pair_id,
@@ -116,7 +124,9 @@ class HippocampalReplay:
         weighted_records = [
             record
             for record in telemetry_records
-            if "entangler_weight_min" in record or "entangler_weight_max" in record or record.get("entangler_top_wormholes")
+            if "entangler_weight_min" in record
+            or "entangler_weight_max" in record
+            or record.get("entangler_top_wormholes")
         ]
         if not weighted_records:
             return {
@@ -156,7 +166,9 @@ class HippocampalReplay:
             }
 
         coherence_values = [float(record.get("phase_coherence", 0.0)) for record in coherence_records]
-        statuses = Counter(str(record.get("entangler_coherence_status", "stable")) for record in coherence_records)
+        statuses = Counter(
+            str(record.get("entangler_coherence_status", "stable")) for record in coherence_records
+        )
         modes = Counter(str(record.get("entangler_mode", "active")) for record in coherence_records)
         return {
             "tick_count": len(coherence_records),
@@ -174,7 +186,9 @@ class HippocampalReplay:
         mode_records = [
             record
             for record in telemetry_records
-            if "entangler_mode" in record or "entangler_next_mode" in record or "entangler_mode_changed" in record
+            if "entangler_mode" in record
+            or "entangler_next_mode" in record
+            or "entangler_mode_changed" in record
         ]
         if not mode_records:
             return {
@@ -223,8 +237,14 @@ class HippocampalReplay:
                     if reason and reason != "none":
                         reason_counts[reason] += 1
             elif previous_mode is not None and mode_name != previous_mode:
-                prior_explicit = bool(previous_record and previous_record.get("entangler_mode_changed", False))
-                prior_next_mode = str(previous_record.get("entangler_next_mode", previous_mode)) if previous_record else previous_mode
+                prior_explicit = bool(
+                    previous_record and previous_record.get("entangler_mode_changed", False)
+                )
+                prior_next_mode = (
+                    str(previous_record.get("entangler_next_mode", previous_mode))
+                    if previous_record
+                    else previous_mode
+                )
                 if not prior_explicit or mode_name != prior_next_mode:
                     transition_counts[f"{previous_mode}->{mode_name}"] += 1
                     inferred_transition_count += 1
@@ -252,7 +272,8 @@ class HippocampalReplay:
         local_records = [
             record
             for record in telemetry_records
-            if int(record.get("local_phonon_bundle_count", 0)) > 0 or record.get("local_phonon_mode") is not None
+            if int(record.get("local_phonon_bundle_count", 0)) > 0
+            or record.get("local_phonon_mode") is not None
         ]
         if not local_records:
             return {
@@ -281,14 +302,18 @@ class HippocampalReplay:
             "confidence_range": (float(min(confidences)), float(max(confidences))),
             "tier_counts": dict(tier_counts.most_common()),
             "mode_counts": dict(mode_counts.most_common()),
-            "entry_total": int(sum(int(record.get("local_phonon_entry_count", 0)) for record in local_records)),
+            "entry_total": int(
+                sum(int(record.get("local_phonon_entry_count", 0)) for record in local_records)
+            ),
             "exit_total": int(sum(int(record.get("local_phonon_exit_count", 0)) for record in local_records)),
             "latest_tier": str(local_records[-1].get("local_phonon_tier", "none")),
             "latest_mode": str(local_records[-1].get("local_phonon_mode", "none")),
         }
 
     def summarize_advisory_hints(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
-        hint_records = [record for record in telemetry_records if record.get("phonon_hint_status") is not None]
+        hint_records = [
+            record for record in telemetry_records if record.get("phonon_hint_status") is not None
+        ]
         if not hint_records:
             return {
                 "tick_count": 0,
@@ -307,8 +332,12 @@ class HippocampalReplay:
                 "confidence_mean": 0.0,
             }
 
-        status_counts = Counter(str(record.get("phonon_hint_status", "suppressed")) for record in hint_records)
-        recommendation_counts = Counter(str(record.get("phonon_hint_recommendation", "observe")) for record in hint_records)
+        status_counts = Counter(
+            str(record.get("phonon_hint_status", "suppressed")) for record in hint_records
+        )
+        recommendation_counts = Counter(
+            str(record.get("phonon_hint_recommendation", "observe")) for record in hint_records
+        )
         confidences = [float(record.get("phonon_hint_confidence", 0.0)) for record in hint_records]
         latest = hint_records[-1]
         return {
@@ -357,12 +386,18 @@ class HippocampalReplay:
             future_best = max(float(item.get("phase_coherence", current_coherence)) for item in future_window)
             future_delta = float(future_best - current_coherence)
             recovery = 1.0 if future_delta > float(improvement_threshold) else 0.0
-            stabilizer_entry = 1.0 if any(str(item.get("entangler_mode", "active")) == "Stabilizer" for item in future_window) else 0.0
+            stabilizer_entry = (
+                1.0
+                if any(str(item.get("entangler_mode", "active")) == "Stabilizer" for item in future_window)
+                else 0.0
+            )
 
             tier_name = str(record.get("local_phonon_tier", "none"))
             recommendation_name = str(record.get("phonon_hint_recommendation", "observe"))
             self._accumulate_predictive_stat(tier_stats, tier_name, future_delta, recovery, stabilizer_entry)
-            self._accumulate_predictive_stat(recommendation_stats, recommendation_name, future_delta, recovery, stabilizer_entry)
+            self._accumulate_predictive_stat(
+                recommendation_stats, recommendation_name, future_delta, recovery, stabilizer_entry
+            )
             sample_count += 1
 
         return {
@@ -416,7 +451,9 @@ class HippocampalReplay:
         forward_window: int = 2,
         min_samples: int = 3,
     ) -> dict[str, object]:
-        hint_records = [record for record in telemetry_records if record.get("phonon_hint_status") is not None]
+        hint_records = [
+            record for record in telemetry_records if record.get("phonon_hint_status") is not None
+        ]
         if not hint_records:
             return {
                 "tick_count": 0,
@@ -425,7 +462,9 @@ class HippocampalReplay:
                 "tier_calibration": {},
             }
 
-        predictive = self.summarize_predictive_phonon_correlations(telemetry_records, forward_window=forward_window)
+        predictive = self.summarize_predictive_phonon_correlations(
+            telemetry_records, forward_window=forward_window
+        )
         reliability = self.score_hint_reliability(predictive, min_samples=min_samples)
         recommendation_calibration = self._build_calibration_group(
             hint_records,
@@ -535,7 +574,9 @@ class HippocampalReplay:
             sample_gap = max(int(min_samples) - sample_count, 0)
             status_penalty = 2.0 if bool(require_armed_status) and status != "armed" else 0.0
             provisional_penalty = 1.5 if provisional else 0.0
-            near_pass_score = float(status_penalty + provisional_penalty + sample_gap + confidence_gap + reliability_gap)
+            near_pass_score = float(
+                status_penalty + provisional_penalty + sample_gap + confidence_gap + reliability_gap
+            )
             near_pass_candidate = {
                 "tick": tick,
                 "reason": reason,
@@ -564,8 +605,13 @@ class HippocampalReplay:
                 reason_counts[reason] += 1
                 if near_pass_score <= 1.0:
                     near_pass_count += 1
-                if best_near_pass is None or near_pass_score < float(best_near_pass["score"]) or (
-                    near_pass_score == float(best_near_pass["score"]) and tick < int(best_near_pass["tick"])
+                if (
+                    best_near_pass is None
+                    or near_pass_score < float(best_near_pass["score"])
+                    or (
+                        near_pass_score == float(best_near_pass["score"])
+                        and tick < int(best_near_pass["tick"])
+                    )
                 ):
                     best_near_pass = near_pass_candidate
 
@@ -601,22 +647,46 @@ class HippocampalReplay:
             "first_near_pass_tick": None if best_near_pass is None else int(best_near_pass["tick"]),
             "first_near_pass_reason": None if best_near_pass is None else str(best_near_pass["reason"]),
             "first_near_pass_status": None if best_near_pass is None else str(best_near_pass["status"]),
-            "first_near_pass_confidence_gap": 0.0 if best_near_pass is None else float(best_near_pass["confidence_gap"]),
-            "first_near_pass_reliability_gap": 0.0 if best_near_pass is None else float(best_near_pass["reliability_gap"]),
+            "first_near_pass_confidence_gap": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["confidence_gap"]),
+            "first_near_pass_reliability_gap": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["reliability_gap"]),
             "first_near_pass_sample_gap": 0 if best_near_pass is None else int(best_near_pass["sample_gap"]),
             "near_pass_count": int(near_pass_count),
             "longest_block_streak": longest_block_streak,
             "passed_but_nudge_blocked_count": passed_but_nudge_blocked_count,
-            "first_pass_decision_reason": None if first_pass_signal is None else str(first_pass_signal["decision_reason"]),
-            "first_pass_pair_stability": 0.0 if first_pass_signal is None else float(first_pass_signal["pair_stability"]),
-            "first_pass_local_stability": 0.0 if first_pass_signal is None else float(first_pass_signal["local_stability"]),
-            "first_pass_pair_decay": 0.0 if first_pass_signal is None else float(first_pass_signal["pair_decay"]),
-            "first_pass_amplitude_trend": 0.0 if first_pass_signal is None else float(first_pass_signal["amplitude_trend"]),
-            "first_near_pass_decision_reason": None if best_near_pass is None else str(best_near_pass["decision_reason"]),
-            "first_near_pass_pair_stability": 0.0 if best_near_pass is None else float(best_near_pass["pair_stability"]),
-            "first_near_pass_local_stability": 0.0 if best_near_pass is None else float(best_near_pass["local_stability"]),
-            "first_near_pass_pair_decay": 0.0 if best_near_pass is None else float(best_near_pass["pair_decay"]),
-            "first_near_pass_amplitude_trend": 0.0 if best_near_pass is None else float(best_near_pass["amplitude_trend"]),
+            "first_pass_decision_reason": None
+            if first_pass_signal is None
+            else str(first_pass_signal["decision_reason"]),
+            "first_pass_pair_stability": 0.0
+            if first_pass_signal is None
+            else float(first_pass_signal["pair_stability"]),
+            "first_pass_local_stability": 0.0
+            if first_pass_signal is None
+            else float(first_pass_signal["local_stability"]),
+            "first_pass_pair_decay": 0.0
+            if first_pass_signal is None
+            else float(first_pass_signal["pair_decay"]),
+            "first_pass_amplitude_trend": 0.0
+            if first_pass_signal is None
+            else float(first_pass_signal["amplitude_trend"]),
+            "first_near_pass_decision_reason": None
+            if best_near_pass is None
+            else str(best_near_pass["decision_reason"]),
+            "first_near_pass_pair_stability": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["pair_stability"]),
+            "first_near_pass_local_stability": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["local_stability"]),
+            "first_near_pass_pair_decay": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["pair_decay"]),
+            "first_near_pass_amplitude_trend": 0.0
+            if best_near_pass is None
+            else float(best_near_pass["amplitude_trend"]),
         }
 
     def summarize_nudge_outcomes(
@@ -706,11 +776,21 @@ class HippocampalReplay:
                 future_delta = float(future_best - current_coherence)
                 future_deltas.append(future_delta)
                 recovery = 1.0 if future_delta > float(improvement_threshold) else 0.0
-                stabilizer_entry = 1.0 if any(str(item.get("entangler_mode", "active")) == "Stabilizer" for item in future_window) else 0.0
+                stabilizer_entry = (
+                    1.0
+                    if any(
+                        str(item.get("entangler_mode", "active")) == "Stabilizer" for item in future_window
+                    )
+                    else 0.0
+                )
                 positive_windows += int(recovery)
                 stabilizer_windows += int(stabilizer_entry)
-                self._accumulate_predictive_stat(reason_stats, reason, future_delta, recovery, stabilizer_entry)
-                self._accumulate_predictive_stat(decision_stats, decision_reason, future_delta, recovery, stabilizer_entry)
+                self._accumulate_predictive_stat(
+                    reason_stats, reason, future_delta, recovery, stabilizer_entry
+                )
+                self._accumulate_predictive_stat(
+                    decision_stats, decision_reason, future_delta, recovery, stabilizer_entry
+                )
             else:
                 rejection = str(record.get("entangler_nudge_rejection_reason", "disabled"))
                 rejection_counts[rejection] += 1
@@ -734,12 +814,10 @@ class HippocampalReplay:
             "reason_counts": dict(reason_counts.most_common()),
             "rejection_counts": dict(rejection_counts.most_common()),
             "delta_abs_mean": {
-                key: float(np.mean(values)) if values else 0.0
-                for key, values in delta_abs.items()
+                key: float(np.mean(values)) if values else 0.0 for key, values in delta_abs.items()
             },
             "delta_abs_max": {
-                key: float(max(values)) if values else 0.0
-                for key, values in delta_abs.items()
+                key: float(max(values)) if values else 0.0 for key, values in delta_abs.items()
             },
             "reason_outcomes": self._finalize_predictive_stats(reason_stats),
             "decision_reason_counts": dict(decision_reason_counts.most_common()),
@@ -769,12 +847,16 @@ class HippocampalReplay:
                 current_streak += 1
             else:
                 if current_status is not None:
-                    longest_streaks[current_status] = max(longest_streaks.get(current_status, 0), current_streak)
+                    longest_streaks[current_status] = max(
+                        longest_streaks.get(current_status, 0), current_streak
+                    )
                 current_status = status
                 current_streak = 1
 
             if first_stabilizer_tick is None and str(record.get("entangler_mode", "active")) == "Stabilizer":
-                first_stabilizer_tick = int(record.get("shared_pair_clock", record.get("entangler_pair_clock", index)))
+                first_stabilizer_tick = int(
+                    record.get("shared_pair_clock", record.get("entangler_pair_clock", index))
+                )
 
         if current_status is not None:
             longest_streaks[current_status] = max(longest_streaks.get(current_status, 0), current_streak)
@@ -812,11 +894,17 @@ class HippocampalReplay:
             pair_clock = int(record.get("shared_pair_clock", record.get("entangler_pair_clock", index)))
             decay_streak = int(record.get("entangler_decay_streak", 0))
             mode_name = str(record.get("entangler_mode", "active"))
-            if pair_clock >= int(min_mode_switch_samples) and decay_streak >= int(enter_decay_streak) and mode_name == "active":
+            if (
+                pair_clock >= int(min_mode_switch_samples)
+                and decay_streak >= int(enter_decay_streak)
+                and mode_name == "active"
+            ):
                 entry_policy_tick = pair_clock
                 break
 
-        entered_stabilizer = bool(int(transition_counts.get("active->Stabilizer", 0)) > 0 or first_stabilizer_tick is not None)
+        entered_stabilizer = bool(
+            int(transition_counts.get("active->Stabilizer", 0)) > 0 or first_stabilizer_tick is not None
+        )
         met_entry_policy = entry_policy_tick is not None
 
         if entered_stabilizer:
@@ -870,9 +958,7 @@ class HippocampalReplay:
             }
 
         if stable_like_count < tick_count and tick_count <= (min_switch_ticks + 1):
-            detail = (
-                f"decay appeared but the run ended after {tick_count} ticks before a sustained streak could accumulate"
-            )
+            detail = f"decay appeared but the run ended after {tick_count} ticks before a sustained streak could accumulate"
             return {
                 "label": "runtime_too_short_candidate",
                 "detail": detail,
@@ -891,7 +977,9 @@ class HippocampalReplay:
             "entry_policy_tick": entry_policy_tick,
         }
 
-    def summarize_top_wormhole_shifts(self, telemetry_records: list[dict[str, object]], top_n: int = 4) -> dict[str, dict[str, object]]:
+    def summarize_top_wormhole_shifts(
+        self, telemetry_records: list[dict[str, object]], top_n: int = 4
+    ) -> dict[str, dict[str, object]]:
         shift_summary: dict[str, dict[str, object]] = {}
         previous_ranks: dict[str, int] = {}
 
@@ -922,7 +1010,9 @@ class HippocampalReplay:
                         "rank_history": [],
                     },
                 )
-                node_summary["current_weight"] = float(current_weights.get(node_id, node_summary["current_weight"]))
+                node_summary["current_weight"] = float(
+                    current_weights.get(node_id, node_summary["current_weight"])
+                )
                 node_summary["best_rank"] = min(int(node_summary["best_rank"]), rank)
                 node_summary["latest_rank"] = rank
                 node_summary["rank_history"].append(rank)
@@ -1021,7 +1111,9 @@ class HippocampalReplay:
         transitions = dict(switching.get("transition_counts", {}))
         reasons = dict(switching.get("reason_counts", {}))
         occupancy_text = ", ".join(f"{mode}={count}" for mode, count in occupancy.items()) or "none"
-        transition_text = ", ".join(f"{transition}={count}" for transition, count in transitions.items()) or "none"
+        transition_text = (
+            ", ".join(f"{transition}={count}" for transition, count in transitions.items()) or "none"
+        )
         line = (
             f"Mode switching over {int(switching['tick_count'])} ticks: "
             f"occupancy {occupancy_text}; transitions={int(switching['transition_total'])} ({transition_text}); "
@@ -1031,7 +1123,10 @@ class HippocampalReplay:
         if reasons:
             reason_text = ", ".join(f"{reason}={count}" for reason, count in reasons.items())
             return f"{line}\nSwitch reasons: {reason_text}"
-        if int(switching.get("transition_total", 0)) > 0 and int(switching.get("explicit_transition_count", 0)) == 0:
+        if (
+            int(switching.get("transition_total", 0)) > 0
+            and int(switching.get("explicit_transition_count", 0)) == 0
+        ):
             return f"{line}\nSwitch reasons: unavailable (inferred from mode labels)"
         return f"{line}\nSwitch reasons: none"
 
@@ -1077,7 +1172,9 @@ class HippocampalReplay:
 
     def render_predictive_phonon_summary(self, pair_id: str, forward_window: int = 2) -> str:
         telemetry_records = self.load_pair_telemetry_records(pair_id=pair_id)
-        summary = self.summarize_predictive_phonon_correlations(telemetry_records, forward_window=forward_window)
+        summary = self.summarize_predictive_phonon_correlations(
+            telemetry_records, forward_window=forward_window
+        )
         if int(summary.get("sample_count", 0)) == 0:
             return "No predictive phonon correlation telemetry available for replay."
 
@@ -1092,9 +1189,13 @@ class HippocampalReplay:
             f"  recommendations: {recommendation_lines}"
         )
 
-    def render_hint_reliability_summary(self, pair_id: str, forward_window: int = 2, min_samples: int = 3) -> str:
+    def render_hint_reliability_summary(
+        self, pair_id: str, forward_window: int = 2, min_samples: int = 3
+    ) -> str:
         telemetry_records = self.load_pair_telemetry_records(pair_id=pair_id)
-        predictive = self.summarize_predictive_phonon_correlations(telemetry_records, forward_window=forward_window)
+        predictive = self.summarize_predictive_phonon_correlations(
+            telemetry_records, forward_window=forward_window
+        )
         summary = self.score_hint_reliability(predictive, min_samples=min_samples)
         if int(summary.get("sample_count", 0)) == 0:
             return "No hint reliability evidence available for replay."
@@ -1107,7 +1208,9 @@ class HippocampalReplay:
             f"recommendations={recommendation_lines}; tiers={tier_lines}"
         )
 
-    def render_hint_calibration_summary(self, pair_id: str, forward_window: int = 2, min_samples: int = 3) -> str:
+    def render_hint_calibration_summary(
+        self, pair_id: str, forward_window: int = 2, min_samples: int = 3
+    ) -> str:
         telemetry_records = self.load_pair_telemetry_records(pair_id=pair_id)
         summary = self.summarize_hint_calibration(
             telemetry_records,
@@ -1195,8 +1298,12 @@ class HippocampalReplay:
         if int(summary.get("tick_count", 0)) == 0:
             return "No nudge outcome telemetry available for replay."
 
-        reason_lines = self._render_predictive_group(summary.get("reason_outcomes", {}), label="nudge reasons")
-        decision_lines = self._render_predictive_group(summary.get("decision_outcomes", {}), label="decision reasons")
+        reason_lines = self._render_predictive_group(
+            summary.get("reason_outcomes", {}), label="nudge reasons"
+        )
+        decision_lines = self._render_predictive_group(
+            summary.get("decision_outcomes", {}), label="decision reasons"
+        )
         delta_abs_mean = dict(summary.get("delta_abs_mean", {}))
         return (
             f"Nudge outcomes over {int(summary['tick_count'])} ticks: "
@@ -1212,7 +1319,9 @@ class HippocampalReplay:
             f"reasons={reason_lines}; decisions={decision_lines}; rejects={dict(summary.get('rejection_counts', {}))}"
         )
 
-    def summarize_paper_diagnostic_proxies(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
+    def summarize_paper_diagnostic_proxies(
+        self, telemetry_records: list[dict[str, object]]
+    ) -> dict[str, object]:
         if not telemetry_records:
             return {
                 "tick_count": 0,
@@ -1350,7 +1459,9 @@ class HippocampalReplay:
         elif passed_count == 0 and block_rate >= 0.75:
             synchrony_risks.append("gate_persistently_blocked")
 
-        if int(nudge.get("applied_count", 0)) > 0 and (positive_window_rate > 0.0 or stabilizer_entry_rate > 0.0):
+        if int(nudge.get("applied_count", 0)) > 0 and (
+            positive_window_rate > 0.0 or stabilizer_entry_rate > 0.0
+        ):
             synchrony_support.append("nudges_show_forward_response")
         elif int(nudge.get("applied_count", 0)) > 0 and positive_window_rate == 0.0:
             synchrony_risks.append("nudges_nonproductive")
@@ -1475,7 +1586,9 @@ class HippocampalReplay:
             },
         }
 
-    def summarize_uncertainty_paper_recommendation(self, telemetry_records: list[dict[str, object]]) -> dict[str, object]:
+    def summarize_uncertainty_paper_recommendation(
+        self, telemetry_records: list[dict[str, object]]
+    ) -> dict[str, object]:
         proxies = self.summarize_paper_diagnostic_proxies(telemetry_records)
         if int(proxies.get("tick_count", 0)) == 0:
             return {"triggered": False, "reason": "no_pair_telemetry"}
@@ -1515,16 +1628,22 @@ class HippocampalReplay:
         if unresolved_synchrony:
             if str(synchrony.get("label", "unknown")) == "unfavorable" and coupling_posture == "permissive":
                 intervention_class = "diagnostics"
-                desired_paper_role = "one paper on synchronization feasibility diagnostics for coupled nonlinear systems"
+                desired_paper_role = (
+                    "one paper on synchronization feasibility diagnostics for coupled nonlinear systems"
+                )
             elif coupling_posture == "weak":
                 intervention_class = "topology design"
-                desired_paper_role = "one paper on topology-aware synchronization feasibility or controllability"
+                desired_paper_role = (
+                    "one paper on topology-aware synchronization feasibility or controllability"
+                )
             elif near_pass_count > 0 or passed_but_nudge_blocked > 0:
                 intervention_class = "control policy"
                 desired_paper_role = "one paper on synchrony-margin diagnostics or conservative gating under ambiguous local evidence"
             else:
                 intervention_class = "diagnostics"
-                desired_paper_role = "one paper on synchronization feasibility diagnostics for coupled nonlinear systems"
+                desired_paper_role = (
+                    "one paper on synchronization feasibility diagnostics for coupled nonlinear systems"
+                )
             uncertainty_summary = (
                 "The pair shows unresolved synchrony uncertainty: local evidence is not cleanly separating weak hints "
                 "from structural difficulty in reaching or sustaining phase alignment."
@@ -1580,9 +1699,7 @@ class HippocampalReplay:
                     "Extend beyond the current working_mind synchrony and basin foundations with a more specific controllability or "
                     "topology-aware synchronization reference."
                 )
-            stop_condition = (
-                "Stop if synchrony_margin becomes favorable across nearby variants or if local diagnostics clearly explain the blocked regime."
-            )
+            stop_condition = "Stop if synchrony_margin becomes favorable across nearby variants or if local diagnostics clearly explain the blocked regime."
         else:
             intervention_class = "experiment design"
             desired_paper_role = "one paper on basin stability, perturbation resilience, or recovery geometry"
@@ -1612,12 +1729,8 @@ class HippocampalReplay:
                 str(basin.get("label", "unknown")),
                 str(trend.get("latest_status", "unknown")),
             ]
-            novelty_relative = (
-                "Extend beyond the current working_mind basin framing with a source that sharpens perturbation resilience or neighborhood persistence."
-            )
-            stop_condition = (
-                "Stop if basin_fragility becomes broad across adjacent variants or if replay evidence clearly shows regime persistence."
-            )
+            novelty_relative = "Extend beyond the current working_mind basin framing with a source that sharpens perturbation resilience or neighborhood persistence."
+            stop_condition = "Stop if basin_fragility becomes broad across adjacent variants or if replay evidence clearly shows regime persistence."
 
         return {
             "triggered": True,
@@ -1867,7 +1980,9 @@ class HippocampalReplay:
         bucket["recovery_sum"] += float(recovery)
         bucket["stabilizer_entry_sum"] += float(stabilizer_entry)
 
-    def _finalize_predictive_stats(self, stat_map: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+    def _finalize_predictive_stats(
+        self, stat_map: dict[str, dict[str, float]]
+    ) -> dict[str, dict[str, float]]:
         finalized: dict[str, dict[str, float]] = {}
         for key, bucket in stat_map.items():
             count = max(float(bucket.get("count", 0.0)), 1.0)
@@ -2064,9 +2179,18 @@ class HippocampalReplay:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render hippocampal burst archives.")
-    parser.add_argument("--working-dir", type=Path, default=None, help="Override the hippocampal working directory.")
-    parser.add_argument("--path", type=Path, default=None, help="Replay a specific hippocampal burst snapshot JSON file.")
-    parser.add_argument("--pair-id", type=str, default=None, help="Replay pair-aware burst history for a specific entangled pair.")
+    parser.add_argument(
+        "--working-dir", type=Path, default=None, help="Override the hippocampal working directory."
+    )
+    parser.add_argument(
+        "--path", type=Path, default=None, help="Replay a specific hippocampal burst snapshot JSON file."
+    )
+    parser.add_argument(
+        "--pair-id",
+        type=str,
+        default=None,
+        help="Replay pair-aware burst history for a specific entangled pair.",
+    )
     parser.add_argument("--top-n", type=int, default=10, help="Maximum number of burst rows to render.")
     parser.add_argument(
         "--section",

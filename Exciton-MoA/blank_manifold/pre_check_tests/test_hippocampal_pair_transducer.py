@@ -25,8 +25,30 @@ def test_capture_bilateral_bursts_marks_shared_wormhole_nodes(tmp_path: Path):
     )
 
     result = pair_transducer.capture_bilateral_bursts(
-        [("node_0000", {"H_total": 3.2, "tau_threshold": 2.0, "density_contrib": 1.0, "shear_contrib": 0.9, "vorticity_contrib": 0.4})],
-        [("node_0000", {"H_total": 2.8, "tau_threshold": 2.0, "density_contrib": 0.8, "shear_contrib": 0.7, "vorticity_contrib": 0.3})],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 3.2,
+                    "tau_threshold": 2.0,
+                    "density_contrib": 1.0,
+                    "shear_contrib": 0.9,
+                    "vorticity_contrib": 0.4,
+                },
+            )
+        ],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 2.8,
+                    "tau_threshold": 2.0,
+                    "density_contrib": 0.8,
+                    "shear_contrib": 0.7,
+                    "vorticity_contrib": 0.3,
+                },
+            )
+        ],
         manifold_a.graph,
         manifold_b.graph,
         pair_metadata={
@@ -49,8 +71,16 @@ def test_capture_bilateral_bursts_marks_shared_wormhole_nodes(tmp_path: Path):
 
     assert result["pair_id"] == "primary-secondary"
     assert result["bilateral_node_ids"] == ["node_0000"]
-    primary_text = (tmp_path / "primary" / next(path.name for path in (tmp_path / "primary").glob("hippocampal_burst_*.json"))).read_text(encoding="utf-8")
-    secondary_text = (tmp_path / "secondary" / next(path.name for path in (tmp_path / "secondary").glob("hippocampal_burst_*.json"))).read_text(encoding="utf-8")
+    primary_text = (
+        tmp_path
+        / "primary"
+        / next(path.name for path in (tmp_path / "primary").glob("hippocampal_burst_*.json"))
+    ).read_text(encoding="utf-8")
+    secondary_text = (
+        tmp_path
+        / "secondary"
+        / next(path.name for path in (tmp_path / "secondary").glob("hippocampal_burst_*.json"))
+    ).read_text(encoding="utf-8")
     assert '"bilateral_burst": true' in primary_text.lower()
     assert '"phonon_id": "phonon_primary-secondary_0005"' in primary_text
     assert '"pair_id": "primary-secondary"' in secondary_text

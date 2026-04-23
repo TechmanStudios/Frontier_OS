@@ -12,7 +12,11 @@ from pathlib import Path
 
 class TelemetryPanel:
     def __init__(self, working_dir: Path | None = None, history_limit: int = 8, bar_width: int = 8):
-        self.working_dir = Path(working_dir) if working_dir is not None else Path(__file__).resolve().parents[1] / "working_data"
+        self.working_dir = (
+            Path(working_dir)
+            if working_dir is not None
+            else Path(__file__).resolve().parents[1] / "working_data"
+        )
         self.working_dir.mkdir(parents=True, exist_ok=True)
         self.history_limit = max(int(history_limit), 1)
         self.bar_width = max(int(bar_width), 4)
@@ -106,9 +110,15 @@ class TelemetryPanel:
 
         if shared_locus_summary is not None:
             entry["shared_pair_clock"] = int(shared_locus_summary.get("pair_clock", 0))
-            entry["shared_dominant_channel"] = str(shared_locus_summary.get("dominant_channel", dominant_channel))
-            entry["shared_locus_giant"] = str(shared_locus_summary.get("cross_domain_giant", "Entanglement Locus"))
-            entry["shared_flux_norm"] = float(shared_locus_summary.get("shared_flux_norm", entry["entanglement_strength"]))
+            entry["shared_dominant_channel"] = str(
+                shared_locus_summary.get("dominant_channel", dominant_channel)
+            )
+            entry["shared_locus_giant"] = str(
+                shared_locus_summary.get("cross_domain_giant", "Entanglement Locus")
+            )
+            entry["shared_flux_norm"] = float(
+                shared_locus_summary.get("shared_flux_norm", entry["entanglement_strength"])
+            )
             latest_phonon_bundle = dict(shared_locus_summary.get("latest_phonon_bundle", {}))
             entry["phonon_bundle_count"] = int(len(list(shared_locus_summary.get("phonon_bundles", []))))
             if latest_phonon_bundle:
@@ -118,9 +128,15 @@ class TelemetryPanel:
                 entry["phonon_amplitude"] = float(latest_phonon_bundle.get("amplitude", 0.0))
                 entry["phonon_confidence"] = float(latest_phonon_bundle.get("confidence", 0.0))
                 entry["phonon_decay_rate"] = float(latest_phonon_bundle.get("decay_rate", 0.0))
-                entry["phonon_predicted_next_mode"] = str(latest_phonon_bundle.get("predicted_next_mode", "active"))
-                entry["phonon_entry_count"] = int(len(list(latest_phonon_bundle.get("wormhole_entry_nodes", []))))
-                entry["phonon_exit_count"] = int(len(list(latest_phonon_bundle.get("wormhole_exit_nodes", []))))
+                entry["phonon_predicted_next_mode"] = str(
+                    latest_phonon_bundle.get("predicted_next_mode", "active")
+                )
+                entry["phonon_entry_count"] = int(
+                    len(list(latest_phonon_bundle.get("wormhole_entry_nodes", [])))
+                )
+                entry["phonon_exit_count"] = int(
+                    len(list(latest_phonon_bundle.get("wormhole_exit_nodes", [])))
+                )
                 entry["phonon_status"] = str(coherence_signature.get("status", "stable"))
                 entry["phonon_stability_score"] = float(coherence_signature.get("stability_score", 0.0))
 
@@ -197,9 +213,15 @@ class TelemetryPanel:
             entry["entangler_dominant_giant"] = str(
                 entangler_control.get("dominant_giant_consensus", "Entanglement Locus")
             )
-            entry["entangler_mode"] = str(entangler_control.get("coherence_mode", entangler_control.get("control_mode", "active")))
-            entry["entangler_next_mode"] = str(entangler_control.get("next_coherence_mode", entry["entangler_mode"]))
-            entry["entangler_pair_clock"] = int(entangler_control.get("pair_clock", entry.get("shared_pair_clock", 0)))
+            entry["entangler_mode"] = str(
+                entangler_control.get("coherence_mode", entangler_control.get("control_mode", "active"))
+            )
+            entry["entangler_next_mode"] = str(
+                entangler_control.get("next_coherence_mode", entry["entangler_mode"])
+            )
+            entry["entangler_pair_clock"] = int(
+                entangler_control.get("pair_clock", entry.get("shared_pair_clock", 0))
+            )
             entry["entangler_aperture_before"] = float(controls_before.get("aperture", wormhole_aperture))
             entry["entangler_damping_before"] = float(controls_before.get("damping", damping))
             entry["entangler_phase_before"] = float(controls_before.get("phase_offset", phase_offset))
@@ -216,23 +238,33 @@ class TelemetryPanel:
             entry["entangler_coherence_error"] = float(coherence_feedback.get("error", 0.0))
             entry["entangler_coherence_target"] = float(coherence_feedback.get("target", phase_coherence))
             entry["entangler_mode_changed"] = bool(mode_transition.get("changed", False))
-            entry["entangler_previous_mode"] = str(mode_transition.get("previous_mode", entry["entangler_mode"]))
+            entry["entangler_previous_mode"] = str(
+                mode_transition.get("previous_mode", entry["entangler_mode"])
+            )
             entry["entangler_transition_reason"] = str(mode_transition.get("reason", "none"))
-            entry["entangler_decay_streak"] = int(entangler_control.get("mode_decay_streak", mode_transition.get("decay_streak", 0)))
+            entry["entangler_decay_streak"] = int(
+                entangler_control.get("mode_decay_streak", mode_transition.get("decay_streak", 0))
+            )
             entry["entangler_improving_streak"] = int(
                 entangler_control.get("mode_improving_streak", mode_transition.get("improving_streak", 0))
             )
             entry["entangler_stabilizer_dwell_ticks"] = int(
-                entangler_control.get("stabilizer_dwell_ticks", mode_transition.get("stabilizer_dwell_ticks", 0))
+                entangler_control.get(
+                    "stabilizer_dwell_ticks", mode_transition.get("stabilizer_dwell_ticks", 0)
+                )
             )
             gate_enabled = bool(hint_gate.get("enabled", False))
             gate_passed = bool(hint_gate.get("passed", False))
             entry["entangler_hint_gate_enabled"] = gate_enabled
             entry["entangler_hint_gate_passed"] = gate_passed
             entry["entangler_hint_gate_applied"] = bool(hint_gate.get("applied", False))
-            entry["entangler_hint_gate_state"] = "off" if not gate_enabled else ("pass" if gate_passed else "block")
+            entry["entangler_hint_gate_state"] = (
+                "off" if not gate_enabled else ("pass" if gate_passed else "block")
+            )
             entry["entangler_hint_gate_reason"] = str(hint_gate.get("rejection_reason", "disabled"))
-            entry["entangler_hint_gate_recommendation"] = str(hint_gate.get("considered_recommendation", "observe"))
+            entry["entangler_hint_gate_recommendation"] = str(
+                hint_gate.get("considered_recommendation", "observe")
+            )
             entry["entangler_hint_gate_status"] = str(hint_gate.get("considered_status", "missing"))
             entry["entangler_hint_gate_confidence"] = float(hint_gate.get("considered_confidence", 0.0))
             entry["entangler_hint_gate_reliability"] = float(hint_gate.get("considered_reliability", 0.0))
@@ -241,13 +273,17 @@ class TelemetryPanel:
             entry["entangler_nudge_enabled"] = bool(hint_gate.get("nudge_enabled", False))
             entry["entangler_nudge_applied"] = bool(hint_gate.get("nudge_applied", False))
             entry["entangler_nudge_reason"] = str(hint_gate.get("nudge_reason", "none"))
-            entry["entangler_nudge_rejection_reason"] = str(hint_gate.get("nudge_rejection_reason", "disabled"))
+            entry["entangler_nudge_rejection_reason"] = str(
+                hint_gate.get("nudge_rejection_reason", "disabled")
+            )
             entry["entangler_nudge_reliability"] = float(hint_gate.get("nudge_reliability", 0.0))
             entry["entangler_nudge_sample_count"] = int(hint_gate.get("nudge_sample_count", 0))
             entry["entangler_nudge_stability_score"] = float(hint_gate.get("nudge_stability_score", 0.0))
             nudge_delta = dict(hint_gate.get("nudge_delta", {}))
             nudge_clamp_flags = dict(hint_gate.get("nudge_clamp_flags", {}))
-            entry["entangler_nudge_clamped"] = bool(hint_gate.get("nudge_clamped", any(bool(value) for value in nudge_clamp_flags.values())))
+            entry["entangler_nudge_clamped"] = bool(
+                hint_gate.get("nudge_clamped", any(bool(value) for value in nudge_clamp_flags.values()))
+            )
             entry["entangler_nudge_aperture_delta"] = float(nudge_delta.get("aperture", 0.0))
             entry["entangler_nudge_damping_delta"] = float(nudge_delta.get("damping", 0.0))
             entry["entangler_nudge_phase_delta"] = float(nudge_delta.get("phase_offset", 0.0))
@@ -260,7 +296,9 @@ class TelemetryPanel:
 
         return entry
 
-    def load_recent_history(self, manifold_id: str | None = None, limit: int | None = None) -> list[dict[str, object]]:
+    def load_recent_history(
+        self, manifold_id: str | None = None, limit: int | None = None
+    ) -> list[dict[str, object]]:
         if not self.history_path.exists():
             return []
 
@@ -328,14 +366,20 @@ class TelemetryPanel:
         top_n: int = 5,
     ) -> str:
         recent_history = history if history is not None else self.load_recent_history(manifold_id)
-        latest = recent_history[-1] if recent_history else {
-            "adaptive_tau": 0.0,
-            "burst_count": len(bursts),
-            "avg_h": 0.0,
-            "max_h": max((float(metrics.get("H_total", 0.0)) for _, metrics in bursts), default=0.0),
-        }
+        latest = (
+            recent_history[-1]
+            if recent_history
+            else {
+                "adaptive_tau": 0.0,
+                "burst_count": len(bursts),
+                "avg_h": 0.0,
+                "max_h": max((float(metrics.get("H_total", 0.0)) for _, metrics in bursts), default=0.0),
+            }
+        )
 
-        tau_history = " ".join(f"{float(entry.get('adaptive_tau', 0.0)):.3f}" for entry in recent_history) or "none"
+        tau_history = (
+            " ".join(f"{float(entry.get('adaptive_tau', 0.0)):.3f}" for entry in recent_history) or "none"
+        )
         burst_history = " ".join(str(int(entry.get("burst_count", 0))) for entry in recent_history) or "none"
 
         lines = [
@@ -349,7 +393,9 @@ class TelemetryPanel:
             "  Top contributions:",
         ]
 
-        ranked_bursts = sorted(bursts, key=lambda item: float(item[1].get("H_total", 0.0)), reverse=True)[:top_n]
+        ranked_bursts = sorted(bursts, key=lambda item: float(item[1].get("H_total", 0.0)), reverse=True)[
+            :top_n
+        ]
         if not ranked_bursts:
             lines.append("    none")
             return "\n".join(lines)
@@ -640,8 +686,12 @@ class TelemetryPanel:
 
         return "\n".join(lines)
 
-    def _summarize_bursts(self, bursts: Sequence[tuple[str, dict[str, float]]], top_n: int = 3) -> dict[str, object]:
-        ranked_bursts = sorted(bursts, key=lambda item: float(item[1].get("H_total", 0.0)), reverse=True)[:top_n]
+    def _summarize_bursts(
+        self, bursts: Sequence[tuple[str, dict[str, float]]], top_n: int = 3
+    ) -> dict[str, object]:
+        ranked_bursts = sorted(bursts, key=lambda item: float(item[1].get("H_total", 0.0)), reverse=True)[
+            :top_n
+        ]
         if not ranked_bursts:
             return {
                 "dominant_channel": "ambient",
@@ -689,7 +739,11 @@ class TelemetryPanel:
 
     def _dominant_channel(self, density: float, shear: float, vorticity: float) -> str:
         return max(
-            (("density", abs(float(density))), ("shear", abs(float(shear))), ("vorticity", abs(float(vorticity)))),
+            (
+                ("density", abs(float(density))),
+                ("shear", abs(float(shear))),
+                ("vorticity", abs(float(vorticity))),
+            ),
             key=lambda item: item[1],
         )[0]
 
@@ -700,7 +754,9 @@ class TelemetryPanel:
 
 
 def main(argv: Sequence[str] | None = None):
-    parser = argparse.ArgumentParser(description="Render telemetry views for the Exciton-MoA manifold runtime.")
+    parser = argparse.ArgumentParser(
+        description="Render telemetry views for the Exciton-MoA manifold runtime."
+    )
     parser.add_argument("--mode", choices=["latest", "registry", "comparative"], default="latest")
     parser.add_argument("--scope", choices=["manifold", "pair", "all"], default="manifold")
     parser.add_argument("--manifold", dest="manifold_id", default="primary")

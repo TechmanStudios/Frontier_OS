@@ -32,7 +32,9 @@ class HippocampalPairTransducer:
     ) -> dict[str, Any]:
         burst_list_a = list(bursts_a)
         burst_list_b = list(bursts_b)
-        wormhole_set = set(pair_metadata.get("wormhole_nodes", self.wormhole_nodes) if pair_metadata else self.wormhole_nodes)
+        wormhole_set = set(
+            pair_metadata.get("wormhole_nodes", self.wormhole_nodes) if pair_metadata else self.wormhole_nodes
+        )
         burst_ids_a = {node_id for node_id, _ in burst_list_a}
         burst_ids_b = {node_id for node_id, _ in burst_list_b}
         bilateral_node_ids = burst_ids_a & burst_ids_b

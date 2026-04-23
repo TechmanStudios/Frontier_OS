@@ -27,7 +27,11 @@ class LatentMediator:
         self.manifold_core = manifold_core
         self.graph = manifold_core.graph
         self.max_entries_per_node = max_entries_per_node
-        self.state_path = Path(state_path) if state_path is not None else Path(__file__).resolve().parents[1] / "working_data" / "latent_mediator_state.json"
+        self.state_path = (
+            Path(state_path)
+            if state_path is not None
+            else Path(__file__).resolve().parents[1] / "working_data" / "latent_mediator_state.json"
+        )
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._clock = 0
         self._blackboard: dict[str, list[ThoughtProjection]] = {}

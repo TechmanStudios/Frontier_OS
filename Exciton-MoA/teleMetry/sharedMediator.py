@@ -26,7 +26,9 @@ class SharedMediator:
         self.state_path = (
             Path(state_path)
             if state_path is not None
-            else Path(__file__).resolve().parents[1] / "working_data" / f"shared_entanglement_locus_{self.pair_id}.json"
+            else Path(__file__).resolve().parents[1]
+            / "working_data"
+            / f"shared_entanglement_locus_{self.pair_id}.json"
         )
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._pair_clock = 0
@@ -76,7 +78,9 @@ class SharedMediator:
         if not entries:
             return None
 
-        weights = np.array([max(entry.confidence / (1.0 + entry.entropy), 1e-6) for entry in entries], dtype=float)
+        weights = np.array(
+            [max(entry.confidence / (1.0 + entry.entropy), 1e-6) for entry in entries], dtype=float
+        )
         weights /= weights.sum()
         stacked = np.vstack([entry.vector for entry in entries])
         consensus_vector = np.average(stacked, axis=0, weights=weights)
@@ -160,11 +164,18 @@ class SharedMediator:
             self.publish_consensus(node_id)
 
         local_clock_max = max(
-            [int(node_payload.get("consensus_clock", 0)) for channels in local_payload.values() for node_payload in channels.values()]
+            [
+                int(node_payload.get("consensus_clock", 0))
+                for channels in local_payload.values()
+                for node_payload in channels.values()
+            ]
             or [0]
         )
         dominant_channel = self._dominant_channel(
-            np.asarray(locus_consensus["consensus_vector"] if locus_consensus is not None else flux_vector, dtype=float)
+            np.asarray(
+                locus_consensus["consensus_vector"] if locus_consensus is not None else flux_vector,
+                dtype=float,
+            )
         )
         self._latest_summary = {
             "pair_id": self.pair_id,
@@ -184,7 +195,9 @@ class SharedMediator:
             "resolved_channels": {
                 channel_id: self._serialize_resolved_payload(resolved)
                 for channel_id, resolved in self._resolved_channels.items()
-                if channel_id == "entanglement_locus" or channel_id == "entangler_control" or channel_id in wormhole_list
+                if channel_id == "entanglement_locus"
+                or channel_id == "entangler_control"
+                or channel_id in wormhole_list
             },
         }
         self._preserve_latest_summary_fields(previous_summary)
@@ -219,7 +232,9 @@ class SharedMediator:
             "controller": "Entangler Giant",
             "control_mode": str(report.get("control_mode", "active")),
             "coherence_mode": str(report.get("coherence_mode", "active")),
-            "next_coherence_mode": str(report.get("next_coherence_mode", report.get("coherence_mode", "active"))),
+            "next_coherence_mode": str(
+                report.get("next_coherence_mode", report.get("coherence_mode", "active"))
+            ),
             "pair_clock": self._pair_clock,
             "entanglement_strength": float(report.get("entanglement_strength", 0.0)),
             "dominant_giant_consensus": str(report.get("dominant_giant_consensus", "Entanglement Locus")),
@@ -239,8 +254,12 @@ class SharedMediator:
             "hint_gate": dict(report.get("hint_gate", {})),
             "wormhole_health": dict(report.get("wormhole_health", {})),
             "reasoning_summary": str(report.get("reasoning_summary", "")),
-            "consensus_vector": control_vector.tolist() if consensus is None else self._pad_vector(consensus.get("consensus_vector", [])).tolist(),
-            "consensus_confidence": confidence if consensus is None else float(consensus.get("consensus_confidence", confidence)),
+            "consensus_vector": control_vector.tolist()
+            if consensus is None
+            else self._pad_vector(consensus.get("consensus_vector", [])).tolist(),
+            "consensus_confidence": confidence
+            if consensus is None
+            else float(consensus.get("consensus_confidence", confidence)),
         }
 
         if not self._latest_summary:
@@ -252,8 +271,8 @@ class SharedMediator:
             }
 
         self._latest_summary["pair_clock"] = self._pair_clock
-        self._latest_summary.setdefault("resolved_channels", {})["entangler_control"] = self._serialize_resolved_payload(
-            self._resolved_channels["entangler_control"]
+        self._latest_summary.setdefault("resolved_channels", {})["entangler_control"] = (
+            self._serialize_resolved_payload(self._resolved_channels["entangler_control"])
         )
         self._latest_summary["entangler_control"] = entangler_summary
         self.persist_state()
@@ -273,7 +292,9 @@ class SharedMediator:
                 "resolved_channels": {},
             }
 
-        self._latest_summary["pair_clock"] = max(int(bundle.get("pair_clock", 0)), int(self._latest_summary.get("pair_clock", 0)))
+        self._latest_summary["pair_clock"] = max(
+            int(bundle.get("pair_clock", 0)), int(self._latest_summary.get("pair_clock", 0))
+        )
         self._latest_summary["phonon_bundles"] = bundles
         self._latest_summary["latest_phonon_bundle"] = bundle
         self.persist_state()
@@ -293,7 +314,9 @@ class SharedMediator:
                 "resolved_channels": {},
             }
 
-        self._latest_summary["pair_clock"] = max(int(self._latest_summary.get("pair_clock", 0)), self._pair_clock)
+        self._latest_summary["pair_clock"] = max(
+            int(self._latest_summary.get("pair_clock", 0)), self._pair_clock
+        )
         self._latest_summary["phonon_control_hints"] = hints
         self._latest_summary["latest_phonon_control_hint"] = hint
         self.persist_state()
@@ -338,7 +361,9 @@ class SharedMediator:
             "projection_count": int(sum(len(entries) for entries in blackboard.values())),
         }
         for channel_id, entries in blackboard.items():
-            self._blackboard[channel_id] = [self._deserialize_projection(channel_id, entry) for entry in entries]
+            self._blackboard[channel_id] = [
+                self._deserialize_projection(channel_id, entry) for entry in entries
+            ]
         for channel_id, resolved in payload.get("resolved_channels", {}).items():
             self._resolved_channels[channel_id] = self._deserialize_resolved_payload(resolved)
         self._latest_summary = self._to_jsonable(payload.get("latest_summary", {}))
@@ -368,7 +393,9 @@ class SharedMediator:
             confidences.append(confidence)
 
             dominant_giant = str(node_payload.get("dominant_giant") or cross_domain_giant)
-            dominant_weights[dominant_giant] = dominant_weights.get(dominant_giant, 0.0) + max(confidence, 1e-6)
+            dominant_weights[dominant_giant] = dominant_weights.get(dominant_giant, 0.0) + max(
+                confidence, 1e-6
+            )
             per_manifold[manifold_id] = {
                 "consensus_vector": vector.tolist(),
                 "consensus_confidence": confidence,
@@ -379,8 +406,14 @@ class SharedMediator:
 
         combined_vector = np.mean(vectors, axis=0) if vectors else shared_flux
         average_confidence = float(sum(confidences) / len(confidences)) if confidences else 0.0
-        projected_confidence = float(np.clip(((phase_coherence + 1.0) * 0.5) * (0.5 + (0.5 * average_confidence)), 0.0, 1.0))
-        giant_name = max(dominant_weights.items(), key=lambda item: item[1])[0] if dominant_weights else cross_domain_giant
+        projected_confidence = float(
+            np.clip(((phase_coherence + 1.0) * 0.5) * (0.5 + (0.5 * average_confidence)), 0.0, 1.0)
+        )
+        giant_name = (
+            max(dominant_weights.items(), key=lambda item: item[1])[0]
+            if dominant_weights
+            else cross_domain_giant
+        )
 
         return {
             "giant_name": giant_name,

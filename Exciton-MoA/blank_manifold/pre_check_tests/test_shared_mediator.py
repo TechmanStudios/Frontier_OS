@@ -9,7 +9,9 @@ from shared_mediator import SharedMediator
 
 def test_shared_mediator_persists_and_reloads_pair_state(tmp_path: Path):
     state_path = tmp_path / "shared_entanglement_locus_primary-secondary.json"
-    mediator = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    mediator = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
 
     summary = mediator.publish_pair_state(
         shared_flux=np.array([0.8, 2.4, 0.5]),
@@ -53,7 +55,9 @@ def test_shared_mediator_persists_and_reloads_pair_state(tmp_path: Path):
     assert summary["cross_domain_giant"] == "Entanglement Locus"
     assert summary["resolved_channels"]["entanglement_locus"]["dominant_giant"] == "Entanglement Locus"
 
-    reloaded = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    reloaded = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     restored = reloaded.get_latest_summary()
 
     assert restored["pair_clock"] == 3
@@ -63,15 +67,33 @@ def test_shared_mediator_persists_and_reloads_pair_state(tmp_path: Path):
 
 def test_shared_mediator_persists_entangler_control_channel(tmp_path: Path):
     state_path = tmp_path / "shared_entanglement_locus_primary-secondary.json"
-    mediator = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    mediator = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     mediator.publish_pair_state(
         shared_flux=[0.5, 1.4, 0.3],
         phase_coherence=0.55,
         wormhole_nodes=["node_0001"],
         bilateral_node_ids=["node_0001"],
         local_consensus={
-            "primary": {"node_0001": {"consensus_vector": [0.5, 1.2, 0.2], "consensus_confidence": 0.8, "consensus_entropy": 0.1, "consensus_clock": 3, "dominant_giant": "The Graph Navigator"}},
-            "secondary": {"node_0001": {"consensus_vector": [0.4, 1.0, 0.2], "consensus_confidence": 0.7, "consensus_entropy": 0.2, "consensus_clock": 2, "dominant_giant": "The Graph Navigator"}},
+            "primary": {
+                "node_0001": {
+                    "consensus_vector": [0.5, 1.2, 0.2],
+                    "consensus_confidence": 0.8,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 3,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
+            "secondary": {
+                "node_0001": {
+                    "consensus_vector": [0.4, 1.0, 0.2],
+                    "consensus_confidence": 0.7,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 2,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
         },
     )
 
@@ -81,7 +103,11 @@ def test_shared_mediator_persists_entangler_control_channel(tmp_path: Path):
             "entanglement_strength": 0.73,
             "dominant_giant_consensus": "The Graph Navigator",
             "wormhole_weight_map": {"node_0001": 1.32},
-            "wormhole_weight_summary": {"min_weight": 1.32, "max_weight": 1.32, "top_weighted_wormholes": [{"node_id": "node_0001", "weight": 1.32}]},
+            "wormhole_weight_summary": {
+                "min_weight": 1.32,
+                "max_weight": 1.32,
+                "top_weighted_wormholes": [{"node_id": "node_0001", "weight": 1.32}],
+            },
             "controls_before": {"aperture": 0.24, "damping": 0.84, "phase_offset": 0.15},
             "controls_after": {"aperture": 0.31, "damping": 0.80, "phase_offset": 0.22},
             "control_delta": {"aperture": 0.07, "damping": -0.04, "phase_offset": 0.07},
@@ -114,7 +140,9 @@ def test_shared_mediator_persists_entangler_control_channel(tmp_path: Path):
         }
     )
 
-    reloaded = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    reloaded = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     restored = reloaded.get_latest_summary()
 
     assert control["controller"] == "Entangler Giant"
@@ -139,8 +167,24 @@ def test_shared_mediator_pair_clock_advances_with_local_clock_skew(tmp_path: Pat
         wormhole_nodes=["node_0002"],
         bilateral_node_ids=[],
         local_consensus={
-            "primary": {"node_0002": {"consensus_vector": [0.2, 0.6, 0.1], "consensus_confidence": 0.6, "consensus_entropy": 0.2, "consensus_clock": 9, "dominant_giant": "The Statistician"}},
-            "secondary": {"node_0002": {"consensus_vector": [0.3, 0.5, 0.1], "consensus_confidence": 0.5, "consensus_entropy": 0.1, "consensus_clock": 1, "dominant_giant": "The Statistician"}},
+            "primary": {
+                "node_0002": {
+                    "consensus_vector": [0.2, 0.6, 0.1],
+                    "consensus_confidence": 0.6,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 9,
+                    "dominant_giant": "The Statistician",
+                }
+            },
+            "secondary": {
+                "node_0002": {
+                    "consensus_vector": [0.3, 0.5, 0.1],
+                    "consensus_confidence": 0.5,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 1,
+                    "dominant_giant": "The Statistician",
+                }
+            },
         },
     )
     second = mediator.publish_pair_state(
@@ -149,8 +193,24 @@ def test_shared_mediator_pair_clock_advances_with_local_clock_skew(tmp_path: Pat
         wormhole_nodes=["node_0002"],
         bilateral_node_ids=["node_0002"],
         local_consensus={
-            "primary": {"node_0002": {"consensus_vector": [0.1, 0.5, 0.2], "consensus_confidence": 0.5, "consensus_entropy": 0.2, "consensus_clock": 2, "dominant_giant": "The Integrator"}},
-            "secondary": {"node_0002": {"consensus_vector": [0.3, 0.7, 0.1], "consensus_confidence": 0.7, "consensus_entropy": 0.1, "consensus_clock": 15, "dominant_giant": "The Integrator"}},
+            "primary": {
+                "node_0002": {
+                    "consensus_vector": [0.1, 0.5, 0.2],
+                    "consensus_confidence": 0.5,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 2,
+                    "dominant_giant": "The Integrator",
+                }
+            },
+            "secondary": {
+                "node_0002": {
+                    "consensus_vector": [0.3, 0.7, 0.1],
+                    "consensus_confidence": 0.7,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 15,
+                    "dominant_giant": "The Integrator",
+                }
+            },
         },
     )
 
@@ -164,15 +224,33 @@ def test_shared_mediator_pair_clock_advances_with_local_clock_skew(tmp_path: Pat
 
 def test_shared_mediator_persists_latest_phonon_bundle(tmp_path: Path):
     state_path = tmp_path / "shared_entanglement_locus_primary-secondary.json"
-    mediator = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    mediator = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     mediator.publish_pair_state(
         shared_flux=[0.5, 1.4, 0.3],
         phase_coherence=0.55,
         wormhole_nodes=["node_0001", "node_0008"],
         bilateral_node_ids=["node_0001"],
         local_consensus={
-            "primary": {"node_0001": {"consensus_vector": [0.5, 1.2, 0.2], "consensus_confidence": 0.8, "consensus_entropy": 0.1, "consensus_clock": 3, "dominant_giant": "The Graph Navigator"}},
-            "secondary": {"node_0001": {"consensus_vector": [0.4, 1.0, 0.2], "consensus_confidence": 0.7, "consensus_entropy": 0.2, "consensus_clock": 2, "dominant_giant": "The Graph Navigator"}},
+            "primary": {
+                "node_0001": {
+                    "consensus_vector": [0.5, 1.2, 0.2],
+                    "consensus_confidence": 0.8,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 3,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
+            "secondary": {
+                "node_0001": {
+                    "consensus_vector": [0.4, 1.0, 0.2],
+                    "consensus_confidence": 0.7,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 2,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
         },
     )
 
@@ -191,7 +269,9 @@ def test_shared_mediator_persists_latest_phonon_bundle(tmp_path: Path):
         }
     )
 
-    reloaded = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    reloaded = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     restored = reloaded.get_latest_summary()
 
     assert bundle["phonon_id"] == "phonon_primary-secondary_0007"
@@ -204,15 +284,33 @@ def test_shared_mediator_persists_latest_phonon_bundle(tmp_path: Path):
 
 def test_shared_mediator_persists_latest_phonon_control_hint(tmp_path: Path):
     state_path = tmp_path / "shared_entanglement_locus_primary-secondary.json"
-    mediator = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    mediator = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     mediator.publish_pair_state(
         shared_flux=[0.5, 1.4, 0.3],
         phase_coherence=0.55,
         wormhole_nodes=["node_0001", "node_0008"],
         bilateral_node_ids=["node_0001"],
         local_consensus={
-            "primary": {"node_0001": {"consensus_vector": [0.5, 1.2, 0.2], "consensus_confidence": 0.8, "consensus_entropy": 0.1, "consensus_clock": 3, "dominant_giant": "The Graph Navigator"}},
-            "secondary": {"node_0001": {"consensus_vector": [0.4, 1.0, 0.2], "consensus_confidence": 0.7, "consensus_entropy": 0.2, "consensus_clock": 2, "dominant_giant": "The Graph Navigator"}},
+            "primary": {
+                "node_0001": {
+                    "consensus_vector": [0.5, 1.2, 0.2],
+                    "consensus_confidence": 0.8,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 3,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
+            "secondary": {
+                "node_0001": {
+                    "consensus_vector": [0.4, 1.0, 0.2],
+                    "consensus_confidence": 0.7,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 2,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
         },
     )
 
@@ -230,7 +328,9 @@ def test_shared_mediator_persists_latest_phonon_control_hint(tmp_path: Path):
         }
     )
 
-    reloaded = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    reloaded = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     restored = reloaded.get_latest_summary()
 
     assert hint["status"] == "armed"
@@ -242,15 +342,33 @@ def test_shared_mediator_persists_latest_phonon_control_hint(tmp_path: Path):
 
 def test_shared_mediator_pair_state_refresh_preserves_latest_phonon_control_hint(tmp_path: Path):
     state_path = tmp_path / "shared_entanglement_locus_primary-secondary.json"
-    mediator = SharedMediator(pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path)
+    mediator = SharedMediator(
+        pair_id="primary-secondary", manifold_ids=("primary", "secondary"), state_path=state_path
+    )
     mediator.publish_pair_state(
         shared_flux=[0.5, 1.4, 0.3],
         phase_coherence=0.55,
         wormhole_nodes=["node_0001", "node_0008"],
         bilateral_node_ids=["node_0001"],
         local_consensus={
-            "primary": {"node_0001": {"consensus_vector": [0.5, 1.2, 0.2], "consensus_confidence": 0.8, "consensus_entropy": 0.1, "consensus_clock": 3, "dominant_giant": "The Graph Navigator"}},
-            "secondary": {"node_0001": {"consensus_vector": [0.4, 1.0, 0.2], "consensus_confidence": 0.7, "consensus_entropy": 0.2, "consensus_clock": 2, "dominant_giant": "The Graph Navigator"}},
+            "primary": {
+                "node_0001": {
+                    "consensus_vector": [0.5, 1.2, 0.2],
+                    "consensus_confidence": 0.8,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 3,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
+            "secondary": {
+                "node_0001": {
+                    "consensus_vector": [0.4, 1.0, 0.2],
+                    "consensus_confidence": 0.7,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 2,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
         },
     )
     mediator.publish_phonon_control_hint(
@@ -273,8 +391,24 @@ def test_shared_mediator_pair_state_refresh_preserves_latest_phonon_control_hint
         wormhole_nodes=["node_0001", "node_0008"],
         bilateral_node_ids=["node_0001"],
         local_consensus={
-            "primary": {"node_0001": {"consensus_vector": [0.6, 1.5, 0.2], "consensus_confidence": 0.82, "consensus_entropy": 0.1, "consensus_clock": 4, "dominant_giant": "The Graph Navigator"}},
-            "secondary": {"node_0001": {"consensus_vector": [0.5, 1.3, 0.2], "consensus_confidence": 0.74, "consensus_entropy": 0.2, "consensus_clock": 3, "dominant_giant": "The Graph Navigator"}},
+            "primary": {
+                "node_0001": {
+                    "consensus_vector": [0.6, 1.5, 0.2],
+                    "consensus_confidence": 0.82,
+                    "consensus_entropy": 0.1,
+                    "consensus_clock": 4,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
+            "secondary": {
+                "node_0001": {
+                    "consensus_vector": [0.5, 1.3, 0.2],
+                    "consensus_confidence": 0.74,
+                    "consensus_entropy": 0.2,
+                    "consensus_clock": 3,
+                    "dominant_giant": "The Graph Navigator",
+                }
+            },
         },
     )
 

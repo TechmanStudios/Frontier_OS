@@ -73,19 +73,21 @@ def test_hippocampal_replay_pair_summary_from_archive(tmp_path: Path):
     transducer_secondary = HippocampalTransducer(output_dir=secondary_dir, burst_flush_threshold=1)
 
     transducer_primary.capture_bursts(
-        [(
-            "node_0000",
-            {
-                "H_total": 3.6,
-                "tau_threshold": 2.4,
-                "density": 1.0,
-                "density_contrib": 1.2,
-                "shear": 0.8,
-                "shear_contrib": 0.9,
-                "vorticity": 0.3,
-                "vorticity_contrib": 0.4,
-            },
-        )],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 3.6,
+                    "tau_threshold": 2.4,
+                    "density": 1.0,
+                    "density_contrib": 1.2,
+                    "shear": 0.8,
+                    "shear_contrib": 0.9,
+                    "vorticity": 0.3,
+                    "vorticity_contrib": 0.4,
+                },
+            )
+        ],
         manifold_core.graph,
         pair_context={
             "pair_id": "primary-secondary",
@@ -98,19 +100,21 @@ def test_hippocampal_replay_pair_summary_from_archive(tmp_path: Path):
         },
     )
     transducer_secondary.capture_bursts(
-        [(
-            "node_0000",
-            {
-                "H_total": 2.9,
-                "tau_threshold": 2.4,
-                "density": 0.7,
-                "density_contrib": 0.9,
-                "shear": 0.7,
-                "shear_contrib": 0.8,
-                "vorticity": 0.2,
-                "vorticity_contrib": 0.3,
-            },
-        )],
+        [
+            (
+                "node_0000",
+                {
+                    "H_total": 2.9,
+                    "tau_threshold": 2.4,
+                    "density": 0.7,
+                    "density_contrib": 0.9,
+                    "shear": 0.7,
+                    "shear_contrib": 0.8,
+                    "vorticity": 0.2,
+                    "vorticity_contrib": 0.3,
+                },
+            )
+        ],
         manifold_core.graph,
         pair_context={
             "pair_id": "primary-secondary",
@@ -171,7 +175,9 @@ def test_hippocampal_replay_summarizes_weight_drift_and_wormhole_shifts(tmp_path
 
     replay = HippocampalReplay(working_dir=tmp_path)
     drift = replay.summarize_weight_drift(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
-    shifts = replay.summarize_top_wormhole_shifts(replay.load_pair_telemetry_records(pair_id="primary-secondary"), top_n=2)
+    shifts = replay.summarize_top_wormhole_shifts(
+        replay.load_pair_telemetry_records(pair_id="primary-secondary"), top_n=2
+    )
     rendered = replay.render_weight_drift_summary(pair_id="primary-secondary", top_n=2)
 
     assert drift["tick_count"] == 3
@@ -211,14 +217,28 @@ def test_hippocampal_replay_summarizes_coherence_trend_and_mode(tmp_path: Path):
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.22, "damping": 0.89, "phase_offset": 0.11},
                 "coherence_feedback": {"status": status, "delta": 0.05, "error": 0.12, "target": 0.88},
-                "mode_transition": {"changed": changed, "previous_mode": previous_mode, "next_mode": next_mode, "reason": reason, "decay_streak": 2 if status == "decaying" else 0, "improving_streak": 3 if reason.startswith("improving") else 0, "stabilizer_dwell_ticks": 2 if mode == "Stabilizer" else 0},
-                "wormhole_weight_summary": {"min_weight": 0.92, "max_weight": 1.08, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": changed,
+                    "previous_mode": previous_mode,
+                    "next_mode": next_mode,
+                    "reason": reason,
+                    "decay_streak": 2 if status == "decaying" else 0,
+                    "improving_streak": 3 if reason.startswith("improving") else 0,
+                    "stabilizer_dwell_ticks": 2 if mode == "Stabilizer" else 0,
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.92,
+                    "max_weight": 1.08,
+                    "top_weighted_wormholes": [],
+                },
             },
         )
 
     replay = HippocampalReplay(working_dir=tmp_path)
     trend = replay.summarize_coherence_trend(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
-    switching = replay.summarize_mode_switching(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
+    switching = replay.summarize_mode_switching(
+        replay.load_pair_telemetry_records(pair_id="primary-secondary")
+    )
     rendered = replay.render_coherence_summary(pair_id="primary-secondary")
     switching_rendered = replay.render_mode_switching_summary(pair_id="primary-secondary")
 
@@ -319,8 +339,17 @@ def test_hippocampal_replay_summarizes_local_phonons_and_advisory_hints(tmp_path
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.02, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
             },
             latest_local_phonon_bundle={
                 "phonon_id": f"phonon_primary-secondary_local_post_injection_primary_{pair_clock:04d}",
@@ -333,7 +362,10 @@ def test_hippocampal_replay_summarizes_local_phonons_and_advisory_hints(tmp_path
                 "source_nodes": ["node_0001", "node_0008"],
                 "wormhole_entry_nodes": ["node_0008"],
                 "wormhole_exit_nodes": [] if pair_clock > 1 else ["node_0003"],
-                "coherence_signature": {"status": "local_post_injection", "stability_score": 0.55 + (0.05 * pair_clock)},
+                "coherence_signature": {
+                    "status": "local_post_injection",
+                    "stability_score": 0.55 + (0.05 * pair_clock),
+                },
             },
             local_phonon_bundle_count=pair_clock * 2,
             phonon_control_hint={
@@ -350,8 +382,12 @@ def test_hippocampal_replay_summarizes_local_phonons_and_advisory_hints(tmp_path
         )
 
     replay = HippocampalReplay(working_dir=tmp_path)
-    local_summary = replay.summarize_local_phonons(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
-    hint_summary = replay.summarize_advisory_hints(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
+    local_summary = replay.summarize_local_phonons(
+        replay.load_pair_telemetry_records(pair_id="primary-secondary")
+    )
+    hint_summary = replay.summarize_advisory_hints(
+        replay.load_pair_telemetry_records(pair_id="primary-secondary")
+    )
     local_rendered = replay.render_local_phonon_summary(pair_id="primary-secondary")
     hint_rendered = replay.render_advisory_hint_summary(pair_id="primary-secondary")
 
@@ -394,9 +430,23 @@ def test_hippocampal_replay_summarizes_predictive_phonon_correlations(tmp_path: 
                 "next_coherence_mode": next_mode,
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
-                "coherence_feedback": {"status": "improving" if pair_clock < 3 else "stable", "delta": 0.04, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": next_mode, "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "coherence_feedback": {
+                    "status": "improving" if pair_clock < 3 else "stable",
+                    "delta": 0.04,
+                    "error": 0.10,
+                    "target": 0.88,
+                },
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": next_mode,
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
             },
             latest_local_phonon_bundle={
                 "phonon_id": f"phonon_primary-secondary_{pair_clock:04d}",
@@ -448,12 +498,32 @@ def test_hippocampal_replay_scores_hint_reliability(tmp_path: Path):
             "sample_count": 7,
             "forward_window": 2,
             "recommendation_correlations": {
-                "stabilize": {"count": 4, "mean_future_delta": 0.07, "recovery_rate": 0.75, "stabilizer_entry_rate": 0.50},
-                "observe": {"count": 3, "mean_future_delta": 0.01, "recovery_rate": 0.33, "stabilizer_entry_rate": 0.00},
+                "stabilize": {
+                    "count": 4,
+                    "mean_future_delta": 0.07,
+                    "recovery_rate": 0.75,
+                    "stabilizer_entry_rate": 0.50,
+                },
+                "observe": {
+                    "count": 3,
+                    "mean_future_delta": 0.01,
+                    "recovery_rate": 0.33,
+                    "stabilizer_entry_rate": 0.00,
+                },
             },
             "tier_correlations": {
-                "local_post_injection": {"count": 4, "mean_future_delta": 0.07, "recovery_rate": 0.75, "stabilizer_entry_rate": 0.50},
-                "local_post_giant": {"count": 3, "mean_future_delta": 0.01, "recovery_rate": 0.33, "stabilizer_entry_rate": 0.00},
+                "local_post_injection": {
+                    "count": 4,
+                    "mean_future_delta": 0.07,
+                    "recovery_rate": 0.75,
+                    "stabilizer_entry_rate": 0.50,
+                },
+                "local_post_giant": {
+                    "count": 3,
+                    "mean_future_delta": 0.01,
+                    "recovery_rate": 0.33,
+                    "stabilizer_entry_rate": 0.00,
+                },
             },
         },
         min_samples=3,
@@ -461,7 +531,10 @@ def test_hippocampal_replay_scores_hint_reliability(tmp_path: Path):
 
     assert reliability["best_recommendation"] == "stabilize"
     assert reliability["recommendation_scores"]["stabilize"]["provisional"] is False
-    assert reliability["recommendation_scores"]["stabilize"]["reliability_score"] > reliability["recommendation_scores"]["observe"]["reliability_score"]
+    assert (
+        reliability["recommendation_scores"]["stabilize"]["reliability_score"]
+        > reliability["recommendation_scores"]["observe"]["reliability_score"]
+    )
     assert reliability["tier_scores"]["local_post_injection"]["evidence_status"] == "established"
 
 
@@ -493,8 +566,17 @@ def test_hippocampal_replay_summarizes_hint_calibration(tmp_path: Path):
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.02, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": next_mode, "next_mode": next_mode, "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": next_mode,
+                    "next_mode": next_mode,
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
             },
             phonon_control_hint={
                 "status": "armed",
@@ -512,7 +594,9 @@ def test_hippocampal_replay_summarizes_hint_calibration(tmp_path: Path):
     replay = HippocampalReplay(working_dir=tmp_path)
     records = replay.load_pair_telemetry_records(pair_id="primary-secondary")
     calibration = replay.summarize_hint_calibration(records, forward_window=2, min_samples=1)
-    rendered = replay.render_hint_calibration_summary(pair_id="primary-secondary", forward_window=2, min_samples=1)
+    rendered = replay.render_hint_calibration_summary(
+        pair_id="primary-secondary", forward_window=2, min_samples=1
+    )
 
     assert calibration["tick_count"] == 4
     assert "stabilize" in calibration["recommendation_calibration"]
@@ -630,8 +714,17 @@ def test_hippocampal_replay_summarizes_nudge_outcomes(tmp_path: Path):
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.02, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": mode, "next_mode": mode, "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": mode,
+                    "next_mode": mode,
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": hint_gate,
             },
             phonon_control_hint={
@@ -672,7 +765,20 @@ def test_hippocampal_replay_summarizes_nudge_outcomes(tmp_path: Path):
 
 def test_hippocampal_replay_summarizes_hint_gate_decisions(tmp_path: Path):
     panel = TelemetryPanel(working_dir=tmp_path)
-    for pair_clock, coherence, gate_passed, gate_reason, gate_status, confidence, reliability, sample_count, provisional, nudge_enabled, nudge_applied, nudge_rejection in [
+    for (
+        pair_clock,
+        coherence,
+        gate_passed,
+        gate_reason,
+        gate_status,
+        confidence,
+        reliability,
+        sample_count,
+        provisional,
+        nudge_enabled,
+        nudge_applied,
+        nudge_rejection,
+    ) in [
         (1, 0.58, False, "not_armed", "suppressed", 0.44, 0.62, 2, True, True, False, "gate_blocked"),
         (2, 0.61, False, "low_confidence", "armed", 0.41, 0.71, 3, False, True, False, "gate_blocked"),
         (3, 0.65, False, "low_reliability", "armed", 0.67, 0.42, 2, True, True, False, "gate_blocked"),
@@ -698,8 +804,17 @@ def test_hippocampal_replay_summarizes_hint_gate_decisions(tmp_path: Path):
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.02, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": {
                     "enabled": True,
                     "passed": gate_passed,
@@ -730,7 +845,9 @@ def test_hippocampal_replay_summarizes_hint_gate_decisions(tmp_path: Path):
                 "age_ticks": 1,
                 "stability_window": 5,
                 "suppression_reason": "low_confidence" if gate_status != "armed" else "none",
-                "decision_reason": "low_confidence" if gate_reason == "low_confidence" else ("stabilize_pressure_or_low_stability" if gate_status == "armed" else "low_confidence"),
+                "decision_reason": "low_confidence"
+                if gate_reason == "low_confidence"
+                else ("stabilize_pressure_or_low_stability" if gate_status == "armed" else "low_confidence"),
                 "source_tier": "local_post_injection",
                 "entry_pressure": 1.0,
                 "exit_pressure": 0.0,
@@ -770,13 +887,27 @@ def test_hippocampal_replay_summarizes_hint_gate_decisions(tmp_path: Path):
     assert "not_armed=1, low_confidence=1, low_reliability=1" in rendered
     assert "near_pass=1" in rendered
     assert "first_pass=4/stabilize_pressure_or_low_stability/p0.42/l0.41/d0.11/a-0.04" in rendered
-    assert "first_near_pass=tick 2 (low_confidence, cgap=0.14, rgap=0.00, ngap=0, decide=low_confidence, signal=p0.42/l0.41/d0.11/a-0.04)" in rendered
+    assert (
+        "first_near_pass=tick 2 (low_confidence, cgap=0.14, rgap=0.00, ngap=0, decide=low_confidence, signal=p0.42/l0.41/d0.11/a-0.04)"
+        in rendered
+    )
     assert "pass_but_nudge_blocked=1" in rendered
 
 
 def test_hippocampal_replay_summarizes_paper_diagnostic_proxies(tmp_path: Path):
     panel = TelemetryPanel(working_dir=tmp_path)
-    for pair_clock, coherence, gate_passed, gate_reason, gate_status, confidence, reliability, sample_count, provisional, nudge_rejection in [
+    for (
+        pair_clock,
+        coherence,
+        gate_passed,
+        gate_reason,
+        gate_status,
+        confidence,
+        reliability,
+        sample_count,
+        provisional,
+        nudge_rejection,
+    ) in [
         (1, 0.54, False, "not_armed", "suppressed", 0.44, 0.62, 2, True, "gate_blocked"),
         (2, 0.55, False, "low_confidence", "armed", 0.41, 0.71, 3, False, "gate_blocked"),
         (3, 0.56, False, "low_reliability", "armed", 0.67, 0.42, 2, True, "gate_blocked"),
@@ -802,8 +933,17 @@ def test_hippocampal_replay_summarizes_paper_diagnostic_proxies(tmp_path: Path):
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.01, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": {
                     "enabled": True,
                     "passed": gate_passed,
@@ -834,7 +974,9 @@ def test_hippocampal_replay_summarizes_paper_diagnostic_proxies(tmp_path: Path):
                 "age_ticks": 1,
                 "stability_window": 5,
                 "suppression_reason": "low_confidence" if gate_status != "armed" else "none",
-                "decision_reason": "low_confidence" if gate_reason == "low_confidence" else "stabilize_pressure_or_low_stability",
+                "decision_reason": "low_confidence"
+                if gate_reason == "low_confidence"
+                else "stabilize_pressure_or_low_stability",
                 "source_tier": "local_post_injection",
                 "entry_pressure": 1.0,
                 "exit_pressure": 0.0,
@@ -874,7 +1016,18 @@ def test_hippocampal_replay_summarizes_paper_diagnostic_proxies(tmp_path: Path):
 
 def test_hippocampal_replay_renders_uncertainty_paper_recommendation_stub(tmp_path: Path):
     panel = TelemetryPanel(working_dir=tmp_path)
-    for pair_clock, coherence, gate_passed, gate_reason, gate_status, confidence, reliability, sample_count, provisional, nudge_rejection in [
+    for (
+        pair_clock,
+        coherence,
+        gate_passed,
+        gate_reason,
+        gate_status,
+        confidence,
+        reliability,
+        sample_count,
+        provisional,
+        nudge_rejection,
+    ) in [
         (1, 0.54, False, "not_armed", "suppressed", 0.44, 0.62, 2, True, "gate_blocked"),
         (2, 0.55, False, "low_confidence", "armed", 0.41, 0.71, 3, False, "gate_blocked"),
         (3, 0.56, False, "low_reliability", "armed", 0.67, 0.42, 2, True, "gate_blocked"),
@@ -900,8 +1053,17 @@ def test_hippocampal_replay_renders_uncertainty_paper_recommendation_stub(tmp_pa
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "stable", "delta": 0.01, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": {
                     "enabled": True,
                     "passed": gate_passed,
@@ -932,7 +1094,9 @@ def test_hippocampal_replay_renders_uncertainty_paper_recommendation_stub(tmp_pa
                 "age_ticks": 1,
                 "stability_window": 5,
                 "suppression_reason": "low_confidence" if gate_status != "armed" else "none",
-                "decision_reason": "low_confidence" if gate_reason == "low_confidence" else "stabilize_pressure_or_low_stability",
+                "decision_reason": "low_confidence"
+                if gate_reason == "low_confidence"
+                else "stabilize_pressure_or_low_stability",
                 "source_tier": "local_post_injection",
                 "entry_pressure": 1.0,
                 "exit_pressure": 0.0,
@@ -990,8 +1154,17 @@ def test_hippocampal_replay_routes_weak_coupling_uncertainty_to_topology_design(
                 "controls_before": {"aperture": 0.14, "damping": 0.94, "phase_offset": 0.33},
                 "controls_after": {"aperture": 0.14, "damping": 0.94, "phase_offset": 0.33},
                 "coherence_feedback": {"status": status, "delta": -0.03, "error": 0.54, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": {
                     "enabled": True,
                     "passed": False,
@@ -1043,7 +1216,10 @@ def test_hippocampal_replay_routes_weak_coupling_uncertainty_to_topology_design(
     assert summary["triggered"] is True
     assert summary["intervention_class"] == "topology design"
     assert summary["coupling_posture"] == "weak"
-    assert summary["desired_paper_role"] == "one paper on topology-aware synchronization feasibility or controllability"
+    assert (
+        summary["desired_paper_role"]
+        == "one paper on topology-aware synchronization feasibility or controllability"
+    )
     assert "coupling:weak" in summary["regimes"]
     assert "topology-aware synchronization" in summary["novelty_relative"]
     assert "intervention class: topology design" in rendered
@@ -1073,8 +1249,17 @@ def test_hippocampal_replay_cli_extracts_paper_section(tmp_path: Path, monkeypat
                 "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                 "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                 "coherence_feedback": {"status": "improving", "delta": 0.04, "error": 0.10, "target": 0.88},
-                "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                "mode_transition": {
+                    "changed": False,
+                    "previous_mode": "active",
+                    "next_mode": "active",
+                    "reason": "none",
+                },
+                "wormhole_weight_summary": {
+                    "min_weight": 0.95,
+                    "max_weight": 1.05,
+                    "top_weighted_wormholes": [],
+                },
                 "hint_gate": {
                     "enabled": True,
                     "passed": True,
@@ -1167,13 +1352,24 @@ def test_hippocampal_replay_cli_extracts_paper_section(tmp_path: Path, monkeypat
                     "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                     "controls_after": {"aperture": 0.23, "damping": 0.86, "phase_offset": 0.14},
                     "coherence_feedback": {"status": status, "delta": 0.04, "error": 0.10, "target": 0.88},
-                    "mode_transition": {"changed": False, "previous_mode": mode, "next_mode": mode, "reason": "none"},
-                    "wormhole_weight_summary": {"min_weight": 0.95, "max_weight": 1.05, "top_weighted_wormholes": []},
+                    "mode_transition": {
+                        "changed": False,
+                        "previous_mode": mode,
+                        "next_mode": mode,
+                        "reason": "none",
+                    },
+                    "wormhole_weight_summary": {
+                        "min_weight": 0.95,
+                        "max_weight": 1.05,
+                        "top_weighted_wormholes": [],
+                    },
                 },
             )
 
         replay = HippocampalReplay(working_dir=tmp_path)
-        streaks = replay.summarize_status_streaks(replay.load_pair_telemetry_records(pair_id="primary-secondary"))
+        streaks = replay.summarize_status_streaks(
+            replay.load_pair_telemetry_records(pair_id="primary-secondary")
+        )
 
         assert streaks["tick_count"] == 5
         assert streaks["longest_decay_streak"] == 2
@@ -1209,8 +1405,17 @@ def test_hippocampal_replay_cli_extracts_paper_section(tmp_path: Path, monkeypat
                     "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                     "controls_after": {"aperture": 0.25, "damping": 0.84, "phase_offset": 0.15},
                     "coherence_feedback": {"status": status, "delta": 0.01, "error": 0.04, "target": 0.88},
-                    "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none"},
-                    "wormhole_weight_summary": {"min_weight": 0.98, "max_weight": 1.02, "top_weighted_wormholes": []},
+                    "mode_transition": {
+                        "changed": False,
+                        "previous_mode": "active",
+                        "next_mode": "active",
+                        "reason": "none",
+                    },
+                    "wormhole_weight_summary": {
+                        "min_weight": 0.98,
+                        "max_weight": 1.02,
+                        "top_weighted_wormholes": [],
+                    },
                 },
             )
 
@@ -1253,10 +1458,25 @@ def test_hippocampal_replay_cli_extracts_paper_section(tmp_path: Path, monkeypat
                     "next_coherence_mode": "active",
                     "controls_before": {"aperture": 0.24, "damping": 0.85, "phase_offset": 0.15},
                     "controls_after": {"aperture": 0.22, "damping": 0.87, "phase_offset": 0.13},
-                    "coherence_feedback": {"status": status, "delta": -0.07 if status == "decaying" else 0.03, "error": 0.18, "target": 0.88},
-                    "mode_transition": {"changed": False, "previous_mode": "active", "next_mode": "active", "reason": "none", "decay_streak": decay_streak},
+                    "coherence_feedback": {
+                        "status": status,
+                        "delta": -0.07 if status == "decaying" else 0.03,
+                        "error": 0.18,
+                        "target": 0.88,
+                    },
+                    "mode_transition": {
+                        "changed": False,
+                        "previous_mode": "active",
+                        "next_mode": "active",
+                        "reason": "none",
+                        "decay_streak": decay_streak,
+                    },
                     "mode_decay_streak": decay_streak,
-                    "wormhole_weight_summary": {"min_weight": 0.92, "max_weight": 1.10, "top_weighted_wormholes": []},
+                    "wormhole_weight_summary": {
+                        "min_weight": 0.92,
+                        "max_weight": 1.10,
+                        "top_weighted_wormholes": [],
+                    },
                 },
             )
 
@@ -1271,6 +1491,7 @@ def test_hippocampal_replay_cli_extracts_paper_section(tmp_path: Path, monkeypat
         assert diagnosis["label"] == "threshold_conservative_candidate"
         assert diagnosis["met_entry_policy"] is True
         assert diagnosis["entry_policy_tick"] == 2
+
 
 def test_hippocampal_replay_summarizes_real_multi_tick_pair_runs(tmp_path: Path):
     from entangled_manifolds import EntangledSOLPair, EntanglementControls
