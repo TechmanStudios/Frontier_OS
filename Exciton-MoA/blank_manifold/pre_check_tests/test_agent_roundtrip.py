@@ -143,6 +143,29 @@ HANDOFF_FIXTURES = {
         _ok_knowledge_lesson,
         agent_handoff_schemas.validate_knowledge_lesson,
     ),
+    "arm_promotion": (
+        lambda: {
+            "schema_version": agent_handoff_schemas.SCHEMA_VERSIONS["arm_promotion"],
+            "msf": {
+                "default_arm": "treatment",
+                "mean_delta": 0.75,
+                "paired_count": 10,
+                "source_token": "20260601T000000Z",
+                "updated_utc": "2026-06-01T00:00:00Z",
+                "status": "favors_treatment",
+            },
+            "posture": {
+                "default_arm": None,
+                "mean_delta": 0.0,
+                "paired_count": 0,
+                "source_token": "20260601T000000Z",
+                "updated_utc": "2026-06-01T00:00:00Z",
+                "status": "insufficient_evidence",
+            },
+            "generated_utc": "2026-06-01T00:00:00Z",
+        },
+        agent_handoff_schemas.validate_arm_promotion,
+    ),
 }
 
 

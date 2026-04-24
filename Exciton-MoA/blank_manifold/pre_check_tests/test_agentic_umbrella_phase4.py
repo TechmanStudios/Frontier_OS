@@ -697,3 +697,71 @@ def test_advisory_writer_v1_lessons_yield_empty_recommended_profile_counts(tmp_p
     clamp = outcome["payload"]["clamp"]
     assert clamp["recommended_profile_counts"] == {}
 
+
+# ---------------------------------------------------------------------------
+# D1: arm_promotion schema validator
+# ---------------------------------------------------------------------------
+
+
+def _ok_arm_block(default_arm="treatment", status="favors_treatment", mean=0.7, paired=10):
+    return {
+        "default_arm": default_arm,
+        "mean_delta": mean,
+        "paired_count": paired,
+        "source_token": "20260601T000000Z",
+        "updated_utc": "2026-06-01T00:00:00Z",
+        "status": status,
+    }
+
+
+def _ok_arm_promotion():
+    return {
+        "schema_version": agent_handoff_schemas.SCHEMA_VERSIONS["arm_promotion"],
+        "msf": _ok_arm_block(),
+        "posture": _ok_arm_block(
+            default_arm=None, status="insufficient_evidence", mean=0.0, paired=3
+        ),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+
+
+def test_validate_arm_promotion_accepts_minimal_ok_payload():
+    ok, errors = agent_handoff_schemas.validate_arm_promotion(_ok_arm_promotion())
+    assert ok, errors
+
+
+def test_validate_arm_promotion_rejects_unknown_status():
+    bad = _ok_arm_promotion()
+    bad["msf"]["status"] = "wat"
+    ok, errors = agent_handoff_schemas.validate_arm_promotion(bad)
+    assert not ok
+    assert any("status" in e for e in errors)
+
+
+def test_validate_arm_promotion_rejects_invalid_default_arm():
+    bad = _ok_arm_promotion()
+    bad["posture"]["default_arm"] = "neither"
+    ok, errors = agent_handoff_schemas.validate_arm_promotion(bad)
+    assert not ok
+    assert any("default_arm" in e for e in errors)
+
+
+def test_validate_arm_promotion_rejects_negative_paired_count():
+    bad = _ok_arm_promotion()
+    bad["msf"]["paired_count"] = -1
+    ok, errors = agent_handoff_schemas.validate_arm_promotion(bad)
+    assert not ok
+    assert any("paired_count" in e for e in errors)
+
+
+def test_validate_arm_promotion_rejects_missing_arm_block():
+    bad = _ok_arm_promotion()
+    del bad["posture"]
+    ok, errors = agent_handoff_schemas.validate_arm_promotion(bad)
+    assert not ok
+    assert any("posture" in e for e in errors)
+
+
+def test_schema_versions_contains_arm_promotion():
+    assert agent_handoff_schemas.SCHEMA_VERSIONS.get("arm_promotion") == 1
+

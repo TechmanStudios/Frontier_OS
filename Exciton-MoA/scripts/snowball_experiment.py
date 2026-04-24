@@ -119,6 +119,10 @@ def default_state() -> dict[str, Any]:
         "coupling_posture_profile_usage_counts": {},
         "posture_ab_alternation": 0,
         "last_posture_ab_arm": None,
+        # D1: arm_promotion is written by scripts/arm_promotion.py once paired
+        # outcomes accumulate enough evidence to lock a winning arm. Default
+        # None means "no promotion locked, alternate normally".
+        "arm_promotion": None,
         # Cross-consumer additive fields. Listed here so that load_state's
         # default-state allowlist preserves them across reads. Defaults are
         # "absent" sentinels so decide_next_config's `state.get(...)` checks
@@ -584,6 +588,7 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
     basin_counts: dict[str, int] = {}
     synchrony_counts: dict[str, int] = {}
     profile_used_counts: dict[str, int] = {}
+    msf_status_counts: dict[str, int] = {}
     gate_pass_total = 0
     nudge_applied_total = 0
     positive_window_total = 0
@@ -605,6 +610,17 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
         positive_window_total += int(r.get("nudge_positive_forward_windows", 0) or 0)
         profile_used_key = str(r.get("coupling_posture_profile_used", "none") or "none")
         profile_used_counts[profile_used_key] = profile_used_counts.get(profile_used_key, 0) + 1
+        # D1: aggregate per-row msf_status_counts dicts so the ledger row and
+        # arm_promotion consumer have a single rollup per sweep.
+        row_msf_counts = r.get("msf_status_counts")
+        if isinstance(row_msf_counts, dict):
+            for status_key, status_value in row_msf_counts.items():
+                try:
+                    msf_status_counts[str(status_key)] = (
+                        msf_status_counts.get(str(status_key), 0) + int(status_value or 0)
+                    )
+                except (TypeError, ValueError):
+                    continue
 
     consensus_diagnosis = _argmax(diagnosis_counts)
     coupling_consensus = _argmax(coupling_counts)
@@ -645,6 +661,7 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
         "nudge_applied_total": nudge_applied_total,
         "positive_forward_window_total": positive_window_total,
         "coupling_posture_profile_used_counts": profile_used_counts,
+        "msf_status_counts": msf_status_counts,
         "handoff_excerpt": _first_lines(handoff_text, 12),
     }
 
@@ -879,6 +896,7 @@ def append_ledger_row(
         "coupling_posture_profile_used_counts": results.get(
             "coupling_posture_profile_used_counts", {}
         ),
+        "msf_status_counts": results.get("msf_status_counts", {}),
     }
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
     with ledger_path.open("a", encoding="utf-8") as fp:
@@ -933,6 +951,68 @@ def summarize_posture_ab_outcomes(
                     "delta_observe_only_streak": int(trt.get("observe_only_streak", 0) or 0)
                     - int(ctrl.get("observe_only_streak", 0) or 0),
                     "profile_used_b": profile_used_b,
+                }
+            )
+    if output_path is not None and deltas:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("a", encoding="utf-8") as fp:
+            for delta in deltas:
+                fp.write(json.dumps(delta, sort_keys=True) + "\n")
+    return deltas
+
+
+MSF_AB_OUTCOMES_PATH = SNOWBALL_DIR / "msf_ab_outcomes.jsonl"
+
+
+def summarize_msf_ab_outcomes(
+    rows: Sequence[dict[str, Any]],
+    *,
+    output_path: Path | None = MSF_AB_OUTCOMES_PATH,
+) -> list[dict[str, Any]]:
+    """Pair daily explore/exploit ledger rows by MSF A/B arm and emit deltas.
+
+    Mirrors :func:`summarize_posture_ab_outcomes` but pivots on
+    ``msf_ab_arm`` and surfaces the treatment row's dominant ``msf_status``
+    bucket as ``msf_status_counts_b`` (full dict) and ``msf_status_dominant_b``
+    (argmax string) so the arm-promotion consumer can reason about lift
+    direction. Skips rows whose origin is not ``daily`` or whose regime is not
+    in ``{explore, exploit}``.
+    """
+    deltas: list[dict[str, Any]] = []
+    buffered: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row.get("origin") != "daily":
+            continue
+        if row.get("regime") not in {"explore", "exploit"}:
+            continue
+        arm = row.get("msf_ab_arm")
+        if arm not in {"control", "treatment"}:
+            continue
+        buffered[arm] = row
+        if "control" in buffered and "treatment" in buffered:
+            ctrl = buffered.pop("control")
+            trt = buffered.pop("treatment")
+            status_counts_b = trt.get("msf_status_counts") or {}
+            if isinstance(status_counts_b, dict) and status_counts_b:
+                dominant_b = max(
+                    status_counts_b.items(),
+                    key=lambda kv: (int(kv[1] or 0), str(kv[0])),
+                )[0]
+            else:
+                dominant_b = "disabled"
+            deltas.append(
+                {
+                    "control_finished_utc": ctrl.get("finished_utc"),
+                    "treatment_finished_utc": trt.get("finished_utc"),
+                    "regime": trt.get("regime"),
+                    "delta_natural_entries": int(trt.get("natural_entries", 0) or 0)
+                    - int(ctrl.get("natural_entries", 0) or 0),
+                    "delta_observe_only_streak": int(trt.get("observe_only_streak", 0) or 0)
+                    - int(ctrl.get("observe_only_streak", 0) or 0),
+                    "msf_status_counts_b": dict(status_counts_b)
+                    if isinstance(status_counts_b, dict)
+                    else {},
+                    "msf_status_dominant_b": dominant_b,
                 }
             )
     if output_path is not None and deltas:

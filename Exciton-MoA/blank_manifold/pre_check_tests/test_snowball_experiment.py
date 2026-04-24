@@ -973,6 +973,64 @@ def test_summarize_posture_ab_outcomes_skips_non_daily_and_hold(tmp_path: Path):
     assert deltas[0]["profile_used_b"] == "none"
 
 
+def test_summarize_msf_ab_outcomes_pairs_control_then_treatment(tmp_path: Path):
+    rows = [
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "msf_ab_arm": "control",
+            "natural_entries": 0,
+            "observe_only_streak": 1,
+            "finished_utc": "2026-01-01T00:00:00Z",
+            "msf_status_counts": {"disabled": 4},
+        },
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "msf_ab_arm": "treatment",
+            "natural_entries": 4,
+            "observe_only_streak": 0,
+            "finished_utc": "2026-01-02T00:00:00Z",
+            "msf_status_counts": {"enabled": 3, "disabled": 1},
+        },
+    ]
+    out_path = tmp_path / "msf_ab_outcomes.jsonl"
+    deltas = snowball_experiment.summarize_msf_ab_outcomes(rows, output_path=out_path)
+    assert len(deltas) == 1
+    assert deltas[0]["delta_natural_entries"] == 4
+    assert deltas[0]["delta_observe_only_streak"] == -1
+    assert deltas[0]["msf_status_dominant_b"] == "enabled"
+    assert deltas[0]["msf_status_counts_b"] == {"enabled": 3, "disabled": 1}
+    assert out_path.exists()
+
+
+def test_summarize_msf_ab_outcomes_skips_non_daily_and_hold():
+    rows = [
+        {"origin": "pulse", "regime": "explore", "msf_ab_arm": "control", "natural_entries": 5},
+        {"origin": "daily", "regime": "hold", "msf_ab_arm": "treatment", "natural_entries": 5},
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "msf_ab_arm": "control",
+            "natural_entries": 0,
+            "observe_only_streak": 0,
+            "msf_status_counts": {},
+        },
+        {
+            "origin": "daily",
+            "regime": "explore",
+            "msf_ab_arm": "treatment",
+            "natural_entries": 1,
+            "observe_only_streak": 0,
+            "msf_status_counts": {},
+        },
+    ]
+    deltas = snowball_experiment.summarize_msf_ab_outcomes(rows, output_path=None)
+    assert len(deltas) == 1
+    assert deltas[0]["msf_status_dominant_b"] == "disabled"
+    assert deltas[0]["msf_status_counts_b"] == {}
+
+
 def test_apply_lesson_clamp_empty_intersection_falls_back():
     clamp = {
         "applicable_pockets": ["locA=0.99,locB=0.99,drift=0.99"],

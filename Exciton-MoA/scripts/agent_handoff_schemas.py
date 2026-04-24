@@ -23,6 +23,7 @@ SCHEMA_VERSIONS: dict[str, int] = {
     "incident_report": 1,
     "tournament_entry": 1,
     "knowledge_lesson": 2,
+    "arm_promotion": 1,
 }
 
 VALID_PAPER_TRIGGERS = ("synchrony", "basin_fragility")
@@ -41,6 +42,13 @@ VALID_SUBJECT_DOMAINS = (
     "experiment-design",
 )
 VALID_INCIDENT_SEVERITIES = ("info", "warn", "critical")
+VALID_ARM_PROMOTION_STATUSES = (
+    "favors_treatment",
+    "favors_control",
+    "no_lift",
+    "insufficient_evidence",
+)
+VALID_ARM_PROMOTION_DEFAULTS = ("treatment", "control")
 
 ValidationResult = tuple[bool, list[str]]
 
@@ -278,13 +286,68 @@ def validate_knowledge_lesson(payload: Any) -> ValidationResult:
     return (not errors), errors
 
 
+def _check_arm_block(payload: Any, key: str, errors: list[str]) -> None:
+    if not isinstance(payload, dict) or key not in payload:
+        return
+    block = payload.get(key)
+    if not isinstance(block, dict):
+        errors.append(f"{key!r} must be dict")
+        return
+    for required in ("default_arm", "mean_delta", "paired_count", "source_token", "updated_utc", "status"):
+        if required not in block:
+            errors.append(f"{key}.{required} missing")
+    default_arm = block.get("default_arm")
+    if default_arm is not None and default_arm not in VALID_ARM_PROMOTION_DEFAULTS:
+        errors.append(
+            f"{key}.default_arm must be null or one of {VALID_ARM_PROMOTION_DEFAULTS}, got {default_arm!r}"
+        )
+    mean_delta = block.get("mean_delta")
+    if not isinstance(mean_delta, (int, float)) or isinstance(mean_delta, bool):
+        errors.append(f"{key}.mean_delta must be numeric")
+    paired = block.get("paired_count")
+    if not isinstance(paired, int) or isinstance(paired, bool) or paired < 0:
+        errors.append(f"{key}.paired_count must be int >= 0")
+    for str_field in ("source_token", "updated_utc"):
+        if not isinstance(block.get(str_field), str) or not block.get(str_field):
+            errors.append(f"{key}.{str_field} must be non-empty str")
+    status = block.get("status")
+    if status not in VALID_ARM_PROMOTION_STATUSES:
+        errors.append(
+            f"{key}.status must be one of {VALID_ARM_PROMOTION_STATUSES}, got {status!r}"
+        )
+
+
+def validate_arm_promotion(payload: Any) -> ValidationResult:
+    """Validate the ``arm_promotion`` payload (schema v1).
+
+    Required top-level keys: ``schema_version``, ``msf``, ``posture``,
+    ``generated_utc``. Each arm block must have ``default_arm`` (null,
+    ``"treatment"``, or ``"control"``), numeric ``mean_delta``, non-negative
+    ``paired_count``, non-empty ``source_token`` and ``updated_utc`` strings,
+    and a ``status`` from :data:`VALID_ARM_PROMOTION_STATUSES`.
+    """
+    errors = _require_keys(payload, ("schema_version", "msf", "posture", "generated_utc"))
+    if errors:
+        return False, errors
+    expected = SCHEMA_VERSIONS["arm_promotion"]
+    if payload.get("schema_version") != expected:
+        errors.append(f"schema_version must be {expected}")
+    _check_str(payload, "generated_utc", errors)
+    _check_arm_block(payload, "msf", errors)
+    _check_arm_block(payload, "posture", errors)
+    return (not errors), errors
+
+
 __all__ = [
     "SCHEMA_VERSIONS",
+    "VALID_ARM_PROMOTION_DEFAULTS",
+    "VALID_ARM_PROMOTION_STATUSES",
     "VALID_INCIDENT_SEVERITIES",
     "VALID_LESSON_TYPES",
     "VALID_PAPER_TRIGGERS",
     "VALID_SUBJECT_DOMAINS",
     "ValidationResult",
+    "validate_arm_promotion",
     "validate_incident_report",
     "validate_knowledge_lesson",
     "validate_knowledge_promotion_candidate",
