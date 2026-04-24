@@ -1140,3 +1140,202 @@ def test_build_engine_argv_explore_uses_clamp_overrides(tmp_path):
     assert a_vals == ["0.5"]
     assert b_vals == ["0.57"]
     assert d_vals == ["0.06"]
+
+
+# ---------------------------------------------------------------------------
+# D2: snowball acts on arm_promotion + recommended profile
+# ---------------------------------------------------------------------------
+
+
+def _promotion_block(default_arm, status="favors_treatment", mean=0.7, paired=10):
+    return {
+        "default_arm": default_arm,
+        "mean_delta": mean,
+        "paired_count": paired,
+        "source_token": "tok",
+        "updated_utc": "2026-06-01T00:00:00Z",
+        "status": status,
+    }
+
+
+def test_pick_recommended_profile_returns_strict_argmax():
+    assert snowball_experiment._pick_recommended_profile({"weak": 3, "permissive": 1}) == "weak"
+
+
+def test_pick_recommended_profile_returns_none_on_tie():
+    assert snowball_experiment._pick_recommended_profile({"weak": 2, "permissive": 2}) is None
+
+
+def test_pick_recommended_profile_skips_none_bucket():
+    assert (
+        snowball_experiment._pick_recommended_profile({"none": 99, "weak": 1}) == "weak"
+    )
+
+
+def test_decide_msf_promotion_treatment_forces_treatment_regardless_of_parity():
+    state = _c1_daily_explore_state()
+    # Parity 0 would normally yield control.
+    state["msf_ab_alternation"] = 0
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block("treatment"),
+        "posture": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert "__msf_ab_treatment__" in cfg.flags
+    assert "msf_promotion: treatment_locked" in cfg.rationale
+
+
+def test_decide_msf_promotion_control_suppresses_treatment():
+    state = _c1_daily_explore_state()
+    state["msf_ab_alternation"] = 1  # would normally yield treatment
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block("control", status="favors_control", mean=-0.7),
+        "posture": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert "__msf_ab_treatment__" not in cfg.flags
+    assert "msf_promotion: control_locked" in cfg.rationale
+
+
+def test_decide_posture_promotion_treatment_locks_specs():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 0  # would yield control
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "posture": _promotion_block("treatment"),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.coupling_posture_profile_specs == (
+        "weak:0.45,0.55,none",
+        "permissive:none,none,0.05",
+    )
+    assert "posture_promotion: treatment_locked" in cfg.rationale
+
+
+def test_decide_posture_promotion_control_yields_empty_specs():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1  # would yield treatment
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "posture": _promotion_block("control", status="favors_control", mean=-0.7),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.coupling_posture_profile_specs == ()
+    assert "posture_promotion: control_locked" in cfg.rationale
+
+
+def test_decide_recommended_profile_narrows_specs_to_winner():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1  # treatment arm
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": [],
+        "contraindicated_pockets": [],
+        "recommended_profile_counts": {"weak": 3, "permissive": 1},
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.coupling_posture_profile_specs == ("weak:0.45,0.55,none",)
+    assert "recommended_profile: weak" in cfg.rationale
+
+
+def test_decide_recommended_profile_tie_falls_back_to_default_pair():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 1
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": [],
+        "contraindicated_pockets": [],
+        "recommended_profile_counts": {"weak": 2, "permissive": 2},
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.coupling_posture_profile_specs == (
+        "weak:0.45,0.55,none",
+        "permissive:none,none,0.05",
+    )
+    assert "recommended_profile" not in cfg.rationale
+
+
+def test_decide_recommended_profile_ignored_on_control_arm():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 0  # control
+    state["advisory_lesson_clamp"] = {
+        "schema_version": 1,
+        "applicable_pockets": [],
+        "contraindicated_pockets": [],
+        "recommended_profile_counts": {"weak": 5},
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    assert cfg.coupling_posture_profile_specs == ()
+    assert "recommended_profile" not in cfg.rationale
+
+
+def _make_results_for_apply(regime: str = "explore") -> dict:
+    return {
+        "natural_entries": 0,
+        "stabilizer_entries": 0,
+        "blocker_total": 0,
+        "no_outcome_entries": 0,
+        "diagnosis_counts": {},
+        "coupling_counts": {},
+        "basin_counts": {},
+        "synchrony_counts": {},
+        "positive_forward_window_total": 0,
+        "coupling_posture_profile_used_counts": {},
+        "msf_status_counts": {},
+        "handoff_excerpt": "",
+    }
+
+
+def test_apply_results_freezes_msf_alternation_when_promotion_locked():
+    state = _c1_daily_explore_state()
+    state["msf_ab_alternation"] = 5
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block("treatment"),
+        "posture": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    new = snowball_experiment.apply_results_to_state(
+        state,
+        tier="daily",
+        config=cfg,
+        results=_make_results_for_apply(),
+        argv=["--foo"],
+    )
+    # MSF locked -> counter frozen; posture unlocked -> bumped from default 0.
+    assert new["msf_ab_alternation"] == 5
+    assert new["last_msf_ab_arm"] == "treatment"
+    assert new["posture_ab_alternation"] == 1
+
+
+def test_apply_results_freezes_posture_alternation_when_promotion_locked():
+    state = _c1_daily_explore_state()
+    state["posture_ab_alternation"] = 7
+    state["arm_promotion"] = {
+        "schema_version": 1,
+        "msf": _promotion_block(None, status="insufficient_evidence", mean=0.0, paired=0),
+        "posture": _promotion_block("control", status="favors_control", mean=-0.7),
+        "generated_utc": "2026-06-01T00:00:00Z",
+    }
+    cfg = snowball_experiment.decide_next_config(state, "daily")
+    new = snowball_experiment.apply_results_to_state(
+        state,
+        tier="daily",
+        config=cfg,
+        results=_make_results_for_apply(),
+        argv=["--foo"],
+    )
+    assert new["posture_ab_alternation"] == 7
+    assert new["last_posture_ab_arm"] == "control"
+    # MSF unlocked -> counter bumped from default 0 to 1.
+    assert new["msf_ab_alternation"] == 1
+

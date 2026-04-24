@@ -92,6 +92,49 @@ CONF_REL_BASE = (0.55, 0.60)
 CONF_REL_PROBE = (0.50, 0.42)
 
 
+# C2 / D2: posture A/B treatment-arm spec list. The pair below relaxes weak
+# coupling thresholds and tightens permissive-coupling MSFGuard simultaneously
+# so the resulting paired evidence covers both flanks of the gate.
+POSTURE_AB_TREATMENT_DEFAULT_SPECS: tuple[str, ...] = (
+    "weak:0.45,0.55,none",
+    "permissive:none,none,0.05",
+)
+
+# D2: when the advisory clamp surfaces a clear winning profile we narrow the
+# treatment-arm spec list to that single profile. Templates mirror the strings
+# in :data:`POSTURE_AB_TREATMENT_DEFAULT_SPECS` so the engine sees the same
+# coupling-posture overrides it already understands.
+RECOMMENDED_PROFILE_SPEC_TEMPLATES: dict[str, str] = {
+    "weak": "weak:0.45,0.55,none",
+    "permissive": "permissive:none,none,0.05",
+}
+
+
+def _pick_recommended_profile(counts: dict[str, Any]) -> str | None:
+    """Return the strict argmax profile name from ``counts`` or None on tie/empty.
+
+    Skips ``"none"`` and any non-positive count. A tie (two or more profiles
+    sharing the top count) returns None so :func:`decide_next_config` falls
+    back to the default treatment-arm spec list.
+    """
+    cleaned: list[tuple[str, int]] = []
+    for key, value in counts.items():
+        if key == "none":
+            continue
+        try:
+            cnt = int(value or 0)
+        except (TypeError, ValueError):
+            continue
+        if cnt > 0:
+            cleaned.append((str(key), cnt))
+    if not cleaned:
+        return None
+    cleaned.sort(key=lambda kv: (-kv[1], kv[0]))
+    if len(cleaned) >= 2 and cleaned[0][1] == cleaned[1][1]:
+        return None
+    return cleaned[0][0]
+
+
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
@@ -365,17 +408,42 @@ def decide_next_config(
     # Hold/policy-probe regimes opt out so probes stay isolated. The selector
     # is the existing daily-cycle counter ``msf_ab_alternation`` if present
     # (incremented by the runner), else falls back to len(yields_daily).
+    #
+    # D2: when ``state.arm_promotion.msf.default_arm`` is locked to
+    # ``treatment`` or ``control`` we bypass alternation and force that arm.
+    # ``apply_results_to_state`` mirrors this by freezing the alternation
+    # counter so a future un-promotion picks up where we left off.
+    promotion = state.get("arm_promotion")
+    promotion_msf_arm: str | None = None
+    promotion_posture_arm: str | None = None
+    if isinstance(promotion, dict):
+        msf_block = promotion.get("msf")
+        if isinstance(msf_block, dict):
+            arm_locked = msf_block.get("default_arm")
+            if arm_locked in {"treatment", "control"}:
+                promotion_msf_arm = arm_locked
+        posture_block = promotion.get("posture")
+        if isinstance(posture_block, dict):
+            arm_locked = posture_block.get("default_arm")
+            if arm_locked in {"treatment", "control"}:
+                promotion_posture_arm = arm_locked
     if tier == "daily" and regime in {"explore", "exploit"}:
-        msf_alt_raw = state.get("msf_ab_alternation")
-        if msf_alt_raw is None:
-            msf_alt = len(yields_daily)
-        else:
-            msf_alt = int(msf_alt_raw or 0)
-        if msf_alt % 2 == 1:
+        if promotion_msf_arm == "treatment":
             flags.append("__msf_ab_treatment__")
-            rationale_parts.append("msf_ab: treatment (--enable-msf-guard)")
+            rationale_parts.append("msf_promotion: treatment_locked")
+        elif promotion_msf_arm == "control":
+            rationale_parts.append("msf_promotion: control_locked")
         else:
-            rationale_parts.append("msf_ab: control (--no-enable-msf-guard)")
+            msf_alt_raw = state.get("msf_ab_alternation")
+            if msf_alt_raw is None:
+                msf_alt = len(yields_daily)
+            else:
+                msf_alt = int(msf_alt_raw or 0)
+            if msf_alt % 2 == 1:
+                flags.append("__msf_ab_treatment__")
+                rationale_parts.append("msf_ab: treatment (--enable-msf-guard)")
+            else:
+                rationale_parts.append("msf_ab: control (--no-enable-msf-guard)")
 
     # Coupling-posture adaptive gate profiles (W4 integration). On daily
     # explore/exploit cycles, attach two posture-scoped overrides so the
@@ -389,20 +457,40 @@ def decide_next_config(
     # the MSF A/B switch above to form a 2x2 randomization grid.
     coupling_posture_profile_specs: tuple[str, ...] | None = None
     if tier == "daily" and regime in {"explore", "exploit"}:
-        posture_alt_raw = state.get("posture_ab_alternation")
-        posture_alt = 0 if posture_alt_raw is None else int(posture_alt_raw or 0)
-        if posture_alt % 2 == 1:
-            coupling_posture_profile_specs = (
-                "weak:0.45,0.55,none",
-                "permissive:none,none,0.05",
-            )
+        if promotion_posture_arm == "treatment":
+            coupling_posture_profile_specs = POSTURE_AB_TREATMENT_DEFAULT_SPECS
             flags.append("__posture_ab_treatment__")
-            rationale_parts.append(
-                "posture_ab: treatment (coupling_posture_profiles: weak,permissive)"
-            )
-        else:
+            rationale_parts.append("posture_promotion: treatment_locked")
+        elif promotion_posture_arm == "control":
             coupling_posture_profile_specs = ()
-            rationale_parts.append("posture_ab: control (no coupling_posture_profiles)")
+            rationale_parts.append("posture_promotion: control_locked")
+        else:
+            posture_alt_raw = state.get("posture_ab_alternation")
+            posture_alt = 0 if posture_alt_raw is None else int(posture_alt_raw or 0)
+            if posture_alt % 2 == 1:
+                coupling_posture_profile_specs = POSTURE_AB_TREATMENT_DEFAULT_SPECS
+                flags.append("__posture_ab_treatment__")
+                rationale_parts.append(
+                    "posture_ab: treatment (coupling_posture_profiles: weak,permissive)"
+                )
+            else:
+                coupling_posture_profile_specs = ()
+                rationale_parts.append("posture_ab: control (no coupling_posture_profiles)")
+        # D2: if the posture treatment arm is active and the advisory clamp
+        # has surfaced a clear recommended profile, narrow the spec list to
+        # just that one. Tie/empty/unmapped -> fall back to the default pair.
+        if (
+            "__posture_ab_treatment__" in flags
+            and isinstance(clamp_advisory := state.get("advisory_lesson_clamp"), dict)
+        ):
+            recommended_counts = clamp_advisory.get("recommended_profile_counts") or {}
+            if isinstance(recommended_counts, dict) and recommended_counts:
+                winner = _pick_recommended_profile(recommended_counts)
+                if winner is not None and winner in RECOMMENDED_PROFILE_SPEC_TEMPLATES:
+                    coupling_posture_profile_specs = (
+                        RECOMMENDED_PROFILE_SPEC_TEMPLATES[winner],
+                    )
+                    rationale_parts.append(f"recommended_profile: {winner}")
 
     # Advisory lesson clamp — if the lesson_advisory_writer consumer has
     # populated ``state.advisory_lesson_clamp`` with high-confidence pockets,
@@ -738,16 +826,32 @@ def apply_results_to_state(
     # Increment the MSF A/B alternation counter on every daily explore/exploit
     # cycle so the next decide_next_config flips the arm. Hold/policy-probe
     # cycles do not bump it (those arms aren't part of the A/B series).
+    #
+    # D2: when an arm is promotion-locked we freeze the corresponding
+    # alternation counter; flipping it would make a later un-promotion start
+    # mid-cycle. ``last_*_ab_arm`` still records the executed arm.
+    promotion_after = new_state.get("arm_promotion") if isinstance(new_state.get("arm_promotion"), dict) else None
+    msf_locked = False
+    posture_locked = False
+    if isinstance(promotion_after, dict):
+        msf_block = promotion_after.get("msf")
+        if isinstance(msf_block, dict) and msf_block.get("default_arm") in {"treatment", "control"}:
+            msf_locked = True
+        posture_block = promotion_after.get("posture")
+        if isinstance(posture_block, dict) and posture_block.get("default_arm") in {"treatment", "control"}:
+            posture_locked = True
     if tier == "daily" and config.regime in {"explore", "exploit"}:
-        new_state["msf_ab_alternation"] = int(new_state.get("msf_ab_alternation", 0) or 0) + 1
+        if not msf_locked:
+            new_state["msf_ab_alternation"] = int(new_state.get("msf_ab_alternation", 0) or 0) + 1
         new_state["last_msf_ab_arm"] = (
             "treatment" if "__msf_ab_treatment__" in config.flags else "control"
         )
         # C2: independent posture A/B alternation, also bumped only on daily
         # explore/exploit cycles so it composes orthogonally with the MSF arm.
-        new_state["posture_ab_alternation"] = (
-            int(new_state.get("posture_ab_alternation", 0) or 0) + 1
-        )
+        if not posture_locked:
+            new_state["posture_ab_alternation"] = (
+                int(new_state.get("posture_ab_alternation", 0) or 0) + 1
+            )
         new_state["last_posture_ab_arm"] = (
             "treatment" if "__posture_ab_treatment__" in config.flags else "control"
         )
