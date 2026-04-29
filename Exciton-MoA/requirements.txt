@@ -2,7 +2,7 @@
 # Python 3.10+ Recommended
 
 # Core Tensor & Statistical Physics
-numpy>=1.24.0
+numpy>=2.4.4
 scipy>=1.17.1
 
 # Topological Manifold & Graph Operations
