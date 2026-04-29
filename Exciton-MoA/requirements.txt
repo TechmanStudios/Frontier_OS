@@ -9,6 +9,6 @@ scipy>=1.17.1
 networkx>=3.6.1
 
 # (Optional) Backend API Server for Edge/Browser Streaming
-fastapi>=0.100.0
+fastapi>=0.136.1
 uvicorn>=0.45.0
 websockets>=16.0
