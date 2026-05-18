@@ -670,6 +670,233 @@ class EntangledSOLPair:
             "gate_reason_counts": _count_values(gate_reason_history),
         }
 
+    def build_infinity_node_identity_scan(
+        self,
+        results: Sequence[dict[str, object]],
+    ) -> dict[str, object]:
+        node_summaries = []
+        tick_count = len(results)
+        mean_phase_coherence = (
+            float(np.mean([float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history]))
+            if self.tick_trace_history
+            else 0.0
+        )
+
+        all_bundles = list(self.phonon_bundles) + list(self.local_phonon_bundles)
+        for node_id in self.wormhole_nodes:
+            manifold_profiles = {
+                self.manifold_ids[0]: self._build_infinity_node_manifold_profile(self.manifold_a, node_id),
+                self.manifold_ids[1]: self._build_infinity_node_manifold_profile(self.manifold_b, node_id),
+            }
+            channel_values = {"density": [], "shear": [], "vorticity": []}
+            dominant_giant_counts: dict[str, int] = {}
+            involvement_phase_values = []
+            bilateral_burst_count = 0
+            source_node_count = 0
+            entry_count = 0
+            exit_count = 0
+            weight_deltas = []
+            stability_values = []
+
+            for result in results:
+                pair_metrics = dict(result.get("pair_metrics", {}))
+                if node_id in set(pair_metrics.get("bilateral_node_ids", [])):
+                    bilateral_burst_count += 1
+                    involvement_phase_values.append(float(pair_metrics.get("phase_coherence", 0.0)))
+
+            for trace in self.tick_trace_history:
+                trace_phase = float(trace.get("phase_coherence", 0.0))
+                trace_weight_delta = float(dict(trace.get("weight_delta_map", {})).get(node_id, 0.0))
+                if trace_weight_delta != 0.0:
+                    weight_deltas.append(trace_weight_delta)
+                    involvement_phase_values.append(trace_phase)
+
+                for manifold_id in self.manifold_ids:
+                    manifold_trace = dict(dict(trace.get("manifolds", {})).get(manifold_id, {}))
+                    wormhole_node = dict(dict(manifold_trace.get("wormhole_nodes", {})).get(node_id, {}))
+                    if wormhole_node:
+                        channel_values["density"].append(
+                            abs(float(wormhole_node.get("resonance_accumulator", 0.0)))
+                        )
+                        channel_values["shear"].append(
+                            abs(float(wormhole_node.get("semantic_potential", 0.0)))
+                        )
+                        dominant_giant = str(wormhole_node.get("dominant_giant") or "Ambient Basin")
+                        dominant_giant_counts[dominant_giant] = (
+                            dominant_giant_counts.get(dominant_giant, 0) + 1
+                        )
+
+                    edge_flux_values = []
+                    for edge in list(manifold_trace.get("wormhole_edges", [])):
+                        edge_dict = dict(edge)
+                        if node_id in {str(edge_dict.get("left")), str(edge_dict.get("right"))}:
+                            edge_flux_values.append(abs(float(edge_dict.get("residual_flux", 0.0))))
+                    if edge_flux_values:
+                        channel_values["vorticity"].append(float(np.mean(edge_flux_values)))
+
+            for bundle in all_bundles:
+                bundle_nodes = set(bundle.source_nodes)
+                entry_nodes = set(bundle.wormhole_entry_nodes)
+                exit_nodes = set(bundle.wormhole_exit_nodes)
+                weight_delta = float(bundle.weight_delta_map.get(node_id, 0.0))
+                involved = False
+                if node_id in bundle_nodes:
+                    source_node_count += 1
+                    involved = True
+                if node_id in entry_nodes:
+                    entry_count += 1
+                    involved = True
+                if node_id in exit_nodes:
+                    exit_count += 1
+                    involved = True
+                if weight_delta != 0.0:
+                    weight_deltas.append(weight_delta)
+                    involved = True
+                if involved:
+                    involvement_phase_values.append(float(bundle.phase_coherence))
+                    stability_values.append(
+                        float(dict(bundle.coherence_signature).get("stability_score", 0.0))
+                    )
+                    dominant_giant_counts[bundle.carrier_giant] = (
+                        dominant_giant_counts.get(bundle.carrier_giant, 0) + 1
+                    )
+
+            channel_means = {
+                channel: float(np.mean(values)) if values else 0.0
+                for channel, values in channel_values.items()
+            }
+            dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
+            channel_total = sum(channel_means.values())
+            if channel_total <= 1e-12:
+                dominant_channel = "ambient"
+            dominant_giant = (
+                max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
+                if dominant_giant_counts
+                else "Ambient Basin"
+            )
+            average_weight_delta = float(np.mean(weight_deltas)) if weight_deltas else 0.0
+            stability_score = float(np.mean(stability_values)) if stability_values else 0.0
+            phase_coherence_association = (
+                float(np.mean(involvement_phase_values)) if involvement_phase_values else mean_phase_coherence
+            )
+            identity_score = float(
+                (2.0 * bilateral_burst_count)
+                + source_node_count
+                + entry_count
+                + exit_count
+                + min(channel_total, 10.0)
+                + abs(average_weight_delta)
+                + phase_coherence_association
+                + stability_score
+            )
+            node_summaries.append(
+                {
+                    "node_id": node_id,
+                    "manifolds": manifold_profiles,
+                    "average_degree": float(
+                        np.mean([float(profile["degree"]) for profile in manifold_profiles.values()])
+                    ),
+                    "has_repaired_edge": any(
+                        bool(profile["has_repaired_edge"]) for profile in manifold_profiles.values()
+                    ),
+                    "dominant_channel": dominant_channel,
+                    "channel_means": channel_means,
+                    "dominant_giant": dominant_giant,
+                    "dominant_giant_counts": dict(sorted(dominant_giant_counts.items())),
+                    "bilateral_burst_frequency": bilateral_burst_count / max(tick_count, 1),
+                    "bilateral_burst_count": bilateral_burst_count,
+                    "source_node_count": source_node_count,
+                    "entry_count": entry_count,
+                    "exit_count": exit_count,
+                    "average_weight_delta": average_weight_delta,
+                    "phase_coherence_association": phase_coherence_association,
+                    "stability_score": stability_score,
+                    "identity_score": identity_score,
+                }
+            )
+
+        node_summaries.sort(
+            key=lambda item: (
+                float(item["identity_score"]),
+                float(item["bilateral_burst_frequency"]),
+                str(item["node_id"]),
+            ),
+            reverse=True,
+        )
+        return {
+            "scan_type": "infinity_node_identity_scan",
+            "pair_id": self.pair_id,
+            "tick_count": tick_count,
+            "wormhole_count": len(self.wormhole_nodes),
+            "wormhole_nodes": list(self.wormhole_nodes),
+            "mean_phase_coherence": mean_phase_coherence,
+            "nodes": node_summaries,
+        }
+
+    def _build_infinity_node_manifold_profile(
+        self,
+        manifold: BlankManifoldCore,
+        node_id: str,
+    ) -> dict[str, object]:
+        node = manifold.graph.nodes[node_id]
+        neighbors = sorted(str(neighbor_id) for neighbor_id in manifold.graph.neighbors(node_id))
+        repaired_edges = []
+        for neighbor_id in neighbors:
+            edge = manifold.graph[node_id][neighbor_id]
+            if bool(edge.get("repaired", False)):
+                repaired_edges.append(str(neighbor_id))
+        return {
+            "coords": [round(float(value), 6) for value in list(node.get("coords", []))],
+            "degree": len(neighbors),
+            "neighbors": neighbors,
+            "has_repaired_edge": bool(repaired_edges),
+            "repaired_neighbors": repaired_edges,
+        }
+
+    def render_infinity_node_identity_scan(self, scan: dict[str, object]) -> str:
+        lines = [
+            "[INFINITY NODE IDENTITY SCAN]",
+            f"pair_id={scan.get('pair_id', self.pair_id)}",
+            f"ticks={int(scan.get('tick_count', 0))} wormholes={int(scan.get('wormhole_count', 0))}",
+            f"mean_phase_coherence={float(scan.get('mean_phase_coherence', 0.0)):.6f}",
+            "",
+            (
+                "rank | node | avg_degree | repaired | channel | giant | bilateral_freq | "
+                "source | entry | exit | avg_weight_delta | phase_assoc | stability | score"
+            ),
+        ]
+        for rank, node in enumerate(list(scan.get("nodes", [])), start=1):
+            node_dict = dict(node)
+            lines.append(
+                f"{rank} | {node_dict.get('node_id')} | "
+                f"{float(node_dict.get('average_degree', 0.0)):.2f} | "
+                f"{bool(node_dict.get('has_repaired_edge', False))} | "
+                f"{node_dict.get('dominant_channel', 'ambient')} | "
+                f"{node_dict.get('dominant_giant', 'Ambient Basin')} | "
+                f"{float(node_dict.get('bilateral_burst_frequency', 0.0)):.3f} | "
+                f"{int(node_dict.get('source_node_count', 0))} | "
+                f"{int(node_dict.get('entry_count', 0))} | "
+                f"{int(node_dict.get('exit_count', 0))} | "
+                f"{float(node_dict.get('average_weight_delta', 0.0)):.6f} | "
+                f"{float(node_dict.get('phase_coherence_association', 0.0)):.6f} | "
+                f"{float(node_dict.get('stability_score', 0.0)):.6f} | "
+                f"{float(node_dict.get('identity_score', 0.0)):.6f}"
+            )
+        return "\n".join(lines)
+
+    def persist_infinity_node_identity_scan(
+        self,
+        results: Sequence[dict[str, object]],
+    ) -> dict[str, Path]:
+        scan = self.build_infinity_node_identity_scan(results)
+        json_path = self.working_dir / "infinity_node_identity_scan.json"
+        txt_path = self.working_dir / "infinity_node_identity_scan.txt"
+        json_path.write_text(
+            json.dumps(self._jsonable_payload(scan), sort_keys=True, indent=2), encoding="utf-8"
+        )
+        txt_path.write_text(self.render_infinity_node_identity_scan(scan), encoding="utf-8")
+        return {"infinity_node_scan_json": json_path, "infinity_node_scan": txt_path}
+
     def _build_manifold_checkpoint(self, manifold: BlankManifoldCore) -> dict[str, object]:
         nodes = []
         for node_id in sorted(manifold.graph.nodes()):
@@ -1497,6 +1724,7 @@ def run_pair_runtime(
     embedding_scale: float,
     embedding_drift: float,
     clean_run_reset: bool = False,
+    infinity_node_scan: bool = False,
 ) -> dict[str, object]:
     if clean_run_reset:
         if working_dir is None:
@@ -1540,6 +1768,11 @@ def run_pair_runtime(
     checkpoint_path = pair.working_dir / "run_checkpoint.json"
     checkpoint_path.write_text(json.dumps(checkpoint, sort_keys=True, indent=2), encoding="utf-8")
     output_paths["checkpoint"] = checkpoint_path
+    infinity_scan: dict[str, object] | None = None
+    if infinity_node_scan:
+        output_paths.update(pair.persist_infinity_node_identity_scan(results))
+        infinity_scan_path = output_paths["infinity_node_scan_json"]
+        infinity_scan = json.loads(infinity_scan_path.read_text(encoding="utf-8"))
 
     return {
         "pair": pair,
@@ -1547,6 +1780,7 @@ def run_pair_runtime(
         "summaries": summaries,
         "output_paths": output_paths,
         "checkpoint": checkpoint,
+        "infinity_node_scan": infinity_scan,
     }
 
 
@@ -1564,6 +1798,7 @@ def run_pair_runtime_repeated(
     embedding_drift: float,
     repeat_run_count: int,
     clean_run_reset: bool,
+    infinity_node_scan: bool = False,
 ) -> dict[str, object]:
     base_dir = Path(working_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -1585,6 +1820,7 @@ def run_pair_runtime_repeated(
             embedding_scale=embedding_scale,
             embedding_drift=embedding_drift,
             clean_run_reset=clean_run_reset,
+            infinity_node_scan=infinity_node_scan,
         )
         runs.append(run_result)
         checkpoints.append(dict(run_result["checkpoint"]))
@@ -1718,6 +1954,7 @@ def run_pair_runtime_repeated_from_args(args: argparse.Namespace) -> dict[str, o
         embedding_drift=float(args.embedding_drift),
         repeat_run_count=int(args.repeat_run_count),
         clean_run_reset=bool(args.clean_run_reset),
+        infinity_node_scan=bool(args.infinity_node_scan),
     )
     if result["comparisons"]:
         print(render_run_checkpoint_comparison(result["comparisons"][0]))
@@ -1737,6 +1974,7 @@ def run_pair_runtime_from_args(args: argparse.Namespace) -> dict[str, object]:
         embedding_scale=float(args.embedding_scale),
         embedding_drift=float(args.embedding_drift),
         clean_run_reset=bool(args.clean_run_reset),
+        infinity_node_scan=bool(args.infinity_node_scan),
     )
     print(result["summaries"]["comparative"])
     print(result["summaries"]["replay"])
@@ -1801,6 +2039,7 @@ def run_pair_runtime_sweep(args: argparse.Namespace) -> dict[str, object]:
             embedding_scale=float(variant.embedding_scale),
             embedding_drift=float(variant.embedding_drift),
             clean_run_reset=bool(args.clean_run_reset),
+            infinity_node_scan=bool(args.infinity_node_scan),
         )
         runs.append({"variant": variant, "result": run_result})
         records.append(
@@ -3113,6 +3352,7 @@ def build_pair_runtime_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-n", type=int, default=6)
     parser.add_argument("--live-embeddings", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--persist-summaries", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--infinity-node-scan", action=argparse.BooleanOptionalAction, default=False)
     parser.remember_base_defaults()
     return parser
 
@@ -3139,18 +3379,14 @@ def _parse_coupling_posture_profile_args(
         if not spec:
             continue
         if ":" not in spec:
-            raise ValueError(
-                f"--coupling-posture-profile spec must be 'name:conf,reliab,msf' (got {spec!r})"
-            )
+            raise ValueError(f"--coupling-posture-profile spec must be 'name:conf,reliab,msf' (got {spec!r})")
         name_part, _, value_part = spec.partition(":")
         name = name_part.strip()
         if not name:
             raise ValueError(f"--coupling-posture-profile spec missing posture name: {spec!r}")
         slots = list(value_part.split(","))
         if len(slots) != 3:
-            raise ValueError(
-                f"--coupling-posture-profile spec must have exactly 3 slots (got {spec!r})"
-            )
+            raise ValueError(f"--coupling-posture-profile spec must have exactly 3 slots (got {spec!r})")
         profiles.append(
             CouplingPostureGateProfile(
                 posture_name=name,
