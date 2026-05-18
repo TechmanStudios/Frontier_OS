@@ -121,7 +121,9 @@ def build_result_payload(
     }
     normalized_status = str(status or "unknown")
     has_test_failure = totals["failures"] > 0 or totals["errors"] > 0
-    overall_status = "pass" if summaries and normalized_status == "success" and not has_test_failure else "fail"
+    overall_status = (
+        "pass" if summaries and normalized_status == "success" and not has_test_failure else "fail"
+    )
     if not summaries:
         overall_status = "no_results"
     return {
@@ -193,7 +195,9 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         raise
 
 
-def write_result_artifacts(payload: dict[str, Any], *, output_root: Path = INFINITY_NODE_DIR) -> dict[str, str]:
+def write_result_artifacts(
+    payload: dict[str, Any], *, output_root: Path = INFINITY_NODE_DIR
+) -> dict[str, str]:
     run_token = str(payload["run_token"])
     run_dir = output_root / "runs" / run_token
     result_path = run_dir / "result.json"

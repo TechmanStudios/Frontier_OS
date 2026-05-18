@@ -89,8 +89,10 @@ def test_write_artifacts_and_apply_system_state(tmp_path: Path):
     )
 
     assert Path(artifact_paths["result_path"]).exists()
-    assert Path(artifact_paths["summary_path"]).read_text(encoding="utf-8").startswith(
-        "# Infinity-node test results"
+    assert (
+        Path(artifact_paths["summary_path"])
+        .read_text(encoding="utf-8")
+        .startswith("# Infinity-node test results")
     )
     ledger_lines = Path(artifact_paths["ledger_path"]).read_text(encoding="utf-8").splitlines()
     assert len(ledger_lines) == 1
