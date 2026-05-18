@@ -8,7 +8,7 @@ import csv
 import hashlib
 import json
 import shutil
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from itertools import product
 from pathlib import Path
@@ -687,7 +687,7 @@ class EntangledSOLPair:
         node_summaries = []
         tick_count = len(results)
         mean_phase_coherence = (
-            float(np.mean([float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history]))
+            _mean_float_values(float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history)
             if self.tick_trace_history
             else 0.0
         )
@@ -789,17 +789,15 @@ class EntangledSOLPair:
             phase_coherence_association = (
                 float(np.mean(involvement_phase_values)) if involvement_phase_values else mean_phase_coherence
             )
-            # Score = 2x bilateral cross-manifold bursts, plus 1x source/entry/exit
-            # memory roles, capped channel activity, absolute control weight motion,
-            # phase association, and stability. The burst multiplier emphasizes the
-            # strongest existing evidence that a wormhole node is acting across manifolds.
+            bilateral_score = 2.0 * bilateral_burst_count
+            memory_role_score = source_node_count + entry_count + exit_count
+            channel_activity_score = min(channel_total, INFINITY_CHANNEL_TOTAL_CAP)
+            control_motion_score = abs(average_weight_delta)
             identity_score = float(
-                (2.0 * bilateral_burst_count)
-                + source_node_count
-                + entry_count
-                + exit_count
-                + min(channel_total, INFINITY_CHANNEL_TOTAL_CAP)
-                + abs(average_weight_delta)
+                bilateral_score
+                + memory_role_score
+                + channel_activity_score
+                + control_motion_score
                 + phase_coherence_association
                 + stability_score
             )
@@ -808,7 +806,7 @@ class EntangledSOLPair:
                     "node_id": node_id,
                     "manifolds": manifold_profiles,
                     "average_degree": float(
-                        np.mean([float(profile["degree"]) for profile in manifold_profiles.values()])
+                        _mean_float_values(float(profile["degree"]) for profile in manifold_profiles.values())
                     ),
                     "has_repaired_edge": any(
                         bool(profile["has_repaired_edge"]) for profile in manifold_profiles.values()
@@ -3241,6 +3239,15 @@ def _count_values(values: Sequence[str]) -> dict[str, int]:
     for value in values:
         counts[str(value)] = counts.get(str(value), 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _mean_float_values(values: Iterable[float]) -> float:
+    total = 0.0
+    count = 0
+    for value in values:
+        total += float(value)
+        count += 1
+    return total / max(count, 1)
 
 
 def _normalize_state_loads(state_loads: object) -> dict[str, object]:
