@@ -1,7 +1,13 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
+from dataclasses import dataclass
+
 import numpy as np
+from entangled_manifolds import (
+    CouplingPostureGateProfile,
+    _parse_coupling_posture_profile_args,
+)
 from entangler import EntanglerGiant
 
 
@@ -914,13 +920,6 @@ def test_entangler_msf_guard_disabled_does_not_set_lambda_hat():
 # ---------------------------------------------------------------------------
 # W4: Coupling-posture adaptive gate profiles
 # ---------------------------------------------------------------------------
-
-
-from dataclasses import dataclass, field
-from entangled_manifolds import (
-    CouplingPostureGateProfile,
-    _parse_coupling_posture_profile_args,
-)
 
 
 @dataclass

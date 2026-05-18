@@ -435,10 +435,7 @@ def decide_next_config(
             rationale_parts.append("msf_promotion: control_locked")
         else:
             msf_alt_raw = state.get("msf_ab_alternation")
-            if msf_alt_raw is None:
-                msf_alt = len(yields_daily)
-            else:
-                msf_alt = int(msf_alt_raw or 0)
+            msf_alt = len(yields_daily) if msf_alt_raw is None else int(msf_alt_raw or 0)
             if msf_alt % 2 == 1:
                 flags.append("__msf_ab_treatment__")
                 rationale_parts.append("msf_ab: treatment (--enable-msf-guard)")
