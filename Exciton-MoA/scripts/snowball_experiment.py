@@ -175,6 +175,8 @@ def default_state() -> dict[str, Any]:
         "safety_clamp": None,
         "safety_clamp_incident_id": None,
         "advisory_lesson_clamp": None,
+        "infinity_node_test_results": None,
+        "infinity_node_daily_aggregate": None,
         "history_window": 8,
         "updated_utc": None,
     }
