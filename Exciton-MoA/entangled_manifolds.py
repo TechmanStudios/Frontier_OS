@@ -686,6 +686,11 @@ class EntangledSOLPair:
         entry may contain ``pair_metrics`` with ``bilateral_node_ids`` and
         ``phase_coherence``. The scan also reads the pair's tick traces and
         phonon bundle histories that were produced during the same run.
+
+        Returns a dictionary with ``scan_type``, run-level fields such as
+        ``pair_id`` and ``mean_phase_coherence``, and a ranked ``nodes`` list
+        containing per-wormhole identity, topology, channel, burst, and memory
+        evidence.
         """
         node_summaries = []
         tick_count = len(results)
@@ -915,7 +920,13 @@ class EntangledSOLPair:
         return {"infinity_node_scan_json": json_path, "infinity_node_scan": txt_path}
 
     def build_infinity_node_learning_advisory(self, scan: dict[str, object]) -> dict[str, object]:
-        """Convert a scan into read-only learning guidance for future runs."""
+        """Convert a scan into read-only learning guidance for future runs.
+
+        Returns a dictionary with ``scan_type``, ``learning_status``,
+        ``promotion_guardrail``, and ranked ``candidates``. Each candidate
+        records the node identity, evidence count, promotion readiness, and
+        recommended future experiment focus.
+        """
         nodes = list(scan.get("nodes", []))
         candidates = []
         ready_count = 0
@@ -3347,15 +3358,12 @@ def _count_values(values: Sequence[str]) -> dict[str, int]:
 
 
 def _mean_float_values(values: Iterable[float]) -> float:
-    total = 0.0
-    count = 0
-    for value in values:
-        total += float(value)
-        count += 1
-    return total / max(count, 1)
+    array = np.fromiter((float(value) for value in values), dtype=float)
+    return float(np.mean(array)) if array.size else 0.0
 
 
 def _infinity_channel_recommendation(dominant_channel: str) -> str:
+    """Map a dominant infinity-node channel to human-readable future-use guidance."""
     channel = str(dominant_channel)
     if channel == "density":
         return "treat as a density gate candidate for future embedding-center probes"
@@ -3367,6 +3375,7 @@ def _infinity_channel_recommendation(dominant_channel: str) -> str:
 
 
 def _infinity_next_focus(node: dict[str, object], evidence_events: int) -> str:
+    """Choose the next scan focus from node topology and corroborating evidence count."""
     if bool(node.get("has_repaired_edge", False)):
         return "rerun with repaired-edge-aware topology checks before promotion"
     if evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD:
