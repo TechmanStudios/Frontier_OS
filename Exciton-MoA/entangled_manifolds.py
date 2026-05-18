@@ -768,19 +768,15 @@ class EntangledSOLPair:
                 channel: float(np.mean(values)) if values else 0.0
                 for channel, values in channel_values.items()
             }
-            dominant_channel = (
-                max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
-                if channel_means
-                else "ambient"
-            )
+            dominant_channel = "ambient"
+            if channel_means:
+                dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
             channel_total = sum(channel_means.values())
             if channel_total <= INFINITY_CHANNEL_TOTAL_EPSILON:
                 dominant_channel = "ambient"
-            dominant_giant = (
-                max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
-                if dominant_giant_counts
-                else DEFAULT_AMBIENT_GIANT
-            )
+            dominant_giant = DEFAULT_AMBIENT_GIANT
+            if dominant_giant_counts:
+                dominant_giant = max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
             average_weight_delta = float(np.mean(weight_deltas)) if weight_deltas else 0.0
             stability_score = float(np.mean(stability_values)) if stability_values else 0.0
             phase_coherence_association = (
