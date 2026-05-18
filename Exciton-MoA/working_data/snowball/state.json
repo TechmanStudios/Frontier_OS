@@ -1,4 +1,13 @@
 {
+  "advisory_lesson_clamp": null,
+  "arm_promotion": null,
+  "best_pocket_tilt": null,
+  "coupling_posture_profile_usage_counts": {
+    "none": 16
+  },
+  "diagnosis_streak_count": 1,
+  "diagnosis_streak_label": "low_variance_candidate",
+  "history_window": 8,
   "infinity_node_daily_aggregate": {
     "aggregate_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-05-18/aggregate.json",
     "day": "2026-05-18",
@@ -44,6 +53,60 @@
       "time": 362.446
     }
   },
+  "last_config_daily": [
+    "--sweep",
+    "--sweep-root-dir",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/daily/20260518T074508Z",
+    "--clean-run-reset",
+    "--enable-hint-gate",
+    "--enable-bounded-nudges",
+    "--persist-summaries",
+    "--runtime-preset",
+    "best-pocket",
+    "--embedding-scale",
+    "0.08",
+    "--hint-confidence-threshold",
+    "0.55",
+    "--hint-reliability-threshold",
+    "0.6",
+    "--no-enable-msf-guard",
+    "--cycles",
+    "12",
+    "--sweep-cycle-counts",
+    "12",
+    "--sweep-embedding-a-locs",
+    "0.5",
+    "--sweep-embedding-b-locs",
+    "0.57",
+    "0.58",
+    "--sweep-embedding-drifts",
+    "0.06",
+    "0.08",
+    "--sweep-seeds",
+    "149",
+    "83",
+    "29",
+    "167"
+  ],
+  "last_config_pulse": null,
+  "last_coupling_posture": "strained",
+  "last_msf_ab_arm": null,
+  "last_paper_trigger": "basin_fragility",
+  "last_posture_ab_arm": null,
+  "msf_ab_alternation": 0,
+  "observe_only_streak": 0,
+  "paper_basin_fragility_delta": null,
+  "policy_probe_alternation": 0,
+  "posture_ab_alternation": 0,
+  "recent_yields_daily": [
+    3
+  ],
+  "recent_yields_pulse": [],
+  "regime": "hold",
+  "regime_streak": 1,
+  "safety_clamp": null,
+  "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-05-18T07:01:44Z"
+  "updated_utc": "2026-05-18T07:59:54Z",
+  "weak_synchrony_streak": 0
 }
