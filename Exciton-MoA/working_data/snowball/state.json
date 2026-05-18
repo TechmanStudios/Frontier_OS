@@ -3,9 +3,9 @@
   "arm_promotion": null,
   "best_pocket_tilt": null,
   "coupling_posture_profile_usage_counts": {
-    "none": 16
+    "none": 17
   },
-  "diagnosis_streak_count": 1,
+  "diagnosis_streak_count": 2,
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
@@ -88,10 +88,39 @@
     "29",
     "167"
   ],
-  "last_config_pulse": null,
+  "last_config_pulse": [
+    "--sweep",
+    "--sweep-root-dir",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20260518T092521Z",
+    "--clean-run-reset",
+    "--enable-hint-gate",
+    "--enable-bounded-nudges",
+    "--persist-summaries",
+    "--runtime-preset",
+    "best-pocket",
+    "--embedding-scale",
+    "0.08",
+    "--hint-confidence-threshold",
+    "0.55",
+    "--hint-reliability-threshold",
+    "0.6",
+    "--no-enable-msf-guard",
+    "--cycles",
+    "6",
+    "--sweep-cycle-counts",
+    "6",
+    "--sweep-seeds",
+    "149",
+    "--sweep-embedding-a-locs",
+    "0.5",
+    "--sweep-embedding-b-locs",
+    "0.57",
+    "--sweep-embedding-drifts",
+    "0.06"
+  ],
   "last_coupling_posture": "strained",
   "last_msf_ab_arm": null,
-  "last_paper_trigger": "basin_fragility",
+  "last_paper_trigger": "none",
   "last_posture_ab_arm": null,
   "msf_ab_alternation": 0,
   "observe_only_streak": 0,
@@ -101,12 +130,14 @@
   "recent_yields_daily": [
     3
   ],
-  "recent_yields_pulse": [],
+  "recent_yields_pulse": [
+    0
+  ],
   "regime": "hold",
-  "regime_streak": 1,
+  "regime_streak": 2,
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-05-18T07:59:54Z",
+  "updated_utc": "2026-05-18T09:25:51Z",
   "weak_synchrony_streak": 0
 }
