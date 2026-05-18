@@ -10,7 +10,7 @@ import json
 import shutil
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
-from itertools import product
+from itertools import chain, product
 from pathlib import Path
 
 import numpy as np
@@ -700,7 +700,6 @@ class EntangledSOLPair:
             else 0.0
         )
 
-        all_bundles = list(self.phonon_bundles) + list(self.local_phonon_bundles)
         for node_id in self.wormhole_nodes:
             manifold_profiles = {
                 self.manifold_ids[0]: self._build_infinity_node_manifold_profile(self.manifold_a, node_id),
@@ -717,7 +716,7 @@ class EntangledSOLPair:
             stability_values = []
 
             for result in results:
-                pair_metrics = dict(result.get("pair_metrics", {}))
+                pair_metrics = result.get("pair_metrics", {}) or {}
                 if node_id in set(pair_metrics.get("bilateral_node_ids", [])):
                     bilateral_burst_count += 1
                     involvement_phase_values.append(float(pair_metrics.get("phase_coherence", 0.0)))
@@ -730,8 +729,8 @@ class EntangledSOLPair:
                     involvement_phase_values.append(trace_phase)
 
                 for manifold_id in self.manifold_ids:
-                    manifold_trace = dict(dict(trace.get("manifolds", {})).get(manifold_id, {}))
-                    wormhole_node = dict(dict(manifold_trace.get("wormhole_nodes", {})).get(node_id, {}))
+                    manifold_trace = (trace.get("manifolds", {}) or {}).get(manifold_id, {}) or {}
+                    wormhole_node = (manifold_trace.get("wormhole_nodes", {}) or {}).get(node_id, {}) or {}
                     if wormhole_node:
                         channel_values["density"].append(
                             abs(float(wormhole_node.get("resonance_accumulator", 0.0)))
@@ -746,13 +745,12 @@ class EntangledSOLPair:
 
                     edge_flux_values = []
                     for edge in list(manifold_trace.get("wormhole_edges", [])):
-                        edge_dict = dict(edge)
-                        if node_id in {str(edge_dict.get("left")), str(edge_dict.get("right"))}:
-                            edge_flux_values.append(abs(float(edge_dict.get("residual_flux", 0.0))))
+                        if node_id in {str(edge.get("left")), str(edge.get("right"))}:
+                            edge_flux_values.append(abs(float(edge.get("residual_flux", 0.0))))
                     if edge_flux_values:
                         channel_values["vorticity"].append(float(np.mean(edge_flux_values)))
 
-            for bundle in all_bundles:
+            for bundle in chain(self.phonon_bundles, self.local_phonon_bundles):
                 bundle_nodes = set(bundle.source_nodes)
                 entry_nodes = set(bundle.wormhole_entry_nodes)
                 exit_nodes = set(bundle.wormhole_exit_nodes)
@@ -772,9 +770,7 @@ class EntangledSOLPair:
                     involved = True
                 if involved:
                     involvement_phase_values.append(float(bundle.phase_coherence))
-                    stability_values.append(
-                        float(dict(bundle.coherence_signature).get("stability_score", 0.0))
-                    )
+                    stability_values.append(float(bundle.coherence_signature.get("stability_score", 0.0)))
                     dominant_giant_counts[bundle.carrier_giant] = (
                         dominant_giant_counts.get(bundle.carrier_giant, 0) + 1
                     )
@@ -885,8 +881,7 @@ class EntangledSOLPair:
                 "source | entry | exit | avg_weight_delta | phase_assoc | stability | score"
             ),
         ]
-        for rank, node in enumerate(list(scan.get("nodes", [])), start=1):
-            node_dict = dict(node)
+        for rank, node_dict in enumerate(list(scan.get("nodes", [])), start=1):
             lines.append(
                 f"{rank} | {node_dict.get('node_id')} | "
                 f"{float(node_dict.get('average_degree', 0.0)):.2f} | "
@@ -930,8 +925,7 @@ class EntangledSOLPair:
         nodes = list(scan.get("nodes", []))
         candidates = []
         ready_count = 0
-        for rank, node in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
-            node_dict = dict(node)
+        for rank, node_dict in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
             evidence_events = (
                 int(node_dict.get("bilateral_burst_count", 0))
                 + int(node_dict.get("source_node_count", 0))
@@ -990,8 +984,7 @@ class EntangledSOLPair:
             "",
             "rank | node | channel | giant | events | promote | recommended_use | next_focus",
         ]
-        for candidate in list(advisory.get("candidates", [])):
-            candidate_dict = dict(candidate)
+        for candidate_dict in list(advisory.get("candidates", [])):
             lines.append(
                 f"{int(candidate_dict.get('rank', 0))} | "
                 f"{candidate_dict.get('node_id', 'unknown')} | "
