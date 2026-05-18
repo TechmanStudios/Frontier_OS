@@ -710,6 +710,7 @@ class EntangledSOLPair:
             )
             for result in results
         ]
+        # Materialize once because every wormhole node is compared against the same bundle history.
         all_bundles = tuple(chain(self.phonon_bundles, self.local_phonon_bundles))
 
         for node_id in self.wormhole_nodes:
@@ -792,6 +793,7 @@ class EntangledSOLPair:
             }
             dominant_channel = "ambient"
             if channel_means:
+                # The channel name is a deterministic tie-breaker when mean values match.
                 dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
             channel_total = sum(channel_means.values())
             if channel_total <= INFINITY_CHANNEL_TOTAL_EPSILON:
@@ -939,14 +941,18 @@ class EntangledSOLPair:
         nodes = list(scan.get("nodes", []))
         candidates = []
         ready_count = 0
-        # Fewer than INFINITY_LEARNING_TOP_N nodes is valid for small wormhole counts.
+        # Slicing safely returns all available nodes when fewer than INFINITY_LEARNING_TOP_N exist.
         for rank, node_dict in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
             evidence_events = (
                 int(node_dict.get("bilateral_burst_count", 0))
                 + int(node_dict.get("source_node_count", 0))
                 + int(node_dict.get("entry_count", 0))
                 + int(node_dict.get("exit_count", 0))
-                + (1 if abs(float(node_dict.get("average_weight_delta", 0.0))) > 0.0 else 0)
+                + (
+                    1
+                    if abs(float(node_dict.get("average_weight_delta", 0.0))) > INFINITY_CHANNEL_TOTAL_EPSILON
+                    else 0
+                )
             )
             stability_score = float(node_dict.get("stability_score", 0.0))
             promotion_ready = (
@@ -3367,7 +3373,7 @@ def _count_values(values: Sequence[str]) -> dict[str, int]:
 
 def _mean_float_values(values: Iterable[float]) -> float:
     """Return the mean of float values, using 0.0 as the empty-evidence default."""
-    array = np.fromiter((float(value) for value in values), dtype=float)
+    array = np.fromiter(values, dtype=float)
     return float(np.mean(array)) if array.size else 0.0
 
 
