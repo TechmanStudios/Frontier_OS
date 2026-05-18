@@ -22,6 +22,7 @@ Sweep harnesses, paper-handoff workflows, and sample sweep CLIs are documented i
 - `hippocampal_burst_*.json` — threshold-burst archives (see `hippocampal_replay.py`).
 - `latent_mediator_state*.json` — persistent latent-mediator blackboards.
 - `shared_entanglement_locus_*.json` — pair-scoped shared mediator state.
+- `infinity_node/` — GitHub Actions JUnit aggregates and summaries from the infinity-node test-result applicator.
 - `sweep_runs/`, `bounded_nudge_sweeps/`, `*_sweep/` — sweep harness outputs (`sweep_summary.{jsonl,csv}`, `sweep_compact_comparison.txt`, `sweep_paper_diagnostics.txt`, `sweep_uncertainty_paper_handoff.md`, plus per-variant `primary/` and `secondary/` manifolds).
 - `repro_*` — reproducibility comparison roots from `--clean-run-reset` / `--repeat-run-count`.
 

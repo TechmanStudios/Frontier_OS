@@ -81,3 +81,6 @@ The repo runs a continuous, self-tuning entangled-pair experiment via two GitHub
 
 Both call `scripts/snowball_experiment.py`, which loads `state.json`, asks `decide_next_config()` for the next regime (`hold` / `explore` / `exploit` / `policy_probe`) using only existing `entangled_manifolds.py` flags, runs the engine, parses sweep paper diagnostics, then commits the updated `state.json`, `ledger.jsonl`, and `latest_report.md` back to `main`. Reports are also exposed in each workflow's job summary. A pulse-only signal cannot promote the regime to `exploit` — that requires daily confirmation. Run the loop locally with `python Exciton-MoA/scripts/snowball_experiment.py --tier pulse --dry-run`.
 
+## **Infinity-node test results**
+
+The `Infinity Node Test Results` workflow runs the canonical pre-check suite across the same Linux/Windows and Python 3.11/3.12 matrix as CI, uploads each JUnit XML result, then applies the aggregate into `working_data/infinity_node/` with `scripts/infinity_node_results.py`. On non-PR runs the workflow also writes the latest read-only CI health snapshot into `working_data/snowball/state.json` under `infinity_node_test_results`, so system consumers can observe test health without letting test analytics change snowball control policy.
