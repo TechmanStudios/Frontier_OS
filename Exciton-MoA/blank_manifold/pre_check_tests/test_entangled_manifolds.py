@@ -67,7 +67,7 @@ def test_entangled_pair_phase_coherence_history_is_reproducible(tmp_path: Path):
             working_dir=working_dir,
         )
         history: list[float] = []
-        for embedding_a, embedding_b in zip(embeddings_a, embeddings_b, strict=False):
+        for embedding_a, embedding_b in zip(embeddings_a, embeddings_b, strict=True):
             result = pair.tick(embedding_a=embedding_a, embedding_b=embedding_b)
             history.append(float(result["pair_metrics"]["phase_coherence"]))
         return history

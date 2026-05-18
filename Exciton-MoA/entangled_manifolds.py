@@ -36,6 +36,8 @@ PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
         "embedding_drift": 0.06,
     }
 }
+INFINITY_CHANNEL_TOTAL_EPSILON = 1e-12
+INFINITY_CHANNEL_TOTAL_CAP = 10.0
 
 
 class PairRuntimeArgumentParser(argparse.ArgumentParser):
@@ -767,7 +769,7 @@ class EntangledSOLPair:
             }
             dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
             channel_total = sum(channel_means.values())
-            if channel_total <= 1e-12:
+            if channel_total <= INFINITY_CHANNEL_TOTAL_EPSILON:
                 dominant_channel = "ambient"
             dominant_giant = (
                 max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
@@ -784,7 +786,7 @@ class EntangledSOLPair:
                 + source_node_count
                 + entry_count
                 + exit_count
-                + min(channel_total, 10.0)
+                + min(channel_total, INFINITY_CHANNEL_TOTAL_CAP)
                 + abs(average_weight_delta)
                 + phase_coherence_association
                 + stability_score
@@ -887,8 +889,9 @@ class EntangledSOLPair:
     def persist_infinity_node_identity_scan(
         self,
         results: Sequence[dict[str, object]],
+        scan: dict[str, object] | None = None,
     ) -> dict[str, Path]:
-        scan = self.build_infinity_node_identity_scan(results)
+        scan = scan or self.build_infinity_node_identity_scan(results)
         json_path = self.working_dir / "infinity_node_identity_scan.json"
         txt_path = self.working_dir / "infinity_node_identity_scan.txt"
         json_path.write_text(
@@ -1770,9 +1773,8 @@ def run_pair_runtime(
     output_paths["checkpoint"] = checkpoint_path
     infinity_scan: dict[str, object] | None = None
     if infinity_node_scan:
-        output_paths.update(pair.persist_infinity_node_identity_scan(results))
-        infinity_scan_path = output_paths["infinity_node_scan_json"]
-        infinity_scan = json.loads(infinity_scan_path.read_text(encoding="utf-8"))
+        infinity_scan = pair.build_infinity_node_identity_scan(results)
+        output_paths.update(pair.persist_infinity_node_identity_scan(results, scan=infinity_scan))
 
     return {
         "pair": pair,
