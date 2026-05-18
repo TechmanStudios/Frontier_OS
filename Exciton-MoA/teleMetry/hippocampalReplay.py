@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -868,10 +869,8 @@ class HippocampalReplay:
                 enabled_tick_count += 1
             lam = record.get("entangler_nudge_msf_lambda_hat")
             if lam is not None:
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     lambda_values.append(float(lam))
-                except (TypeError, ValueError):
-                    pass
             if (
                 status == "unstable"
                 and str(record.get("entangler_nudge_rejection_reason", "")) == "msf_unstable"
