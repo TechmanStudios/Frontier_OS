@@ -19,10 +19,13 @@ for _path in (_EXCITON_DIR, _SCRIPTS_DIR):
 from scripts.infinity_node_results import (  # noqa: E402
     RESULT_SCHEMA_VERSION,
     apply_result_to_system_state,
+    build_daily_aggregate,
     build_result_payload,
     discover_junit_files,
+    load_result_ledger,
     main,
     parse_junit_file,
+    write_daily_aggregate_artifacts,
     write_result_artifacts,
 )
 
@@ -101,6 +104,86 @@ def test_write_artifacts_and_apply_system_state(tmp_path: Path):
     assert state["infinity_node_test_results"]["sha"] == "abc123"
 
 
+def test_daily_aggregate_rolls_up_same_day_records(tmp_path: Path):
+    first = build_result_payload(
+        [],
+        status="success",
+        run_token="first",
+    )
+    first["generated_utc"] = "2026-05-18T01:00:00Z"
+    first["overall_status"] = "pass"
+    first["files_observed"] = 1
+    first["totals"] = {
+        "suites": 1,
+        "tests": 4,
+        "passed": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "time": 1.0,
+    }
+    second = dict(first)
+    second["run_token"] = "second"
+    second["generated_utc"] = "2026-05-18T02:00:00Z"
+    second["overall_status"] = "fail"
+    second["totals"] = {
+        "suites": 1,
+        "tests": 4,
+        "passed": 3,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "time": 1.5,
+    }
+    outside_day = dict(first)
+    outside_day["run_token"] = "outside"
+    outside_day["generated_utc"] = "2026-05-17T23:00:00Z"
+
+    aggregate = build_daily_aggregate(
+        [first, second, outside_day],
+        day="2026-05-18",
+        generated_utc="2026-05-18T03:00:00Z",
+    )
+    paths = write_daily_aggregate_artifacts(aggregate, output_root=tmp_path / "infinity_node")
+
+    assert aggregate["kind"] == "infinity_node_daily_aggregate"
+    assert aggregate["overall_status"] == "fail"
+    assert aggregate["runs_observed"] == 2
+    assert aggregate["status_counts"] == {"fail": 1, "pass": 1}
+    assert aggregate["totals"]["tests"] == 8
+    assert aggregate["totals"]["failures"] == 1
+    assert aggregate["totals"]["time"] == 2.5
+    assert Path(paths["daily_aggregate_path"]).exists()
+    assert (
+        Path(paths["latest_daily_summary_path"])
+        .read_text(encoding="utf-8")
+        .startswith("# Infinity-node daily aggregate")
+    )
+
+
+def test_apply_system_state_includes_daily_aggregate(tmp_path: Path):
+    junit = tmp_path / "result.xml"
+    _write_junit(junit, tests=2)
+    payload = build_result_payload([parse_junit_file(junit)], status="success", run_token="daily")
+    artifact_paths = write_result_artifacts(payload, output_root=tmp_path / "infinity_node")
+    records = load_result_ledger(Path(artifact_paths["ledger_path"]))
+    daily_payload = build_daily_aggregate(records, day=payload["generated_utc"][:10])
+    daily_paths = write_daily_aggregate_artifacts(daily_payload, output_root=tmp_path / "infinity_node")
+
+    state = apply_result_to_system_state(
+        payload,
+        artifact_paths,
+        daily_payload=daily_payload,
+        daily_artifact_paths=daily_paths,
+        state_path=tmp_path / "snowball" / "state.json",
+        lock_path=tmp_path / "snowball" / "state.lock",
+    )
+
+    assert state["infinity_node_daily_aggregate"]["overall_status"] == "pass"
+    assert state["infinity_node_daily_aggregate"]["runs_observed"] == 1
+    assert state["infinity_node_daily_aggregate"]["aggregate_path"] == daily_paths["daily_aggregate_path"]
+
+
 def test_main_writes_result_without_state_when_disabled(tmp_path: Path, capsys):
     junit_root = tmp_path / "junit"
     junit_root.mkdir()
@@ -124,4 +207,5 @@ def test_main_writes_result_without_state_when_disabled(tmp_path: Path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["overall_status"] == "pass"
     assert Path(payload["latest_summary_path"]).exists()
+    assert Path(payload["latest_daily_summary_path"]).exists()
     assert not (tmp_path / "state.json").exists()

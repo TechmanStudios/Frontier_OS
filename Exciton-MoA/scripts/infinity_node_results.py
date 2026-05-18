@@ -4,9 +4,10 @@
 """Infinity-node test result applicator.
 
 Collects pytest JUnit XML outputs from a GitHub Actions matrix, writes a
-compact audit artifact under ``working_data/infinity_node/``, and applies the
-latest read-only result snapshot into the shared snowball state so downstream
-system consumers can see CI health without changing control policy.
+compact audit artifact under ``working_data/infinity_node/``, rolls those
+records into a daily aggregate, and applies the latest read-only result snapshot
+into the shared snowball state so downstream system consumers can see CI health
+without changing control policy.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ INFINITY_NODE_DIR = EXCITON_ROOT / "working_data" / "infinity_node"
 SNOWBALL_STATE_PATH = EXCITON_ROOT / "working_data" / "snowball" / "state.json"
 SNOWBALL_STATE_LOCK_PATH = EXCITON_ROOT / "working_data" / "snowball" / "state.lock"
 RESULT_SCHEMA_VERSION = 1
+DAILY_AGGREGATE_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -223,6 +225,130 @@ def write_result_artifacts(
     }
 
 
+def load_result_ledger(ledger_path: Path) -> list[dict[str, Any]]:
+    if not ledger_path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for raw in ledger_path.read_text(encoding="utf-8").splitlines():
+        if not raw.strip():
+            continue
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict) and row.get("kind") == "infinity_node_test_result":
+            rows.append(row)
+    return rows
+
+
+def _record_day(record: dict[str, Any]) -> str | None:
+    generated = record.get("generated_utc")
+    if not isinstance(generated, str) or len(generated) < 10:
+        return None
+    return generated[:10]
+
+
+def build_daily_aggregate(
+    records: Sequence[dict[str, Any]], *, day: str | None = None, generated_utc: str | None = None
+) -> dict[str, Any]:
+    now = generated_utc or utcnow_iso()
+    aggregate_day = day or now[:10]
+    scoped = [record for record in records if _record_day(record) == aggregate_day]
+    totals = {
+        "suites": 0,
+        "tests": 0,
+        "passed": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "time": 0.0,
+    }
+    status_counts: dict[str, int] = {}
+    files_observed = 0
+    for record in scoped:
+        status = str(record.get("overall_status") or "unknown")
+        status_counts[status] = status_counts.get(status, 0) + 1
+        files_observed += int(record.get("files_observed") or 0)
+        record_totals = record.get("totals") if isinstance(record.get("totals"), dict) else {}
+        for key in totals:
+            value = record_totals.get(key, 0) if isinstance(record_totals, dict) else 0
+            totals[key] += float(value) if key == "time" else int(value or 0)
+    totals["time"] = round(float(totals["time"]), 6)
+    if not scoped:
+        overall_status = "no_results"
+    elif status_counts.get("fail") or status_counts.get("no_results"):
+        overall_status = "fail"
+    elif status_counts.get("pass") == len(scoped):
+        overall_status = "pass"
+    else:
+        overall_status = "mixed"
+    return {
+        "schema_version": DAILY_AGGREGATE_SCHEMA_VERSION,
+        "kind": "infinity_node_daily_aggregate",
+        "day": aggregate_day,
+        "generated_utc": now,
+        "overall_status": overall_status,
+        "runs_observed": len(scoped),
+        "files_observed": files_observed,
+        "status_counts": status_counts,
+        "totals": totals,
+        "run_tokens": [str(record.get("run_token")) for record in scoped if record.get("run_token")],
+    }
+
+
+def render_daily_summary_markdown(payload: dict[str, Any]) -> str:
+    totals = payload["totals"]
+    lines = [
+        "# Infinity-node daily aggregate",
+        "",
+        f"- day: {payload['day']}",
+        f"- overall status: {payload['overall_status']}",
+        f"- runs observed: {payload['runs_observed']}",
+        f"- files observed: {payload['files_observed']}",
+        f"- generated (UTC): {payload['generated_utc']}",
+        "",
+        "## Aggregate totals",
+        "",
+        f"- suites: {totals['suites']}",
+        f"- tests: {totals['tests']}",
+        f"- passed: {totals['passed']}",
+        f"- failures: {totals['failures']}",
+        f"- errors: {totals['errors']}",
+        f"- skipped: {totals['skipped']}",
+        f"- time: {totals['time']}",
+        "",
+        "## Status counts",
+        "",
+    ]
+    for status, count in sorted(payload["status_counts"].items()):
+        lines.append(f"- {status}: {count}")
+    if not payload["status_counts"]:
+        lines.append("- no results observed")
+    return "\n".join(lines) + "\n"
+
+
+def write_daily_aggregate_artifacts(
+    payload: dict[str, Any], *, output_root: Path = INFINITY_NODE_DIR
+) -> dict[str, str]:
+    day = str(payload["day"])
+    daily_dir = output_root / "daily" / day
+    aggregate_path = daily_dir / "aggregate.json"
+    summary_path = daily_dir / "summary.md"
+    latest_aggregate_path = output_root / "latest_daily_aggregate.json"
+    latest_summary_path = output_root / "latest_daily_summary.md"
+    summary = render_daily_summary_markdown(payload)
+    _atomic_write_json(aggregate_path, payload)
+    summary_path.write_text(summary, encoding="utf-8")
+    _atomic_write_json(latest_aggregate_path, payload)
+    latest_summary_path.write_text(summary, encoding="utf-8")
+    return {
+        "daily_aggregate_path": aggregate_path.as_posix(),
+        "daily_summary_path": summary_path.as_posix(),
+        "latest_daily_aggregate_path": latest_aggregate_path.as_posix(),
+        "latest_daily_summary_path": latest_summary_path.as_posix(),
+    }
+
+
 @contextlib.contextmanager
 def file_lock(lock_path: Path):
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -245,6 +371,8 @@ def apply_result_to_system_state(
     payload: dict[str, Any],
     artifact_paths: dict[str, str],
     *,
+    daily_payload: dict[str, Any] | None = None,
+    daily_artifact_paths: dict[str, str] | None = None,
     state_path: Path = SNOWBALL_STATE_PATH,
     lock_path: Path = SNOWBALL_STATE_LOCK_PATH,
 ) -> dict[str, Any]:
@@ -275,6 +403,19 @@ def apply_result_to_system_state(
             "result_path": artifact_paths["result_path"],
             "summary_path": artifact_paths["summary_path"],
         }
+        if daily_payload is not None and daily_artifact_paths is not None:
+            state["infinity_node_daily_aggregate"] = {
+                "schema_version": DAILY_AGGREGATE_SCHEMA_VERSION,
+                "day": daily_payload["day"],
+                "generated_utc": daily_payload["generated_utc"],
+                "overall_status": daily_payload["overall_status"],
+                "runs_observed": daily_payload["runs_observed"],
+                "files_observed": daily_payload["files_observed"],
+                "status_counts": daily_payload["status_counts"],
+                "totals": daily_payload["totals"],
+                "aggregate_path": daily_artifact_paths["daily_aggregate_path"],
+                "summary_path": daily_artifact_paths["daily_summary_path"],
+            }
         state["updated_utc"] = utcnow_iso()
         _atomic_write_json(state_path, state)
         return state
@@ -292,6 +433,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-root", type=Path, default=INFINITY_NODE_DIR)
     parser.add_argument("--state-path", type=Path, default=SNOWBALL_STATE_PATH)
     parser.add_argument("--state-lock-path", type=Path, default=SNOWBALL_STATE_LOCK_PATH)
+    parser.add_argument("--aggregate-day", default=None)
     parser.add_argument("--no-apply-state", action="store_true")
     return parser
 
@@ -309,14 +451,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         branch=args.branch,
     )
     artifact_paths = write_result_artifacts(payload, output_root=args.output_root)
+    ledger_records = load_result_ledger(Path(artifact_paths["ledger_path"]))
+    daily_payload = build_daily_aggregate(ledger_records, day=args.aggregate_day)
+    daily_artifact_paths = write_daily_aggregate_artifacts(daily_payload, output_root=args.output_root)
     if not args.no_apply_state:
         apply_result_to_system_state(
             payload,
             artifact_paths,
+            daily_payload=daily_payload,
+            daily_artifact_paths=daily_artifact_paths,
             state_path=args.state_path,
             lock_path=args.state_lock_path,
         )
-    print(json.dumps({**payload, **artifact_paths}, sort_keys=True))
+    print(json.dumps({**payload, **artifact_paths, **daily_artifact_paths}, sort_keys=True))
     return 0
 
 

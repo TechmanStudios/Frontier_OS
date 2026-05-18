@@ -1,10 +1,6 @@
-name: Infinity Node Test Results
+name: Infinity Node Daily Aggregate
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   schedule:
     # 05:37 UTC keeps this independent from the SOL snowball/consumer cadence.
     - cron: "37 5 * * *"
@@ -19,7 +15,7 @@ permissions:
 
 jobs:
   precheck:
-    name: infinity-node pytest (${{ matrix.os }} / py${{ matrix.python-version }})
+    name: daily infinity-node pytest (${{ matrix.os }} / py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -61,8 +57,8 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  apply_results:
-    name: apply infinity-node results
+  daily_aggregate:
+    name: apply daily infinity-node aggregate
     if: always()
     needs: precheck
     runs-on: ubuntu-latest
@@ -87,7 +83,7 @@ jobs:
           path: /tmp/infinity-node-results
           merge-multiple: true
 
-      - name: Apply infinity-node results to system state
+      - name: Apply daily infinity-node aggregate to system state
         working-directory: Exciton-MoA
         run: |
           python scripts/infinity_node_results.py \
@@ -98,8 +94,7 @@ jobs:
             --sha "${{ github.sha }}" \
             --branch "${{ github.ref_name }}"
 
-      - name: Commit applied infinity-node state
-        if: github.event_name != 'pull_request'
+      - name: Commit applied daily infinity-node state
         run: |
           git config user.name "infinity-node-results[bot]"
           git config user.email "infinity-node-results@users.noreply.github.com"
@@ -109,18 +104,18 @@ jobs:
             echo "No infinity-node state changes to commit"
             exit 0
           fi
-          git commit -m "infinity-node(results): run=${{ github.run_id }}"
+          git commit -m "infinity-node(daily): run=${{ github.run_id }}"
           for attempt in 1 2 3; do
             if git push; then break; fi
             echo "Push attempt $attempt failed, rebasing..."
             git pull --rebase
           done
 
-      - name: Upload applied infinity-node artifacts
+      - name: Upload daily infinity-node aggregate artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: infinity-node-applied-${{ github.run_id }}
+          name: infinity-node-daily-aggregate-${{ github.run_id }}
           path: |
             Exciton-MoA/working_data/infinity_node
             Exciton-MoA/working_data/snowball/state.json
@@ -130,8 +125,8 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          if [ -f Exciton-MoA/working_data/infinity_node/latest_summary.md ]; then
-            cat Exciton-MoA/working_data/infinity_node/latest_summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f Exciton-MoA/working_data/infinity_node/latest_daily_summary.md ]; then
+            cat Exciton-MoA/working_data/infinity_node/latest_daily_summary.md >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No infinity-node summary produced." >> "$GITHUB_STEP_SUMMARY"
+            echo "No infinity-node daily summary produced." >> "$GITHUB_STEP_SUMMARY"
           fi
