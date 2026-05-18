@@ -38,6 +38,9 @@ PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
 }
 INFINITY_CHANNEL_TOTAL_EPSILON = 1e-12
 INFINITY_CHANNEL_TOTAL_CAP = 10.0
+INFINITY_LEARNING_TOP_N = 3
+INFINITY_PROMOTION_EVENT_THRESHOLD = 3
+INFINITY_PROMOTION_STABILITY_FLOOR = 0.05
 DEFAULT_AMBIENT_GIANT = "Ambient Basin"
 
 
@@ -911,6 +914,102 @@ class EntangledSOLPair:
         txt_path.write_text(self.render_infinity_node_identity_scan(scan), encoding="utf-8")
         return {"infinity_node_scan_json": json_path, "infinity_node_scan": txt_path}
 
+    def build_infinity_node_learning_advisory(self, scan: dict[str, object]) -> dict[str, object]:
+        """Convert a scan into read-only learning guidance for future runs."""
+        nodes = list(scan.get("nodes", []))
+        candidates = []
+        ready_count = 0
+        for rank, node in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
+            node_dict = dict(node)
+            evidence_events = (
+                int(node_dict.get("bilateral_burst_count", 0))
+                + int(node_dict.get("source_node_count", 0))
+                + int(node_dict.get("entry_count", 0))
+                + int(node_dict.get("exit_count", 0))
+                + (1 if abs(float(node_dict.get("average_weight_delta", 0.0))) > 0.0 else 0)
+            )
+            stability_score = float(node_dict.get("stability_score", 0.0))
+            promotion_ready = (
+                evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD
+                and stability_score >= INFINITY_PROMOTION_STABILITY_FLOOR
+            )
+            if promotion_ready:
+                ready_count += 1
+            dominant_channel = str(node_dict.get("dominant_channel", "ambient"))
+            candidates.append(
+                {
+                    "rank": rank,
+                    "node_id": str(node_dict.get("node_id", "unknown")),
+                    "dominant_channel": dominant_channel,
+                    "dominant_giant": str(node_dict.get("dominant_giant", DEFAULT_AMBIENT_GIANT)),
+                    "evidence_events": evidence_events,
+                    "promotion_ready": promotion_ready,
+                    "recommended_use": _infinity_channel_recommendation(dominant_channel),
+                    "next_experiment_focus": _infinity_next_focus(node_dict, evidence_events),
+                    "phase_coherence_association": float(node_dict.get("phase_coherence_association", 0.0)),
+                    "stability_score": stability_score,
+                    "identity_score": float(node_dict.get("identity_score", 0.0)),
+                }
+            )
+
+        learning_status = "ready_for_working_mind" if ready_count else "needs_more_corroboration"
+        return {
+            "scan_type": "infinity_node_learning_advisory",
+            "source_scan_type": scan.get("scan_type", "infinity_node_identity_scan"),
+            "pair_id": scan.get("pair_id", self.pair_id),
+            "tick_count": int(scan.get("tick_count", 0)),
+            "telemetry_feedback_mode": "read_only",
+            "learning_status": learning_status,
+            "promotion_guardrail": (
+                "Promote to working_mind only when a node has repeated source/entry/exit/"
+                "bilateral/weight evidence and a non-trivial stability score."
+            ),
+            "ready_candidate_count": ready_count,
+            "candidate_count": len(candidates),
+            "candidates": candidates,
+        }
+
+    def render_infinity_node_learning_advisory(self, advisory: dict[str, object]) -> str:
+        lines = [
+            "[INFINITY NODE LEARNING ADVISORY]",
+            f"pair_id={advisory.get('pair_id', self.pair_id)}",
+            f"status={advisory.get('learning_status', 'needs_more_corroboration')}",
+            f"telemetry_feedback_mode={advisory.get('telemetry_feedback_mode', 'read_only')}",
+            f"promotion_guardrail={advisory.get('promotion_guardrail', '')}",
+            "",
+            "rank | node | channel | giant | events | promote | recommended_use | next_focus",
+        ]
+        for candidate in list(advisory.get("candidates", [])):
+            candidate_dict = dict(candidate)
+            lines.append(
+                f"{int(candidate_dict.get('rank', 0))} | "
+                f"{candidate_dict.get('node_id', 'unknown')} | "
+                f"{candidate_dict.get('dominant_channel', 'ambient')} | "
+                f"{candidate_dict.get('dominant_giant', DEFAULT_AMBIENT_GIANT)} | "
+                f"{int(candidate_dict.get('evidence_events', 0))} | "
+                f"{bool(candidate_dict.get('promotion_ready', False))} | "
+                f"{candidate_dict.get('recommended_use', '')} | "
+                f"{candidate_dict.get('next_experiment_focus', '')}"
+            )
+        return "\n".join(lines)
+
+    def persist_infinity_node_learning_advisory(
+        self,
+        scan: dict[str, object],
+        advisory: dict[str, object] | None = None,
+    ) -> dict[str, Path]:
+        advisory = advisory or self.build_infinity_node_learning_advisory(scan)
+        json_path = self.working_dir / "infinity_node_learning_advisory.json"
+        txt_path = self.working_dir / "infinity_node_learning_advisory.txt"
+        json_path.write_text(
+            json.dumps(self._jsonable_payload(advisory), sort_keys=True, indent=2), encoding="utf-8"
+        )
+        txt_path.write_text(self.render_infinity_node_learning_advisory(advisory), encoding="utf-8")
+        return {
+            "infinity_node_learning_advisory_json": json_path,
+            "infinity_node_learning_advisory": txt_path,
+        }
+
     def _build_manifold_checkpoint(self, manifold: BlankManifoldCore) -> dict[str, object]:
         nodes = []
         for node_id in sorted(manifold.graph.nodes()):
@@ -1783,9 +1882,14 @@ def run_pair_runtime(
     checkpoint_path.write_text(json.dumps(checkpoint, sort_keys=True, indent=2), encoding="utf-8")
     output_paths["checkpoint"] = checkpoint_path
     infinity_scan: dict[str, object] | None = None
+    infinity_learning_advisory: dict[str, object] | None = None
     if infinity_node_scan:
         infinity_scan = pair.build_infinity_node_identity_scan(results)
         output_paths.update(pair.persist_infinity_node_identity_scan(results, scan=infinity_scan))
+        infinity_learning_advisory = pair.build_infinity_node_learning_advisory(infinity_scan)
+        output_paths.update(
+            pair.persist_infinity_node_learning_advisory(infinity_scan, advisory=infinity_learning_advisory)
+        )
 
     return {
         "pair": pair,
@@ -1794,6 +1898,7 @@ def run_pair_runtime(
         "output_paths": output_paths,
         "checkpoint": checkpoint,
         "infinity_node_scan": infinity_scan,
+        "infinity_node_learning_advisory": infinity_learning_advisory,
     }
 
 
@@ -3248,6 +3353,25 @@ def _mean_float_values(values: Iterable[float]) -> float:
         total += float(value)
         count += 1
     return total / max(count, 1)
+
+
+def _infinity_channel_recommendation(dominant_channel: str) -> str:
+    channel = str(dominant_channel)
+    if channel == "density":
+        return "treat as a density gate candidate for future embedding-center probes"
+    if channel == "shear":
+        return "treat as a shear bridge candidate for cross-manifold coupling probes"
+    if channel == "vorticity":
+        return "treat as a cycle carrier candidate for perturbation and phase-offset probes"
+    return "keep as an ambient baseline until repeated activity separates it from passive boundary nodes"
+
+
+def _infinity_next_focus(node: dict[str, object], evidence_events: int) -> str:
+    if bool(node.get("has_repaired_edge", False)):
+        return "rerun with repaired-edge-aware topology checks before promotion"
+    if evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD:
+        return "repeat fixed-seed and perturbation scans to corroborate identity persistence"
+    return "collect more source, entry, exit, bilateral, and weight-delta evidence"
 
 
 def _normalize_state_loads(state_loads: object) -> dict[str, object]:

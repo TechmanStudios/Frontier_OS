@@ -909,6 +909,38 @@ def test_infinity_node_identity_scan_ranks_wormhole_identities(tmp_path: Path):
     assert persisted["nodes"][0]["node_id"] == top_node["node_id"]
 
 
+def test_infinity_node_learning_advisory_turns_scan_into_read_only_guidance(tmp_path: Path):
+    config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
+    controls = EntanglementControls(wormhole_count=4, seed=23)
+    pair = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path)
+    results = pair.run_live_cycles(
+        cycle_count=2,
+        embedding_a_loc=0.49,
+        embedding_b_loc=0.57,
+        embedding_scale=0.08,
+        embedding_drift=0.03,
+    )
+    scan = pair.build_infinity_node_identity_scan(results)
+
+    advisory = pair.build_infinity_node_learning_advisory(scan)
+    rendered = pair.render_infinity_node_learning_advisory(advisory)
+    paths = pair.persist_infinity_node_learning_advisory(scan, advisory=advisory)
+    persisted = json.loads(paths["infinity_node_learning_advisory_json"].read_text(encoding="utf-8"))
+
+    assert advisory["scan_type"] == "infinity_node_learning_advisory"
+    assert advisory["source_scan_type"] == "infinity_node_identity_scan"
+    assert advisory["telemetry_feedback_mode"] == "read_only"
+    assert advisory["learning_status"] in {"needs_more_corroboration", "ready_for_working_mind"}
+    assert advisory["candidate_count"] == min(3, len(scan["nodes"]))
+    assert advisory["candidates"]
+    assert advisory["candidates"][0]["node_id"] == scan["nodes"][0]["node_id"]
+    assert "recommended_use" in advisory["candidates"][0]
+    assert "promotion_guardrail" in advisory
+    assert "[INFINITY NODE LEARNING ADVISORY]" in rendered
+    assert paths["infinity_node_learning_advisory"].exists()
+    assert persisted["telemetry_feedback_mode"] == "read_only"
+
+
 def test_run_pair_runtime_persists_infinity_node_scan_when_enabled(tmp_path: Path):
     controls = EntanglementControls(wormhole_count=4, seed=31)
 
@@ -928,8 +960,11 @@ def test_run_pair_runtime_persists_infinity_node_scan_when_enabled(tmp_path: Pat
     )
 
     assert result["infinity_node_scan"]["scan_type"] == "infinity_node_identity_scan"
+    assert result["infinity_node_learning_advisory"]["scan_type"] == "infinity_node_learning_advisory"
     assert result["output_paths"]["infinity_node_scan"].exists()
     assert result["output_paths"]["infinity_node_scan_json"].exists()
+    assert result["output_paths"]["infinity_node_learning_advisory"].exists()
+    assert result["output_paths"]["infinity_node_learning_advisory_json"].exists()
 
 
 def test_compare_run_checkpoints_reports_first_divergence():
