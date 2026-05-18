@@ -37,6 +37,8 @@ PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
     }
 }
 INFINITY_CHANNEL_TOTAL_EPSILON = 1e-12
+# Cap channel activity so dense/shear/vorticity magnitude cannot swamp repeated
+# cross-manifold and memory-role evidence in the learning advisory score.
 INFINITY_CHANNEL_TOTAL_CAP = 10.0
 INFINITY_LEARNING_TOP_N = 3
 INFINITY_PROMOTION_EVENT_THRESHOLD = 3
@@ -690,7 +692,9 @@ class EntangledSOLPair:
         Returns a dictionary with ``scan_type``, run-level fields such as
         ``pair_id`` and ``mean_phase_coherence``, and a ranked ``nodes`` list
         containing per-wormhole identity, topology, channel, burst, and memory
-        evidence.
+        evidence. If the run did not populate tick traces or phonon bundles, the
+        method still returns a passive baseline census with zero-valued dynamic
+        evidence rather than feeding anything back into live control.
         """
         node_summaries = []
         tick_count = len(results)
@@ -920,7 +924,9 @@ class EntangledSOLPair:
         Returns a dictionary with ``scan_type``, ``learning_status``,
         ``promotion_guardrail``, and ranked ``candidates``. Each candidate
         records the node identity, evidence count, promotion readiness, and
-        recommended future experiment focus.
+        recommended future experiment focus. Only the top ranked scan nodes are
+        included so the artifact stays bounded and points the next experiment at
+        a small, reviewable set of candidate infinity connectors.
         """
         nodes = list(scan.get("nodes", []))
         candidates = []
@@ -3351,6 +3357,7 @@ def _count_values(values: Sequence[str]) -> dict[str, int]:
 
 
 def _mean_float_values(values: Iterable[float]) -> float:
+    """Return the mean of float values, using 0.0 as the empty-evidence default."""
     array = np.fromiter((float(value) for value in values), dtype=float)
     return float(np.mean(array)) if array.size else 0.0
 
@@ -3368,7 +3375,12 @@ def _infinity_channel_recommendation(dominant_channel: str) -> str:
 
 
 def _infinity_next_focus(node: dict[str, object], evidence_events: int) -> str:
-    """Choose the next scan focus from node topology and corroborating evidence count."""
+    """Choose the next scan focus from topology and evidence.
+
+    Repaired-edge nodes first need topology checks, high-evidence nodes need
+    fixed-seed and perturbation corroboration, and low-evidence nodes stay in
+    evidence-collection mode.
+    """
     if bool(node.get("has_repaired_edge", False)):
         return "rerun with repaired-edge-aware topology checks before promotion"
     if evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD:
