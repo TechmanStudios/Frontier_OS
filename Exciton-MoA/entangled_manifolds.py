@@ -698,11 +698,19 @@ class EntangledSOLPair:
         """
         node_summaries = []
         tick_count = len(results)
-        mean_phase_coherence = (
-            _mean_float_values(float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history)
-            if self.tick_trace_history
-            else 0.0
-        )
+        mean_phase_coherence = 0.0
+        if self.tick_trace_history:
+            mean_phase_coherence = _mean_float_values(
+                float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history
+            )
+        bilateral_by_result = [
+            (
+                set((result.get("pair_metrics", {}) or {}).get("bilateral_node_ids", [])),
+                float((result.get("pair_metrics", {}) or {}).get("phase_coherence", 0.0)),
+            )
+            for result in results
+        ]
+        all_bundles = tuple(chain(self.phonon_bundles, self.local_phonon_bundles))
 
         for node_id in self.wormhole_nodes:
             manifold_profiles = {
@@ -719,11 +727,10 @@ class EntangledSOLPair:
             weight_deltas = []
             stability_values = []
 
-            for result in results:
-                pair_metrics = result.get("pair_metrics", {}) or {}
-                if node_id in set(pair_metrics.get("bilateral_node_ids", [])):
+            for bilateral_node_ids, phase_coherence in bilateral_by_result:
+                if node_id in bilateral_node_ids:
                     bilateral_burst_count += 1
-                    involvement_phase_values.append(float(pair_metrics.get("phase_coherence", 0.0)))
+                    involvement_phase_values.append(phase_coherence)
 
             for trace in self.tick_trace_history:
                 trace_phase = float(trace.get("phase_coherence", 0.0))
@@ -754,7 +761,7 @@ class EntangledSOLPair:
                     if edge_flux_values:
                         channel_values["vorticity"].append(float(np.mean(edge_flux_values)))
 
-            for bundle in chain(self.phonon_bundles, self.local_phonon_bundles):
+            for bundle in all_bundles:
                 bundle_nodes = set(bundle.source_nodes)
                 entry_nodes = set(bundle.wormhole_entry_nodes)
                 exit_nodes = set(bundle.wormhole_exit_nodes)
@@ -791,6 +798,7 @@ class EntangledSOLPair:
                 dominant_channel = "ambient"
             dominant_giant = DEFAULT_AMBIENT_GIANT
             if dominant_giant_counts:
+                # The giant name is a deterministic tie-breaker when counts match.
                 dominant_giant = max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
             average_weight_delta = float(np.mean(weight_deltas)) if weight_deltas else 0.0
             stability_score = float(np.mean(stability_values)) if stability_values else 0.0
@@ -931,6 +939,7 @@ class EntangledSOLPair:
         nodes = list(scan.get("nodes", []))
         candidates = []
         ready_count = 0
+        # Fewer than INFINITY_LEARNING_TOP_N nodes is valid for small wormhole counts.
         for rank, node_dict in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
             evidence_events = (
                 int(node_dict.get("bilateral_burst_count", 0))
