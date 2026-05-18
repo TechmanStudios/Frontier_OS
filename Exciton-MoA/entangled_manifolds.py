@@ -38,6 +38,7 @@ PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
 }
 INFINITY_CHANNEL_TOTAL_EPSILON = 1e-12
 INFINITY_CHANNEL_TOTAL_CAP = 10.0
+DEFAULT_AMBIENT_GIANT = "Ambient Basin"
 
 
 class PairRuntimeArgumentParser(argparse.ArgumentParser):
@@ -723,7 +724,7 @@ class EntangledSOLPair:
                         channel_values["shear"].append(
                             abs(float(wormhole_node.get("semantic_potential", 0.0)))
                         )
-                        dominant_giant = str(wormhole_node.get("dominant_giant") or "Ambient Basin")
+                        dominant_giant = str(wormhole_node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT)
                         dominant_giant_counts[dominant_giant] = (
                             dominant_giant_counts.get(dominant_giant, 0) + 1
                         )
@@ -767,20 +768,26 @@ class EntangledSOLPair:
                 channel: float(np.mean(values)) if values else 0.0
                 for channel, values in channel_values.items()
             }
-            dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
+            dominant_channel = (
+                max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
+                if channel_means
+                else "ambient"
+            )
             channel_total = sum(channel_means.values())
             if channel_total <= INFINITY_CHANNEL_TOTAL_EPSILON:
                 dominant_channel = "ambient"
             dominant_giant = (
                 max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
                 if dominant_giant_counts
-                else "Ambient Basin"
+                else DEFAULT_AMBIENT_GIANT
             )
             average_weight_delta = float(np.mean(weight_deltas)) if weight_deltas else 0.0
             stability_score = float(np.mean(stability_values)) if stability_values else 0.0
             phase_coherence_association = (
                 float(np.mean(involvement_phase_values)) if involvement_phase_values else mean_phase_coherence
             )
+            # Bilateral bursts get extra weight because they are the strongest
+            # existing signal that a wormhole node is acting across manifolds.
             identity_score = float(
                 (2.0 * bilateral_burst_count)
                 + source_node_count
@@ -874,7 +881,7 @@ class EntangledSOLPair:
                 f"{float(node_dict.get('average_degree', 0.0)):.2f} | "
                 f"{bool(node_dict.get('has_repaired_edge', False))} | "
                 f"{node_dict.get('dominant_channel', 'ambient')} | "
-                f"{node_dict.get('dominant_giant', 'Ambient Basin')} | "
+                f"{node_dict.get('dominant_giant', DEFAULT_AMBIENT_GIANT)} | "
                 f"{float(node_dict.get('bilateral_burst_frequency', 0.0)):.3f} | "
                 f"{int(node_dict.get('source_node_count', 0))} | "
                 f"{int(node_dict.get('entry_count', 0))} | "
@@ -1029,7 +1036,7 @@ class EntangledSOLPair:
                 "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                 "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
                 "consensus_clock": int(node.get("consensus_clock", 0)),
-                "dominant_giant": str(node.get("dominant_giant") or "Ambient Basin"),
+                "dominant_giant": str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT),
             }
 
         wormhole_edges = self._capture_wormhole_edge_snapshot(manifold)
@@ -1156,7 +1163,7 @@ class EntangledSOLPair:
                     "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                     "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
                     "consensus_clock": int(node.get("consensus_clock", 0)),
-                    "dominant_giant": str(node.get("dominant_giant", "Ambient Basin")),
+                    "dominant_giant": str(node.get("dominant_giant", DEFAULT_AMBIENT_GIANT)),
                 }
             snapshots[manifold_id] = per_node
         return snapshots
@@ -1181,7 +1188,7 @@ class EntangledSOLPair:
                 "resonance_accumulator": float(node.get("resonance_accumulator", 0.0)),
                 "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                 "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
-                "dominant_giant": str(node.get("dominant_giant") or "Ambient Basin"),
+                "dominant_giant": str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT),
             }
         return snapshot
 
@@ -1334,7 +1341,7 @@ class EntangledSOLPair:
             current_resonance = float(node.get("resonance_accumulator", 0.0))
             consensus_confidence = float(node.get("consensus_confidence", 0.0))
             consensus_entropy = float(node.get("consensus_entropy", 0.0))
-            dominant_giant = str(node.get("dominant_giant") or "Ambient Basin")
+            dominant_giant = str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT)
             if baseline_snapshot is not None:
                 baseline = dict(baseline_snapshot.get(node_id, {}))
                 baseline_vector = self._pad_vector(baseline.get("state_vector", []))
@@ -1373,7 +1380,7 @@ class EntangledSOLPair:
             mean_vector = np.zeros(3, dtype=float)
             mean_confidence = 0.0
             mean_entropy = 0.0
-            carrier_giant = "Ambient Basin"
+            carrier_giant = DEFAULT_AMBIENT_GIANT
             source_nodes = ()
 
         amplitude = float(np.linalg.norm(mean_vector))
