@@ -677,6 +677,13 @@ class EntangledSOLPair:
         self,
         results: Sequence[dict[str, object]],
     ) -> dict[str, object]:
+        """Summarize wormhole-node identity evidence from completed tick results.
+
+        ``results`` is the list returned by ``tick`` / ``run_live_cycles``; each
+        entry may contain ``pair_metrics`` with ``bilateral_node_ids`` and
+        ``phase_coherence``. The scan also reads the pair's tick traces and
+        phonon bundle histories that were produced during the same run.
+        """
         node_summaries = []
         tick_count = len(results)
         mean_phase_coherence = (
@@ -782,8 +789,10 @@ class EntangledSOLPair:
             phase_coherence_association = (
                 float(np.mean(involvement_phase_values)) if involvement_phase_values else mean_phase_coherence
             )
-            # Bilateral bursts get extra weight because they are the strongest
-            # existing signal that a wormhole node is acting across manifolds.
+            # Score = 2x bilateral cross-manifold bursts, plus 1x source/entry/exit
+            # memory roles, capped channel activity, absolute control weight motion,
+            # phase association, and stability. The burst multiplier emphasizes the
+            # strongest existing evidence that a wormhole node is acting across manifolds.
             identity_score = float(
                 (2.0 * bilateral_burst_count)
                 + source_node_count
@@ -894,6 +903,7 @@ class EntangledSOLPair:
         results: Sequence[dict[str, object]],
         scan: dict[str, object] | None = None,
     ) -> dict[str, Path]:
+        """Persist a scan built from ``results`` or a pre-built scan from the caller."""
         scan = scan or self.build_infinity_node_identity_scan(results)
         json_path = self.working_dir / "infinity_node_identity_scan.json"
         txt_path = self.working_dir / "infinity_node_identity_scan.txt"
