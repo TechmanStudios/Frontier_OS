@@ -3,9 +3,9 @@
   "arm_promotion": null,
   "best_pocket_tilt": null,
   "coupling_posture_profile_usage_counts": {
-    "none": 235
+    "none": 236
   },
-  "diagnosis_streak_count": 32,
+  "diagnosis_streak_count": 33,
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
@@ -97,7 +97,7 @@
   "last_config_pulse": [
     "--sweep",
     "--sweep-root-dir",
-    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20260522T165306Z",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20260522T203917Z",
     "--clean-run-reset",
     "--enable-hint-gate",
     "--enable-bounded-nudges",
@@ -151,10 +151,10 @@
     0
   ],
   "regime": "explore",
-  "regime_streak": 29,
+  "regime_streak": 30,
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-05-22T16:53:36Z",
+  "updated_utc": "2026-05-22T20:39:48Z",
   "weak_synchrony_streak": 0
 }
