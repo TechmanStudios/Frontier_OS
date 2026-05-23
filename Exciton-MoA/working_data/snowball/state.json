@@ -3,9 +3,9 @@
   "arm_promotion": null,
   "best_pocket_tilt": null,
   "coupling_posture_profile_usage_counts": {
-    "none": 238
+    "none": 286
   },
-  "diagnosis_streak_count": 35,
+  "diagnosis_streak_count": 36,
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
@@ -56,7 +56,7 @@
   "last_config_daily": [
     "--sweep",
     "--sweep-root-dir",
-    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/daily/20260522T073139Z",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/daily/20260523T071138Z",
     "--clean-run-reset",
     "--enable-hint-gate",
     "--enable-bounded-nudges",
@@ -69,11 +69,7 @@
     "0.55",
     "--hint-reliability-threshold",
     "0.6",
-    "--enable-msf-guard",
-    "--coupling-posture-profile",
-    "weak:0.45,0.55,none",
-    "--coupling-posture-profile",
-    "permissive:none,none,0.05",
+    "--no-enable-msf-guard",
     "--cycles",
     "12",
     "--sweep-cycle-counts",
@@ -125,16 +121,17 @@
     "0.06"
   ],
   "last_coupling_posture": "strained",
-  "last_msf_ab_arm": "treatment",
-  "last_paper_trigger": "none",
-  "last_posture_ab_arm": "treatment",
-  "msf_ab_alternation": 4,
+  "last_msf_ab_arm": "control",
+  "last_paper_trigger": "basin_fragility",
+  "last_posture_ab_arm": "control",
+  "msf_ab_alternation": 5,
   "observe_only_streak": 0,
   "paper_basin_fragility_delta": null,
   "policy_probe_alternation": 0,
-  "posture_ab_alternation": 4,
+  "posture_ab_alternation": 5,
   "recent_yields_daily": [
     3,
+    9,
     9,
     9,
     9,
@@ -151,10 +148,10 @@
     0
   ],
   "regime": "explore",
-  "regime_streak": 32,
+  "regime_streak": 33,
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-05-23T06:33:08Z",
+  "updated_utc": "2026-05-23T07:56:23Z",
   "weak_synchrony_streak": 0
 }
