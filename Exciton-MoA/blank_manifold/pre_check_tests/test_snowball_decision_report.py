@@ -26,7 +26,9 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
             fp.write(json.dumps(row, sort_keys=True) + "\n")
 
 
-def _seed_consumer_artifact(consumers_root: Path, name: str, token: str, filename: str, payload: dict) -> Path:
+def _seed_consumer_artifact(
+    consumers_root: Path, name: str, token: str, filename: str, payload: dict
+) -> Path:
     base = consumers_root / name / token
     base.mkdir(parents=True, exist_ok=True)
     path = base / filename
@@ -135,9 +137,7 @@ def test_run_decision_report_with_full_inputs(tmp_path):
     # Stable ledger row.
     ledger_consumer = consumers_root / "snowball_decision_report" / "ledger.jsonl"
     rows = [
-        json.loads(line)
-        for line in ledger_consumer.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in ledger_consumer.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     assert len(rows) == 1
     assert rows[0]["msf_status"] == "favors_treatment"

@@ -190,8 +190,7 @@ def build_lesson_payload(
     # diverge by >= POSTURE_PROFILE_LIFT_THRESHOLD across the same coupling.
     if (
         len(per_profile) >= 2
-        and (max(per_profile.values()) - min(per_profile.values()))
-        >= POSTURE_PROFILE_LIFT_THRESHOLD
+        and (max(per_profile.values()) - min(per_profile.values())) >= POSTURE_PROFILE_LIFT_THRESHOLD
     ):
         lesson_type = "posture_profile_lift"
     else:

@@ -133,9 +133,7 @@ class EntanglerGiant:
             hint_gate=hint_gate,
             coherence_feedback=coherence_feedback,
             recent_phase_coherence=pair_metrics.get("recent_phase_coherence", []),
-            coupling_posture=str(
-                pair_metrics.get("paper_synchrony_coupling_posture", "unknown")
-            ),
+            coupling_posture=str(pair_metrics.get("paper_synchrony_coupling_posture", "unknown")),
         )
         nudge_delta = dict(nudge_summary.get("nudge_delta", {}))
         aperture_target += float(nudge_delta.get("aperture", 0.0))
@@ -413,9 +411,7 @@ class EntanglerGiant:
         )
         profile = _select_coupling_posture_profile(gate_policy, coupling_posture)
         msf_lambda_override = (
-            getattr(profile, "msf_lambda_threshold_override", None)
-            if profile is not None
-            else None
+            getattr(profile, "msf_lambda_threshold_override", None) if profile is not None else None
         )
         msf_eval = self._evaluate_msf_guard(
             gate_policy,
@@ -624,9 +620,7 @@ class EntanglerGiant:
             result["status"] = "insufficient_history"
             return result
         gaps = [max(1.0 - value, 1e-9) for value in history]
-        log_ratios = [
-            float(np.log(gaps[idx + 1] / gaps[idx])) for idx in range(len(gaps) - 1)
-        ]
+        log_ratios = [float(np.log(gaps[idx + 1] / gaps[idx])) for idx in range(len(gaps) - 1)]
         if not log_ratios:
             result["status"] = "insufficient_history"
             return result

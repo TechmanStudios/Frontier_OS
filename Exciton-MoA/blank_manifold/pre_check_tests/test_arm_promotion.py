@@ -104,9 +104,7 @@ def test_evaluate_arm_no_lift_just_below_threshold():
 
 def test_evaluate_arm_uses_only_window_tail():
     rows = [_delta(-5.0)] * 5 + [_delta(1.0)] * 10
-    block = arm_promotion.evaluate_arm(
-        rows, window=10, threshold=0.5, source_token="tok"
-    )
+    block = arm_promotion.evaluate_arm(rows, window=10, threshold=0.5, source_token="tok")
     # Window tail averages +1.0, ignoring the leading regression rows.
     assert block["mean_delta"] == pytest.approx(1.0)
     assert block["status"] == "favors_treatment"
@@ -207,15 +205,9 @@ def test_run_arm_promotion_writes_state_and_artifact(tmp_path, monkeypatch):
     promotion = state["arm_promotion"]
     assert promotion["msf"]["default_arm"] == "treatment"
     assert promotion["posture"]["default_arm"] == "control"
-    ledger_path = (
-        consumers_root / arm_promotion.CONSUMER_NAME / "ledger.jsonl"
-    )
+    ledger_path = consumers_root / arm_promotion.CONSUMER_NAME / "ledger.jsonl"
     assert ledger_path.exists()
-    rows = [
-        json.loads(line)
-        for line in ledger_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
     assert rows[0]["msf_status"] == "favors_treatment"
     assert rows[0]["posture_status"] == "favors_control"
@@ -282,12 +274,8 @@ def test_run_arm_promotion_arms_are_independent(tmp_path, monkeypatch):
 def test_main_cli_dry_run_returns_zero(tmp_path, monkeypatch, capsys):
     _patch_state_path(monkeypatch, tmp_path)
     monkeypatch.setattr(arm_promotion, "MSF_AB_OUTCOMES_PATH", tmp_path / "msf.jsonl")
-    monkeypatch.setattr(
-        arm_promotion, "POSTURE_AB_OUTCOMES_PATH", tmp_path / "posture.jsonl"
-    )
-    monkeypatch.setattr(
-        arm_promotion, "CONSUMERS_DIR", tmp_path / "consumers"
-    )
+    monkeypatch.setattr(arm_promotion, "POSTURE_AB_OUTCOMES_PATH", tmp_path / "posture.jsonl")
+    monkeypatch.setattr(arm_promotion, "CONSUMERS_DIR", tmp_path / "consumers")
     rc = arm_promotion.main(["--dry-run", "--window", "10", "--threshold", "0.5"])
     assert rc == 0
     out = capsys.readouterr().out

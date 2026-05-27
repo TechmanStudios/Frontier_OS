@@ -837,11 +837,7 @@ class HippocampalReplay:
         can distinguish guard-off vs guard-on runs without needing the config
         column. Returns zeroed defaults when no MSF-bearing records exist.
         """
-        msf_records = [
-            record
-            for record in telemetry_records
-            if "entangler_nudge_msf_status" in record
-        ]
+        msf_records = [record for record in telemetry_records if "entangler_nudge_msf_status" in record]
         if not msf_records:
             return {
                 "tick_count": 0,
@@ -889,9 +885,7 @@ class HippocampalReplay:
                 lambda_p95 = float(sorted_lambda[lower])
             else:
                 frac = idx - lower
-                lambda_p95 = float(
-                    sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac
-                )
+                lambda_p95 = float(sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac)
         else:
             lambda_max = 0.0
             lambda_mean = 0.0
