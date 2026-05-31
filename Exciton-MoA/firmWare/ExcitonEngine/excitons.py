@@ -2,8 +2,58 @@
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
 from collections.abc import Sequence
+import sys
+from pathlib import Path
+from contextlib import contextmanager
+import importlib.util
 
 import numpy as np
+
+def _load_sol_telemetry():
+    curr = Path(__file__).resolve()
+    for parent in curr.parents:
+        potential_file = parent / "tools" / "sol-core" / "telemetry.py"
+        if potential_file.exists():
+            try:
+                spec = importlib.util.spec_from_file_location("sol_telemetry", potential_file)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    sys.modules["sol_telemetry"] = mod
+                    spec.loader.exec_module(mod)
+                    return mod
+            except Exception:
+                pass
+    return None
+
+sol_telemetry = _load_sol_telemetry()
+
+if sol_telemetry:
+    telemetry = sol_telemetry
+else:
+    class local_telemetry:
+        @staticmethod
+        @contextmanager
+        def trace_span(name, attributes=None, service_name="sol-system"):
+            yield None
+        @staticmethod
+        def get_tracer(service_name="sol-system"):
+            class DummyTracer:
+                def start_as_current_span(self, name, *args, **kwargs):
+                    class DummySpan:
+                        def __enter__(self): return self
+                        def __exit__(self, exc_type, exc_val, exc_tb): pass
+                        def set_attribute(self, k, v): pass
+                    return DummySpan()
+            return DummyTracer()
+        @staticmethod
+        def get_meter(service_name="sol-system"):
+            class DummyMeter:
+                def create_gauge(self, name, unit="", description=""):
+                    class DummyGauge:
+                        def set(self, val, attrs=None): pass
+                    return DummyGauge()
+            return DummyMeter()
+    telemetry = local_telemetry
 
 
 class ExcitonEngine:
@@ -27,14 +77,18 @@ class ExcitonEngine:
         if not active_nodes:
             return
 
-        print(f"\n[EXCITON IGNITION] {len(active_nodes)} nodes resonating. Deploying Giants...")
+        with telemetry.trace_span("exciton_moa.ignite_excitons", {
+            "exciton.active_nodes_count": len(active_nodes),
+            "service.name": "exciton-moa"
+        }, service_name="exciton-moa"):
+            print(f"\n[EXCITON IGNITION] {len(active_nodes)} nodes resonating. Deploying Giants...")
 
-        for node_id in active_nodes:
-            self._execute_giant_operators(node_id, target_coords)
+            for node_id in active_nodes:
+                self._execute_giant_operators(node_id, target_coords)
 
-        self.manifold_core.solve_semantic_potential()
-        if self.mediator is not None:
-            self.mediator.persist_state()
+            self.manifold_core.solve_semantic_potential()
+            if self.mediator is not None:
+                self.mediator.persist_state()
 
     def _execute_giant_operators(self, node_id: str, target_coords: np.ndarray):
         node_data = self.manifold.nodes[node_id]
