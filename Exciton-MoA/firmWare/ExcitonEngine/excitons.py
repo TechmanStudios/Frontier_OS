@@ -353,3 +353,42 @@ class ExcitonEngine:
                 corrections[src] = 0.0
         return corrections
 
+    def graph_navigator_isolate_waveguides(self, sources: list[str], mixer: str, background_weight: float = 0.01) -> int:
+        """
+        Active Graph Navigator Giant operator for ICAC:
+        Identifies all edges that lie on the shortest path(s) between the input sources and the mixer.
+        Dampens all other edges in the manifold to a minimal background_weight to prevent multipath
+        scattering, reflections, and phase leakage, returning the count of isolated background edges.
+        """
+        path_edges = set()
+        for src in sources:
+            try:
+                # Find all shortest paths between src and mixer
+                paths = list(nx.all_shortest_paths(self.manifold, source=src, target=mixer))
+                for path in paths:
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i+1]
+                        # Store edges as sorted tuples to be direction-independent
+                        path_edges.add(tuple(sorted((u, v))))
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                continue
+
+        dampened_count = 0
+        for u, v in self.manifold.edges():
+            edge_key = tuple(sorted((u, v)))
+            if edge_key not in path_edges:
+                self.manifold[u][v]["weight"] = background_weight
+                dampened_count += 1
+        return dampened_count
+
+    def statistician_tune_capacitance(self, nodes: list[str], target_mass: float = 10.0) -> None:
+        """
+        Active Statistician Giant operator for ICAC:
+        Tunes the semantic mass (capacitance) of the specified nodes to regulate pressure
+        dynamics and prevent non-linear saturation or signal distortion along wave propagation conduits.
+        """
+        for node in nodes:
+            if node in self.manifold.nodes:
+                self.manifold.nodes[node]["semanticMass"] = target_mass
+
+

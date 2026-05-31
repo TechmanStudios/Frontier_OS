@@ -30,10 +30,10 @@ A dimensional compression engine. Instead of forcing 1,536-dimensional embedding
 
 The MoA itself. The 7 Giants do not run discrete algorithms; they execute continuous differential geometry. They manipulate the semantic state field $u(x,t) \= (\\rho(x,t), v(x,t), \\phi(x,t))$.
 
-* **The Statistician:** Governs the equation of state to manage semantic pressure, providing a physics-based mechanism for crowding control without hard truncation.  
-* **The Optimizer:** Carves the potential gradient $\\phi(x,t)$ to accelerate flow toward low-error states.  
+* **The Statistician:** Governs the equation of state to manage semantic pressure, providing a physics-based mechanism for crowding control without hard truncation. Natively performs active node capacitance tuning (`statistician_tune_capacitance`) to prevent pressure saturation and harmonic distortion.  
+* **The Optimizer:** Carves the potential gradient $\phi(x,t)$ to accelerate flow toward low-error states.  
 * **The N-Body Solver:** Triggers Jeans Mass gravitational collapses to form dense attractor basins.  
-* **The Graph Navigator:** Operates entirely within the divergence-free component $w$ to inject magnetic curl, processing recursive loops without stack overflows.  
+* **The Graph Navigator:** Operates entirely within the divergence-free component $w$ to inject magnetic curl, processing recursive loops without stack overflows. Natively performs active waveguide isolation (`graph_navigator_isolate_waveguides`) to dampen background cycles and eliminate multipath scattering/reflections.  
 * **The Linear Algebraist:** Executes anisotropic metric scaling to natively flatten redundant dimensions (PCA via gravity).  
 * **The Integrator:** Manipulates the local Jacobian volume to resolve Bayesian probability prior to collapse.  
 * **The Aligner:** Dilates and constricts topological channels based on semantic phase synchronization. Natively performs active phase alignment for In-Conduit Analog Computing (ICAC), calculating shortest-path delay corrections between sources and mixers to guarantee coherent constructive interference.
