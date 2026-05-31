@@ -36,7 +36,8 @@ The MoA itself. The 7 Giants do not run discrete algorithms; they execute contin
 * **The Graph Navigator:** Operates entirely within the divergence-free component $w$ to inject magnetic curl, processing recursive loops without stack overflows.  
 * **The Linear Algebraist:** Executes anisotropic metric scaling to natively flatten redundant dimensions (PCA via gravity).  
 * **The Integrator:** Manipulates the local Jacobian volume to resolve Bayesian probability prior to collapse.  
-* **The Aligner:** Dilates and constricts topological channels based on semantic phase synchronization.
+* **The Aligner:** Dilates and constricts topological channels based on semantic phase synchronization. Natively performs active phase alignment for In-Conduit Analog Computing (ICAC), calculating shortest-path delay corrections between sources and mixers to guarantee coherent constructive interference.
+
 
 ## **4\. The Telemetry: OntologicalOrchestrator**
 

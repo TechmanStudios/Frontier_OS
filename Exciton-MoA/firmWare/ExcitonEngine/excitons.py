@@ -8,6 +8,7 @@ from contextlib import contextmanager
 import importlib.util
 
 import numpy as np
+import networkx as nx
 
 def _load_sol_telemetry():
     curr = Path(__file__).resolve()
@@ -330,3 +331,25 @@ class ExcitonEngine:
                 )
 
         self.manifold_core.solve_semantic_potential()
+
+    def aligner_icac_phase_alignment(self, sources: list[str], mixer: str, omega: float, dt: float) -> dict[str, float]:
+        """
+        Active Aligner Giant operator for ICAC:
+        Calculates the propagation phase delay from each source to the mixer based on
+        unweighted shortest path lengths (hop count) in the manifold, returning the
+        necessary phase correction (+delay) for coherent wave interference.
+        """
+        corrections = {}
+        for src in sources:
+            try:
+                # Calculate shortest path in terms of hop count (discrete time steps)
+                hops = nx.shortest_path_length(self.manifold, source=src, target=mixer)
+                # Phase shift = hops * omega * dt
+                delay = hops * omega * dt
+                # To align phases constructively, we advance the source phase by +delay
+                corrections[src] = delay
+            except nx.NetworkXNoPath:
+                # If no path exists, default correction to 0
+                corrections[src] = 0.0
+        return corrections
+
