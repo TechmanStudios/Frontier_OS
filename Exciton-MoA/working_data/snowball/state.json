@@ -9,17 +9,17 @@
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
-    "aggregate_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-08-26/aggregate.json",
-    "day": "2026-08-26",
+    "aggregate_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-08-27/aggregate.json",
+    "day": "2026-08-27",
     "files_observed": 4,
-    "generated_utc": "2026-08-26T05:52:54Z",
+    "generated_utc": "2026-08-27T08:30:01Z",
     "overall_status": "pass",
     "runs_observed": 1,
     "schema_version": 1,
     "status_counts": {
       "pass": 1
     },
-    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-08-26/summary.md",
+    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-08-27/summary.md",
     "totals": {
       "errors": 0,
       "failures": 0,
@@ -27,22 +27,22 @@
       "skipped": 8,
       "suites": 4,
       "tests": 1492,
-      "time": 350.284
+      "time": 346.799
     }
   },
   "infinity_node_test_results": {
     "branch": "main",
     "files_observed": 4,
-    "generated_utc": "2026-08-26T05:52:54Z",
+    "generated_utc": "2026-08-27T08:30:01Z",
     "overall_status": "pass",
-    "result_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20260826T055254Z/result.json",
-    "run_id": "32935603584",
-    "run_token": "20260826T055254Z",
-    "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/32935603584",
+    "result_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20260827T083001Z/result.json",
+    "run_id": "33054085365",
+    "run_token": "20260827T083001Z",
+    "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/33054085365",
     "schema_version": 1,
-    "sha": "54ce3d82a47091ff337436012d035925e140a652",
+    "sha": "d44b46350dd6b1ef7d437a68c09a08f0dd501e8d",
     "status": "success",
-    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20260826T055254Z/summary.md",
+    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20260827T083001Z/summary.md",
     "totals": {
       "errors": 0,
       "failures": 0,
@@ -50,7 +50,7 @@
       "skipped": 8,
       "suites": 4,
       "tests": 1492,
-      "time": 350.284
+      "time": 346.799
     }
   },
   "last_config_daily": [
@@ -158,6 +158,6 @@
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-08-27T06:14:14Z",
+  "updated_utc": "2026-08-27T08:30:01Z",
   "weak_synchrony_streak": 0
 }
