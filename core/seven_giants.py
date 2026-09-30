@@ -53,7 +53,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.STATISTICIAN: GiantProfile(
         role=GiantRole.STATISTICIAN,
         agent_id="G1_Statistician",
-        color_hex="#06b6d4",  # Cyan
+        color_hex="#00f0ff",  # Vivid Electric Cyan
         default_mass=1.0,
         default_charge=1.4,
         description="Governs semantic equation of state to regulate crowding and pressure."
@@ -61,7 +61,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.OPTIMIZER: GiantProfile(
         role=GiantRole.OPTIMIZER,
         agent_id="G2_Optimizer",
-        color_hex="#f59e0b",  # Amber/Gold
+        color_hex="#ffb703",  # Radiant Amber Gold
         default_mass=1.1,
         default_charge=0.9,
         description="Carves potential gradient descent towards low-error attractor basins."
@@ -69,7 +69,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.N_BODY_SOLVER: GiantProfile(
         role=GiantRole.N_BODY_SOLVER,
         agent_id="G3_NBodySolver",
-        color_hex="#a855f7",  # Purple
+        color_hex="#e056fd",  # Bright Neon Violet/Magenta
         default_mass=2.0,
         default_charge=1.2,
         description="Triggers Jeans Mass gravitational collapse into dense memory crystals."
@@ -77,7 +77,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.GRAPH_NAVIGATOR: GiantProfile(
         role=GiantRole.GRAPH_NAVIGATOR,
         agent_id="G4_GraphNavigator",
-        color_hex="#10b981",  # Emerald
+        color_hex="#00ff88",  # Laser Neon Green
         default_mass=1.0,
         default_charge=0.8,
         description="Injects divergence-free symplectic curl for deadlock-free loop traversal."
@@ -85,7 +85,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.LINEAR_ALGEBRAIST: GiantProfile(
         role=GiantRole.LINEAR_ALGEBRAIST,
         agent_id="G5_LinearAlgebraist",
-        color_hex="#6366f1",  # Indigo
+        color_hex="#818cf8",  # Bright Electric Orchid
         default_mass=1.2,
         default_charge=1.0,
         description="Executes anisotropic tensor scaling and gravitational PCA compression."
@@ -93,7 +93,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.ALIGNER: GiantProfile(
         role=GiantRole.ALIGNER,
         agent_id="G6_Aligner",
-        color_hex="#3b82f6",  # Blue
+        color_hex="#38bdf8",  # Bright Sky Cyan
         default_mass=1.0,
         default_charge=1.0,
         description="Drives Kuramoto phase synchronization and flocking velocity consensus."
@@ -101,7 +101,7 @@ GIANT_PROFILES: Dict[GiantRole, GiantProfile] = {
     GiantRole.INTEGRATOR: GiantProfile(
         role=GiantRole.INTEGRATOR,
         agent_id="G7_Integrator",
-        color_hex="#ec4899",  # Pink
+        color_hex="#ff3366",  # Hot Radiant Coral Pink
         default_mass=1.3,
         default_charge=1.1,
         description="Computes volumetric Jacobian sqrt(det(g)) and Bayesian normalization."
