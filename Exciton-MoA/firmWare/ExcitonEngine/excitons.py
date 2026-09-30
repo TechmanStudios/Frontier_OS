@@ -2,6 +2,7 @@
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
 from collections.abc import Sequence
+from typing import Optional, Union, Dict, List, Tuple
 import sys
 from pathlib import Path
 from contextlib import contextmanager
@@ -63,12 +64,163 @@ class ExcitonEngine:
     Executes computations via non-Euclidean fluid dynamics.
     """
 
-    def __init__(self, manifold_core, mediator=None):
+    def __init__(self, manifold_core, mediator=None, geodesic_navigator=None):
         self.manifold_core = manifold_core
         self.manifold = manifold_core.graph
-        self.jeans_mass_threshold = manifold_core.config.base_jeans_mass
+        self.jeans_mass_threshold = getattr(getattr(manifold_core, "config", None), "base_jeans_mass", 1.0)
         self.pressure_constant = 1.0
         self.mediator = mediator
+        dim = getattr(getattr(manifold_core, "config", None), "dimensionality", 4)
+        if geodesic_navigator is not None:
+            self.geodesic_navigator = geodesic_navigator
+        else:
+            try:
+                from .geodesic_navigator import RiemannianGeodesicNavigator
+                self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+            except Exception:
+                try:
+                    from geodesic_navigator import RiemannianGeodesicNavigator
+                    self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+                except Exception:
+                    try:
+                        from Frontier_OS.core.geodesic_navigator import RiemannianGeodesicNavigator
+                        self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+                    except Exception:
+                        self.geodesic_navigator = None
+
+    def dispatch_geodesic_exciton(
+        self,
+        start_coords: np.ndarray,
+        initial_velocity: np.ndarray,
+        target_coords: np.ndarray,
+        steps: int = 20,
+        g_ij: np.ndarray = None,
+        metric_evaluator = None
+    ):
+        """
+        Dispatches an Exciton agent through the continuous Riemannian manifold along curved geodesics,
+        integrating Christoffel acceleration, adaptive damping, and potential forces.
+        """
+        if self.geodesic_navigator is None:
+            raise RuntimeError("RiemannianGeodesicNavigator is not configured on ExcitonEngine.")
+
+        dim = len(start_coords)
+        if g_ij is None:
+            g_ij = np.eye(dim)
+
+        trajectory = []
+        x = np.asarray(start_coords, dtype=np.float64).copy()
+        v = np.asarray(initial_velocity, dtype=np.float64).copy()
+
+        for _ in range(steps):
+            step_res = self.geodesic_navigator.step_agent(
+                x=x,
+                v=v,
+                g_ij=g_ij,
+                target_coords=target_coords,
+                metric_evaluator=metric_evaluator
+            )
+            trajectory.append(step_res)
+            x = step_res.position
+            v = step_res.velocity
+
+        return trajectory
+
+    def dispatch_exciton_swarm(
+        self,
+        agents: list,
+        clusters: list,
+        steps: int = 50,
+        dt: float = 0.02
+    ):
+        """
+        Dispatches a collective swarm of Exciton agents across semantic clusters,
+        coordinating mutual repulsion, velocity alignment, and stigmergic Riemannian routing.
+        """
+        try:
+            from Frontier_OS.core.swarm_router import AutonomousSwarmRouter
+        except Exception:
+            try:
+                from core.swarm_router import AutonomousSwarmRouter
+            except Exception:
+                from swarm_router import AutonomousSwarmRouter
+
+        dim = len(agents[0].position) if agents else 4
+        router = AutonomousSwarmRouter(dim=dim, dt=dt)
+        for cluster in clusters:
+            router.add_cluster(
+                cluster_id=cluster.cluster_id,
+                centroid=cluster.centroid,
+                radius=cluster.radius,
+                capacity=cluster.capacity,
+                semantic_density=cluster.semantic_density
+            )
+        for agent in agents:
+            router.add_agent(
+                agent_id=agent.agent_id,
+                role=agent.role,
+                position=agent.position,
+                velocity=agent.velocity,
+                mass=agent.mass,
+                charge=agent.charge,
+                target_cluster=agent.target_cluster
+            )
+
+        reports = router.run_routing_mission(max_steps=steps)
+        return router, reports
+
+    def dispatch_seven_giants(
+        self,
+        clusters: Optional[list] = None,
+        target_cluster: Optional[str] = "core_nexus",
+        base_origin: Optional[np.ndarray] = None,
+        steps: int = 50,
+        dt: float = 0.02
+    ):
+        """
+        Dispatches the complete 7 Giants MoA ensemble on the continuous Riemannian manifold,
+        coordinating differential-geometric operators (pressure regulation, potential gradient,
+        Jeans Mass collapse, symplectic curl, PCA compression, Kuramoto alignment, and volume invariance).
+        """
+        try:
+            from Frontier_OS.core.swarm_router import AutonomousSwarmRouter, SwarmCluster
+            from Frontier_OS.core.seven_giants import SevenGiantsEnsemble
+        except Exception:
+            try:
+                from core.swarm_router import AutonomousSwarmRouter, SwarmCluster
+                from core.seven_giants import SevenGiantsEnsemble
+            except Exception:
+                from swarm_router import AutonomousSwarmRouter, SwarmCluster
+                from seven_giants import SevenGiantsEnsemble
+
+        dim = getattr(getattr(self.manifold_core, "config", None), "dimensionality", 4)
+        router = AutonomousSwarmRouter(dim=dim, dt=dt)
+
+        if clusters is None:
+            # Default target cluster
+            centroid = np.zeros(dim)
+            centroid[0] = 3.5
+            router.add_cluster(
+                cluster_id=target_cluster or "core_nexus",
+                centroid=centroid,
+                radius=1.8,
+                capacity=7,
+                semantic_density=1.5
+            )
+        else:
+            for cluster in clusters:
+                router.add_cluster(
+                    cluster_id=cluster.cluster_id,
+                    centroid=cluster.centroid,
+                    radius=cluster.radius,
+                    capacity=cluster.capacity,
+                    semantic_density=cluster.semantic_density
+                )
+
+        ensemble = SevenGiantsEnsemble(dim=dim)
+        ensemble.deploy_giants(router, target_cluster=target_cluster, base_origin=base_origin)
+        mission_report = ensemble.run_giants_mission(router, max_steps=steps)
+        return router, mission_report
 
     def ignite_excitons(self, target_coords: np.ndarray):
         active_nodes = [
