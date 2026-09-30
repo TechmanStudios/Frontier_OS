@@ -1,11 +1,11 @@
 {
-  "day": "2026-09-30",
+  "day": "2026-09-29",
   "files_observed": 4,
-  "generated_utc": "2026-09-30T05:49:24Z",
+  "generated_utc": "2026-09-29T05:48:29Z",
   "kind": "infinity_node_daily_aggregate",
   "overall_status": "pass",
   "run_tokens": [
-    "20260930T054924Z"
+    "20260929T054829Z"
   ],
   "runs_observed": 1,
   "schema_version": 1,
@@ -19,6 +19,6 @@
     "skipped": 8,
     "suites": 4,
     "tests": 1492,
-    "time": 368.463
+    "time": 279.958
   }
 }
