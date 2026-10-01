@@ -1,21 +1,21 @@
 # Infinity-node daily aggregate
 
-- day: 2026-09-30
-- overall status: pass
+- day: 2026-10-01
+- overall status: fail
 - runs observed: 1
 - files observed: 4
-- generated (UTC): 2026-09-30T05:49:24Z
+- generated (UTC): 2026-10-01T05:47:35Z
 
 ## Aggregate totals
 
 - suites: 4
-- tests: 1492
-- passed: 1484
+- tests: 4
+- passed: 0
 - failures: 0
-- errors: 0
-- skipped: 8
-- time: 368.463
+- errors: 4
+- skipped: 0
+- time: 8.13
 
 ## Status counts
 
-- pass: 1
+- fail: 1

@@ -1,26 +1,26 @@
 # Infinity-node test results
 
-- overall status: pass
-- workflow status: success
-- run id: 36674955392
+- overall status: fail
+- workflow status: failure
+- run id: 36821380679
 - branch: main
-- sha: 2392ae4519e5fb7c3c6888b107e9de28d33b9e30
-- generated (UTC): 2026-09-30T05:49:24Z
+- sha: 3503ffcaf298a8f9f96784e1371c525f92801b18
+- generated (UTC): 2026-10-01T05:47:35Z
 
 ## Aggregate
 
 - files observed: 4
 - suites: 4
-- tests: 1492
-- passed: 1484
+- tests: 4
+- passed: 0
 - failures: 0
-- errors: 0
-- skipped: 8
-- time: 368.463
+- errors: 4
+- skipped: 0
+- time: 8.13
 
 ## JUnit files
 
-- `/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.11.xml`: tests=373, failures=0, errors=0, skipped=2
-- `/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.12.xml`: tests=373, failures=0, errors=0, skipped=2
-- `/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.11.xml`: tests=373, failures=0, errors=0, skipped=2
-- `/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.12.xml`: tests=373, failures=0, errors=0, skipped=2
+- `/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.11.xml`: tests=1, failures=0, errors=1, skipped=0
+- `/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.12.xml`: tests=1, failures=0, errors=1, skipped=0
+- `/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.11.xml`: tests=1, failures=0, errors=1, skipped=0
+- `/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.12.xml`: tests=1, failures=0, errors=1, skipped=0
