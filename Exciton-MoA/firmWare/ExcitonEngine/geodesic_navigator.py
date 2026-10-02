@@ -8,6 +8,7 @@ where Gamma^k_ij are the Levi-Civita Christoffel symbols of the second kind:
     Gamma^k_ij = 0.5 * g^kl * (d_i g_jl + d_j g_il - d_l g_ij)
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -44,7 +45,10 @@ class ChristoffelCalculator:
         self.eps = eps
 
     def compute_symbols(
-        self, g_ij: np.ndarray, metric_evaluator: callable | None = None, x: np.ndarray | None = None
+        self,
+        g_ij: np.ndarray,
+        metric_evaluator: Callable[[np.ndarray], np.ndarray] | None = None,
+        x: np.ndarray | None = None,
     ) -> np.ndarray:
         """
         Calculates Gamma^k_ij as a (dim, dim, dim) tensor.
@@ -139,7 +143,7 @@ class RiemannianGeodesicNavigator:
         target_coords: np.ndarray | None = None,
         ricci_scalar: float = 0.0,
         curvature_gradient: np.ndarray | None = None,
-        metric_evaluator: callable | None = None,
+        metric_evaluator: Callable[[np.ndarray], np.ndarray] | None = None,
         potential_coupling: float = 1.0,
     ) -> GeodesicStepResult:
         """
