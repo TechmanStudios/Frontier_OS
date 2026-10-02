@@ -105,9 +105,7 @@ def build_advisory_clamp(
             lesson_types.add(lsn["lesson_type"])
         profile_used = lsn.get("profile_used")
         if isinstance(profile_used, str) and profile_used and profile_used != "none":
-            recommended_profile_counts[profile_used] = (
-                recommended_profile_counts.get(profile_used, 0) + 1
-            )
+            recommended_profile_counts[profile_used] = recommended_profile_counts.get(profile_used, 0) + 1
     return {
         "schema_version": ADVISORY_SCHEMA_VERSION,
         "applicable_pockets": sorted(applicable),
@@ -196,8 +194,7 @@ def run_lesson_advisory_writer(
         return {
             "status": "noop",
             "reason": (
-                f"no lesson met corroboration_count >= {min_corroboration} "
-                "with empty contraindications"
+                f"no lesson met corroboration_count >= {min_corroboration} with empty contraindications"
             ),
             "source_path": lessons_path.as_posix(),
             "candidates": len(lessons),

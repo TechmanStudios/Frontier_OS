@@ -139,9 +139,7 @@ def run_repro_baseline_check(
         for idx in range(repeats):
             run_dir = tmp_root_path / f"run_{idx}"
             run_dir.mkdir(parents=True, exist_ok=True)
-            history = _run_phase_coherence_history(
-                config, run_dir, embeddings_a, embeddings_b
-            )
+            history = _run_phase_coherence_history(config, run_dir, embeddings_a, embeddings_b)
             histories_lengths.append(len(history))
             hashes.append(hash_phase_coherence_history(history))
 

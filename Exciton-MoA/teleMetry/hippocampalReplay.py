@@ -52,7 +52,7 @@ class HippocampalReplay:
                 "crystallized_nodes": 0,
                 "total_absorbed_dissipation": 0.0,
                 "mean_consensus_confidence": 0.0,
-                "dominant_crystal_nodes": []
+                "dominant_crystal_nodes": [],
             }
 
         absorbed = [float(r.get("absorbed_dissipation", r.get("h_total", 0.0))) for r in records]
@@ -62,7 +62,7 @@ class HippocampalReplay:
             "crystallized_nodes": len(records),
             "total_absorbed_dissipation": sum(absorbed),
             "mean_consensus_confidence": float(np.mean(confidences)),
-            "dominant_crystal_nodes": [str(r.get("node_id")) for r in sorted_records[:5]]
+            "dominant_crystal_nodes": [str(r.get("node_id")) for r in sorted_records[:5]],
         }
 
     def load_pair_telemetry_records(self, pair_id: str | None = None) -> list[dict[str, object]]:
@@ -863,11 +863,7 @@ class HippocampalReplay:
         can distinguish guard-off vs guard-on runs without needing the config
         column. Returns zeroed defaults when no MSF-bearing records exist.
         """
-        msf_records = [
-            record
-            for record in telemetry_records
-            if "entangler_nudge_msf_status" in record
-        ]
+        msf_records = [record for record in telemetry_records if "entangler_nudge_msf_status" in record]
         if not msf_records:
             return {
                 "tick_count": 0,
@@ -915,9 +911,7 @@ class HippocampalReplay:
                 lambda_p95 = float(sorted_lambda[lower])
             else:
                 frac = idx - lower
-                lambda_p95 = float(
-                    sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac
-                )
+                lambda_p95 = float(sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac)
         else:
             lambda_max = 0.0
             lambda_mean = 0.0

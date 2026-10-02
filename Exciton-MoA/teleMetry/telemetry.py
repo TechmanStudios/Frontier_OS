@@ -2,12 +2,13 @@
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
 import hashlib
-import sys
-from pathlib import Path
-from contextlib import contextmanager
 import importlib.util
+import sys
+from contextlib import contextmanager
+from pathlib import Path
 
 import numpy as np
+
 
 def _load_sol_telemetry():
     curr = Path(__file__).resolve()
@@ -25,34 +26,49 @@ def _load_sol_telemetry():
                 pass
     return None
 
+
 sol_telemetry = _load_sol_telemetry()
 
 if sol_telemetry:
     telemetry = sol_telemetry
 else:
+
     class local_telemetry:
         @staticmethod
         @contextmanager
         def trace_span(name, attributes=None, service_name="sol-system"):
             yield None
+
         @staticmethod
         def get_tracer(service_name="sol-system"):
             class DummyTracer:
                 def start_as_current_span(self, name, *args, **kwargs):
                     class DummySpan:
-                        def __enter__(self): return self
-                        def __exit__(self, exc_type, exc_val, exc_tb): pass
-                        def set_attribute(self, k, v): pass
+                        def __enter__(self):
+                            return self
+
+                        def __exit__(self, exc_type, exc_val, exc_tb):
+                            pass
+
+                        def set_attribute(self, k, v):
+                            pass
+
                     return DummySpan()
+
             return DummyTracer()
+
         @staticmethod
         def get_meter(service_name="sol-system"):
             class DummyMeter:
                 def create_gauge(self, name, unit="", description=""):
                     class DummyGauge:
-                        def set(self, val, attrs=None): pass
+                        def set(self, val, attrs=None):
+                            pass
+
                     return DummyGauge()
+
             return DummyMeter()
+
     telemetry = local_telemetry
 
 
@@ -94,10 +110,16 @@ class OntologicalOrchestrator:
         # OpenTelemetry meters and gauges
         try:
             meter = telemetry.get_meter("exciton-moa")
-            self.avg_h_gauge = meter.create_gauge("exciton.metrics.avg_h", description="Average H-score across manifold")
-            self.max_h_gauge = meter.create_gauge("exciton.metrics.max_h", description="Max H-score across manifold")
+            self.avg_h_gauge = meter.create_gauge(
+                "exciton.metrics.avg_h", description="Average H-score across manifold"
+            )
+            self.max_h_gauge = meter.create_gauge(
+                "exciton.metrics.max_h", description="Max H-score across manifold"
+            )
             self.tau_gauge = meter.create_gauge("exciton.metrics.tau", description="Adaptive threshold tau")
-            self.burst_count_gauge = meter.create_gauge("exciton.metrics.burst_count", description="Number of threshold bursts")
+            self.burst_count_gauge = meter.create_gauge(
+                "exciton.metrics.burst_count", description="Number of threshold bursts"
+            )
         except Exception:
             self.avg_h_gauge = None
             self.max_h_gauge = None
@@ -215,14 +237,18 @@ class OntologicalOrchestrator:
         avg_h = float(np.mean(h_values)) if h_values else 0.0
         max_h = float(np.max(h_values)) if h_values else 0.0
 
-        with telemetry.trace_span("exciton_moa.scan_manifold", {
-            "exciton.manifold_id": self.manifold_id,
-            "exciton.tau": self.tau,
-            "exciton.avg_h": avg_h,
-            "exciton.max_h": max_h,
-            "exciton.burst_count": len(active_bursts),
-            "service.name": "exciton-moa"
-        }, service_name="exciton-moa"):
+        with telemetry.trace_span(
+            "exciton_moa.scan_manifold",
+            {
+                "exciton.manifold_id": self.manifold_id,
+                "exciton.tau": self.tau,
+                "exciton.avg_h": avg_h,
+                "exciton.max_h": max_h,
+                "exciton.burst_count": len(active_bursts),
+                "service.name": "exciton-moa",
+            },
+            service_name="exciton-moa",
+        ):
             # Update metrics
             try:
                 if self.avg_h_gauge:
