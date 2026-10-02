@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -56,9 +55,7 @@ def load_summaries(candidates: list[tuple[str, Path]]) -> list[tuple[str, dict[s
     return summaries
 
 
-def evaluate_regressions(
-    summaries: list[tuple[str, dict[str, Any]]]
-) -> list[dict[str, Any]]:
+def evaluate_regressions(summaries: list[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
     """Scan the summaries tail for triggered breaches."""
     breaches: list[dict[str, Any]] = []
     if not summaries:
@@ -76,26 +73,28 @@ def evaluate_regressions(
         prev_status = prev_msf.get("status")
         curr_status = curr_msf.get("status")
         if prev_status == "favors_treatment" and curr_status == "favors_control":
-            breaches.append({
-                "type": "msf_promotion_flip",
-                "description": (
-                    f"MSF promotion flipped from favors_treatment ({prev_token}) "
-                    f"to favors_control ({curr_token})"
-                ),
-                "metric": 1.0,
-                "threshold": 1.0,
-                "baseline_token": prev_token,
-                "target_token": curr_token,
-            })
+            breaches.append(
+                {
+                    "type": "msf_promotion_flip",
+                    "description": (
+                        f"MSF promotion flipped from favors_treatment ({prev_token}) "
+                        f"to favors_control ({curr_token})"
+                    ),
+                    "metric": 1.0,
+                    "threshold": 1.0,
+                    "baseline_token": prev_token,
+                    "target_token": curr_token,
+                }
+            )
 
         # Mean delta of natural entries drops by >= 1.0
         prev_delta = prev_msf.get("mean_delta")
         curr_delta = curr_msf.get("mean_delta")
-        if prev_delta is not None and curr_delta is not None:
-            if isinstance(prev_delta, (int, float)) and isinstance(curr_delta, (int, float)):
-                drop = prev_delta - curr_delta
-                if drop >= 1.0:
-                    breaches.append({
+        if isinstance(prev_delta, (int, float)) and isinstance(curr_delta, (int, float)):
+            drop = prev_delta - curr_delta
+            if drop >= 1.0:
+                breaches.append(
+                    {
                         "type": "mean_delta_drop",
                         "description": (
                             f"MSF mean_delta dropped from {prev_delta:.3f} to "
@@ -105,7 +104,8 @@ def evaluate_regressions(
                         "threshold": 1.0,
                         "baseline_token": prev_token,
                         "target_token": curr_token,
-                    })
+                    }
+                )
 
     # 2. Check hold overuse in the latest summary
     latest_token, latest_data = summaries[-1]
@@ -116,25 +116,24 @@ def evaluate_regressions(
         if total_count > 0:
             hold_ratio = hold_count / total_count
             if hold_ratio > 0.7:
-                breaches.append({
-                    "type": "hold_overuse",
-                    "description": (
-                        f"Hold regime count ({hold_count}/{total_count}) "
-                        f"ratio {hold_ratio:.3f} exceeds 0.7 threshold"
-                    ),
-                    "metric": hold_ratio,
-                    "threshold": 0.7,
-                    "baseline_token": latest_token,
-                    "target_token": latest_token,
-                })
+                breaches.append(
+                    {
+                        "type": "hold_overuse",
+                        "description": (
+                            f"Hold regime count ({hold_count}/{total_count}) "
+                            f"ratio {hold_ratio:.3f} exceeds 0.7 threshold"
+                        ),
+                        "metric": hold_ratio,
+                        "threshold": 0.7,
+                        "baseline_token": latest_token,
+                        "target_token": latest_token,
+                    }
+                )
 
     return breaches
 
 
-def build_incident_payload(
-    breaches: list[dict[str, Any]],
-    run_dirs_observed: list[str]
-) -> dict[str, Any]:
+def build_incident_payload(breaches: list[dict[str, Any]], run_dirs_observed: list[str]) -> dict[str, Any]:
     """Construct schema-compliant incident payload."""
     primary = breaches[0]
     actions = []
@@ -285,7 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     outcome = run_monitor(K=args.K, dry_run=args.dry_run)
-    print(json.dumps({k: v for k, v in outcome.items() if k != "payload"}, sort_keys=True, indent=2, default=str))
+    print(
+        json.dumps(
+            {k: v for k, v in outcome.items() if k != "payload"}, sort_keys=True, indent=2, default=str
+        )
+    )
     return 0
 
 

@@ -273,9 +273,7 @@ def validate_knowledge_lesson(payload: Any) -> ValidationResult:
     # emit v2.
     version = payload.get("schema_version")
     if version not in (1, 2):
-        errors.append(
-            f"schema_version must be 1 or 2 for 'knowledge_lesson', got {version!r}"
-        )
+        errors.append(f"schema_version must be 1 or 2 for 'knowledge_lesson', got {version!r}")
     _check_enum(payload, "lesson_type", VALID_LESSON_TYPES, errors)
     _check_int(payload, "corroboration_count", errors, minimum=2)
     _check_list_of_str(payload, "evidence_run_dirs", errors)
@@ -312,9 +310,7 @@ def _check_arm_block(payload: Any, key: str, errors: list[str]) -> None:
             errors.append(f"{key}.{str_field} must be non-empty str")
     status = block.get("status")
     if status not in VALID_ARM_PROMOTION_STATUSES:
-        errors.append(
-            f"{key}.status must be one of {VALID_ARM_PROMOTION_STATUSES}, got {status!r}"
-        )
+        errors.append(f"{key}.status must be one of {VALID_ARM_PROMOTION_STATUSES}, got {status!r}")
 
 
 def validate_arm_promotion(payload: Any) -> ValidationResult:
