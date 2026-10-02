@@ -8,24 +8,17 @@ where Gamma^k_ij are the Levi-Civita Christoffel symbols of the second kind:
     Gamma^k_ij = 0.5 * g^kl * (d_i g_jl + d_j g_il - d_l g_ij)
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import scipy.linalg as la
-
-from sol.kernel.geometry.ricci import (
-    DiscreteRicciFlowEngine,
-    ExcitonTrajectory
-)
-from sol.diagnostics.damping_spectrogram import (
-    AdaptiveDampingStabilizer,
-    DampingSpectrogram
-)
 from Frontier_OS.core.telemetry_hook import (
     AgentDispatchThrottler,
-    CurvatureTelemetryPacket,
-    ManifoldTelemetryIPC
+    ManifoldTelemetryIPC,
 )
+from sol.diagnostics.damping_spectrogram import AdaptiveDampingStabilizer, DampingSpectrogram
+from sol.kernel.geometry.ricci import DiscreteRicciFlowEngine
 
 
 @dataclass
@@ -46,6 +39,7 @@ class ChristoffelCalculator:
         Gamma^k_ij = 0.5 * g^kl * (d_i g_jl + d_j g_il - d_l g_ij)
     using vectorized local finite differences across coordinate charts.
     """
+
     def __init__(self, dim: int, eps: float = 1e-4):
         self.dim = dim
         self.eps = eps
@@ -53,8 +47,8 @@ class ChristoffelCalculator:
     def compute_symbols(
         self,
         g_ij: np.ndarray,
-        metric_evaluator: Optional[callable] = None,
-        x: Optional[np.ndarray] = None
+        metric_evaluator: Callable[[np.ndarray], np.ndarray] | None = None,
+        x: np.ndarray | None = None,
     ) -> np.ndarray:
         """
         Calculates Gamma^k_ij as a (dim, dim, dim) tensor.
@@ -65,12 +59,12 @@ class ChristoffelCalculator:
 
         if metric_evaluator is not None and x is not None:
             # Numerical directional derivative along coordinate axes
-            for l in range(self.dim):
+            for axis in range(self.dim):
                 dx = np.zeros(self.dim)
-                dx[l] = self.eps
+                dx[axis] = self.eps
                 g_plus = metric_evaluator(x + dx)
                 g_minus = metric_evaluator(x - dx)
-                dg[l] = (g_plus - g_minus) / (2.0 * self.eps)
+                dg[axis] = (g_plus - g_minus) / (2.0 * self.eps)
         else:
             # In localized discrete chart, metric variation scales with local curvature
             # dg is bounded by local anisotropic deformation
@@ -84,7 +78,7 @@ class ChristoffelCalculator:
         # d_j g_il -> input (j, i, l) -> permute (2, 1, 0) to get (l, i, j)
         # d_l g_ij -> input (l, i, j) -> identity (0, 1, 2)
         term = np.transpose(dg, (2, 0, 1)) + np.transpose(dg, (2, 1, 0)) - dg
-        Gamma = 0.5 * np.einsum('kl,lij->kij', inv_g, term)
+        Gamma = 0.5 * np.einsum("kl,lij->kij", inv_g, term)
         return Gamma
 
 
@@ -93,16 +87,17 @@ class RiemannianGeodesicNavigator:
     Dispatches and steers Exciton agents along Riemannian geodesics.
     Couples metric curvature, velocity-damping, and Frontier_OS deflection.
     """
+
     def __init__(
         self,
         dim: int,
         dt: float = 0.01,
-        ricci_engine: Optional[DiscreteRicciFlowEngine] = None,
-        damping_stabilizer: Optional[AdaptiveDampingStabilizer] = None,
-        ipc: Optional[ManifoldTelemetryIPC] = None,
-        throttler: Optional[AgentDispatchThrottler] = None,
+        ricci_engine: DiscreteRicciFlowEngine | None = None,
+        damping_stabilizer: AdaptiveDampingStabilizer | None = None,
+        ipc: ManifoldTelemetryIPC | None = None,
+        throttler: AgentDispatchThrottler | None = None,
         horizon_radius: float = 25.0,
-        boundary_stiffness: float = 0.5
+        boundary_stiffness: float = 0.5,
     ):
         self.dim = dim
         self.dt = dt
@@ -119,15 +114,11 @@ class RiemannianGeodesicNavigator:
         if self.ipc and not self.throttler:
             self.throttler = AgentDispatchThrottler(self.ipc)
 
-    def compute_geodesic_acceleration(
-        self,
-        v: np.ndarray,
-        Gamma: np.ndarray
-    ) -> np.ndarray:
+    def compute_geodesic_acceleration(self, v: np.ndarray, Gamma: np.ndarray) -> np.ndarray:
         """
         Geodesic acceleration: a^k_geo = -Gamma^k_ij * v^i * v^j
         """
-        return -np.einsum('kij,i,j->k', Gamma, v, v)
+        return -np.einsum("kij,i,j->k", Gamma, v, v)
 
     def compute_boundary_confinement(self, x: np.ndarray) -> np.ndarray:
         """
@@ -135,12 +126,12 @@ class RiemannianGeodesicNavigator:
         Prevents exciton trajectories from escaping into unbounded coordinate voids.
         """
         r_sq = float(np.sum(x**2))
-        r_horiz_sq = self.horizon_radius ** 2
+        r_horiz_sq = self.horizon_radius**2
         margin = max(r_horiz_sq - r_sq, 0.1)
         if r_sq < (0.25 * r_horiz_sq):
             return np.zeros(self.dim, dtype=np.float64)
 
-        factor = (self.boundary_stiffness * 4.0) / (margin ** 2)
+        factor = (self.boundary_stiffness * 4.0) / (margin**2)
         factor = min(factor, 50.0)
         return -factor * x
 
@@ -149,11 +140,11 @@ class RiemannianGeodesicNavigator:
         x: np.ndarray,
         v: np.ndarray,
         g_ij: np.ndarray,
-        target_coords: Optional[np.ndarray] = None,
+        target_coords: np.ndarray | None = None,
         ricci_scalar: float = 0.0,
-        curvature_gradient: Optional[np.ndarray] = None,
-        metric_evaluator: Optional[callable] = None,
-        potential_coupling: float = 1.0
+        curvature_gradient: np.ndarray | None = None,
+        metric_evaluator: Callable[[np.ndarray], np.ndarray] | None = None,
+        potential_coupling: float = 1.0,
     ) -> GeodesicStepResult:
         """
         Advances an exciton agent by one integration timestep dt along the Riemannian manifold.
@@ -194,12 +185,7 @@ class RiemannianGeodesicNavigator:
         x_next = x + self.dt * v_next
 
         # 9. Record diagnostic telemetry frame
-        self.spectrogram.record_state(
-            timestamp_ms=0.0,
-            v=v_next,
-            g_ij=g_ij,
-            ricci_scalar=ricci_scalar
-        )
+        self.spectrogram.record_state(timestamp_ms=0.0, v=v_next, g_ij=g_ij, ricci_scalar=ricci_scalar)
 
         return GeodesicStepResult(
             position=x_next,
@@ -209,5 +195,5 @@ class RiemannianGeodesicNavigator:
             damping_gamma=gamma,
             kinetic_energy=e_k,
             is_throttled=is_throttled,
-            routing_channel=channel
+            routing_channel=channel,
         )

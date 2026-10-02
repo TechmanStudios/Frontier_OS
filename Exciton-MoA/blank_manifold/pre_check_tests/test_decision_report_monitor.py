@@ -93,7 +93,7 @@ def test_run_monitor_msf_promotion_flip(tmp_path):
     assert outcome["status"] == "ok"
     assert outcome["incident_fired"] is True
     assert outcome["severity"] == "critical"
-    
+
     # Check created files
     artifact_path = Path(outcome["artifact_path"])
     assert artifact_path.exists()
@@ -134,7 +134,7 @@ def test_run_monitor_mean_delta_drop(tmp_path):
     )
     assert outcome["status"] == "ok"
     assert outcome["incident_fired"] is True
-    
+
     payload = json.loads(Path(outcome["artifact_path"]).read_text(encoding="utf-8"))
     assert len(payload["breaches"]) == 1
     assert payload["breaches"][0]["type"] == "mean_delta_drop"
@@ -159,7 +159,7 @@ def test_run_monitor_hold_overuse(tmp_path):
     )
     assert outcome["status"] == "ok"
     assert outcome["incident_fired"] is True
-    
+
     payload = json.loads(Path(outcome["artifact_path"]).read_text(encoding="utf-8"))
     assert len(payload["breaches"]) == 1
     assert payload["breaches"][0]["type"] == "hold_overuse"

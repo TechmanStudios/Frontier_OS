@@ -125,9 +125,7 @@ class StatisticalPrism:
             density_values.append(float(node.get("resonance_accumulator", 0.0)))
             shear_values.append(abs(float(node.get("semantic_potential", 0.0))))
             for neighbor in sorted(self.graph.neighbors(node_id)):
-                flux_values.append(
-                    abs(float(self.graph[node_id][neighbor].get("residual_flux", 0.0)))
-                )
+                flux_values.append(abs(float(self.graph[node_id][neighbor].get("residual_flux", 0.0))))
 
         density = float(np.mean(sorted(density_values))) if density_values else 0.0
         shear = float(np.mean(sorted(shear_values))) if shear_values else 0.0

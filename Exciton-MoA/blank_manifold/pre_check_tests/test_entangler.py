@@ -1135,5 +1135,3 @@ def test_no_profiles_configured_marks_inactive_and_keeps_baseline_thresholds():
     assert gate["coupling_posture_profiles_active"] is False
     assert gate["coupling_posture_profile_used"] == "none"
     assert gate["confidence_threshold_effective"] == 0.80
-
-

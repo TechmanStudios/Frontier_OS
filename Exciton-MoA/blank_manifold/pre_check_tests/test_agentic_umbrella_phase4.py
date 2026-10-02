@@ -172,9 +172,7 @@ def test_validate_knowledge_lesson_accepts_v1_for_back_compat():
 def test_aggregate_patterns_groups_by_coupling_and_diagnosis(umbrella_world):
     sweep_by_run: list[tuple[str, list[dict]]] = []
     for rd in umbrella_world["run_dirs"]:
-        rows = json.loads(
-            "[" + ",".join((rd / "sweep_summary.jsonl").read_text().splitlines()) + "]"
-        )
+        rows = json.loads("[" + ",".join((rd / "sweep_summary.jsonl").read_text().splitlines()) + "]")
         sweep_by_run.append((rd.as_posix(), rows))
     aggregates = lesson_compiler.aggregate_patterns(sweep_by_run)
     weak_low = aggregates[("weak", "low_variance_candidate", "none", "disabled")]
@@ -227,11 +225,7 @@ def test_run_lesson_compiler_writes_artifact_and_ledger(umbrella_world):
     assert "Lesson Compiler" in summary_path.read_text(encoding="utf-8")
     ledger_path = umbrella_world["consumers_root"] / lesson_compiler.CONSUMER_NAME / "ledger.jsonl"
     assert ledger_path.exists()
-    rows = [
-        json.loads(line)
-        for line in ledger_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
     assert rows[0]["lesson_count"] == outcome["lesson_count"]
     assert rows[0]["max_corroboration"] >= 2
@@ -276,11 +270,7 @@ def test_run_lesson_compiler_re_run_appends_second_ledger_row(umbrella_world):
     o2 = lesson_compiler.run_lesson_compiler(**common)
     assert o1["status"] == o2["status"] == "ok"
     ledger_path = umbrella_world["consumers_root"] / lesson_compiler.CONSUMER_NAME / "ledger.jsonl"
-    rows = [
-        json.loads(line)
-        for line in ledger_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 2
 
 
@@ -597,14 +587,42 @@ def test_aggregate_patterns_includes_per_profile_natural_entry_means(tmp_path):
         (
             rd.as_posix(),
             [
-                _v2_row(0.50, 0.57, 0.06, "weak", "low_variance_candidate",
-                        profile_used="none", met_entry_policy=False),
-                _v2_row(0.50, 0.58, 0.06, "weak", "low_variance_candidate",
-                        profile_used="none", met_entry_policy=False),
-                _v2_row(0.51, 0.57, 0.06, "weak", "low_variance_candidate",
-                        profile_used="weak", met_entry_policy=True),
-                _v2_row(0.51, 0.58, 0.06, "weak", "low_variance_candidate",
-                        profile_used="weak", met_entry_policy=True),
+                _v2_row(
+                    0.50,
+                    0.57,
+                    0.06,
+                    "weak",
+                    "low_variance_candidate",
+                    profile_used="none",
+                    met_entry_policy=False,
+                ),
+                _v2_row(
+                    0.50,
+                    0.58,
+                    0.06,
+                    "weak",
+                    "low_variance_candidate",
+                    profile_used="none",
+                    met_entry_policy=False,
+                ),
+                _v2_row(
+                    0.51,
+                    0.57,
+                    0.06,
+                    "weak",
+                    "low_variance_candidate",
+                    profile_used="weak",
+                    met_entry_policy=True,
+                ),
+                _v2_row(
+                    0.51,
+                    0.58,
+                    0.06,
+                    "weak",
+                    "low_variance_candidate",
+                    profile_used="weak",
+                    met_entry_policy=True,
+                ),
             ],
         ),
     ]
@@ -718,9 +736,7 @@ def _ok_arm_promotion():
     return {
         "schema_version": agent_handoff_schemas.SCHEMA_VERSIONS["arm_promotion"],
         "msf": _ok_arm_block(),
-        "posture": _ok_arm_block(
-            default_arm=None, status="insufficient_evidence", mean=0.0, paired=3
-        ),
+        "posture": _ok_arm_block(default_arm=None, status="insufficient_evidence", mean=0.0, paired=3),
         "generated_utc": "2026-06-01T00:00:00Z",
     }
 
@@ -764,4 +780,3 @@ def test_validate_arm_promotion_rejects_missing_arm_block():
 
 def test_schema_versions_contains_arm_promotion():
     assert agent_handoff_schemas.SCHEMA_VERSIONS.get("arm_promotion") == 1
-

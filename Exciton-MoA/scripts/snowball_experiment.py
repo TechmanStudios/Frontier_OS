@@ -469,26 +469,21 @@ def decide_next_config(
             if posture_alt % 2 == 1:
                 coupling_posture_profile_specs = POSTURE_AB_TREATMENT_DEFAULT_SPECS
                 flags.append("__posture_ab_treatment__")
-                rationale_parts.append(
-                    "posture_ab: treatment (coupling_posture_profiles: weak,permissive)"
-                )
+                rationale_parts.append("posture_ab: treatment (coupling_posture_profiles: weak,permissive)")
             else:
                 coupling_posture_profile_specs = ()
                 rationale_parts.append("posture_ab: control (no coupling_posture_profiles)")
         # D2: if the posture treatment arm is active and the advisory clamp
         # has surfaced a clear recommended profile, narrow the spec list to
         # just that one. Tie/empty/unmapped -> fall back to the default pair.
-        if (
-            "__posture_ab_treatment__" in flags
-            and isinstance(clamp_advisory := state.get("advisory_lesson_clamp"), dict)
+        if "__posture_ab_treatment__" in flags and isinstance(
+            clamp_advisory := state.get("advisory_lesson_clamp"), dict
         ):
             recommended_counts = clamp_advisory.get("recommended_profile_counts") or {}
             if isinstance(recommended_counts, dict) and recommended_counts:
                 winner = _pick_recommended_profile(recommended_counts)
                 if winner is not None and winner in RECOMMENDED_PROFILE_SPEC_TEMPLATES:
-                    coupling_posture_profile_specs = (
-                        RECOMMENDED_PROFILE_SPEC_TEMPLATES[winner],
-                    )
+                    coupling_posture_profile_specs = (RECOMMENDED_PROFILE_SPEC_TEMPLATES[winner],)
                     rationale_parts.append(f"recommended_profile: {winner}")
 
     # Advisory lesson clamp — if the lesson_advisory_writer consumer has
@@ -703,8 +698,8 @@ def parse_results(run_dir: Path) -> dict[str, Any]:
         if isinstance(row_msf_counts, dict):
             for status_key, status_value in row_msf_counts.items():
                 try:
-                    msf_status_counts[str(status_key)] = (
-                        msf_status_counts.get(str(status_key), 0) + int(status_value or 0)
+                    msf_status_counts[str(status_key)] = msf_status_counts.get(str(status_key), 0) + int(
+                        status_value or 0
                     )
                 except (TypeError, ValueError):
                     continue
@@ -829,7 +824,9 @@ def apply_results_to_state(
     # D2: when an arm is promotion-locked we freeze the corresponding
     # alternation counter; flipping it would make a later un-promotion start
     # mid-cycle. ``last_*_ab_arm`` still records the executed arm.
-    promotion_after = new_state.get("arm_promotion") if isinstance(new_state.get("arm_promotion"), dict) else None
+    promotion_after = (
+        new_state.get("arm_promotion") if isinstance(new_state.get("arm_promotion"), dict) else None
+    )
     msf_locked = False
     posture_locked = False
     if isinstance(promotion_after, dict):
@@ -842,15 +839,11 @@ def apply_results_to_state(
     if tier == "daily" and config.regime in {"explore", "exploit"}:
         if not msf_locked:
             new_state["msf_ab_alternation"] = int(new_state.get("msf_ab_alternation", 0) or 0) + 1
-        new_state["last_msf_ab_arm"] = (
-            "treatment" if "__msf_ab_treatment__" in config.flags else "control"
-        )
+        new_state["last_msf_ab_arm"] = "treatment" if "__msf_ab_treatment__" in config.flags else "control"
         # C2: independent posture A/B alternation, also bumped only on daily
         # explore/exploit cycles so it composes orthogonally with the MSF arm.
         if not posture_locked:
-            new_state["posture_ab_alternation"] = (
-                int(new_state.get("posture_ab_alternation", 0) or 0) + 1
-            )
+            new_state["posture_ab_alternation"] = int(new_state.get("posture_ab_alternation", 0) or 0) + 1
         new_state["last_posture_ab_arm"] = (
             "treatment" if "__posture_ab_treatment__" in config.flags else "control"
         )
@@ -996,9 +989,7 @@ def append_ledger_row(
         "msf_ab_arm": state_after.get("last_msf_ab_arm"),
         "posture_ab_arm": state_after.get("last_posture_ab_arm"),
         "observe_only_streak": state_after.get("observe_only_streak"),
-        "coupling_posture_profile_used_counts": results.get(
-            "coupling_posture_profile_used_counts", {}
-        ),
+        "coupling_posture_profile_used_counts": results.get("coupling_posture_profile_used_counts", {}),
         "msf_status_counts": results.get("msf_status_counts", {}),
     }
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1039,9 +1030,9 @@ def summarize_posture_ab_outcomes(
             trt = buffered.pop("treatment")
             profile_counts_b = trt.get("coupling_posture_profile_used_counts") or {}
             if isinstance(profile_counts_b, dict) and profile_counts_b:
-                profile_used_b = max(
-                    profile_counts_b.items(), key=lambda kv: (int(kv[1] or 0), str(kv[0]))
-                )[0]
+                profile_used_b = max(profile_counts_b.items(), key=lambda kv: (int(kv[1] or 0), str(kv[0])))[
+                    0
+                ]
             else:
                 profile_used_b = "none"
             deltas.append(
@@ -1112,9 +1103,7 @@ def summarize_msf_ab_outcomes(
                     - int(ctrl.get("natural_entries", 0) or 0),
                     "delta_observe_only_streak": int(trt.get("observe_only_streak", 0) or 0)
                     - int(ctrl.get("observe_only_streak", 0) or 0),
-                    "msf_status_counts_b": dict(status_counts_b)
-                    if isinstance(status_counts_b, dict)
-                    else {},
+                    "msf_status_counts_b": dict(status_counts_b) if isinstance(status_counts_b, dict) else {},
                     "msf_status_dominant_b": dominant_b,
                 }
             )

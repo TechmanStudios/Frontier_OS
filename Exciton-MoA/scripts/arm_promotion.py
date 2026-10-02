@@ -136,12 +136,8 @@ def build_promotion_payload(
 ) -> dict[str, Any]:
     msf_deltas = _read_jsonl(msf_path)
     posture_deltas = _read_jsonl(posture_path)
-    msf_arm = evaluate_arm(
-        msf_deltas, window=window, threshold=threshold, source_token=source_token
-    )
-    posture_arm = evaluate_arm(
-        posture_deltas, window=window, threshold=threshold, source_token=source_token
-    )
+    msf_arm = evaluate_arm(msf_deltas, window=window, threshold=threshold, source_token=source_token)
+    posture_arm = evaluate_arm(posture_deltas, window=window, threshold=threshold, source_token=source_token)
     return {
         "schema_version": ARM_PROMOTION_SCHEMA_VERSION,
         "origin": CONSUMER_NAME,
