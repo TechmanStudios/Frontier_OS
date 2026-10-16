@@ -1167,9 +1167,7 @@ def test_pick_recommended_profile_returns_none_on_tie():
 
 
 def test_pick_recommended_profile_skips_none_bucket():
-    assert (
-        snowball_experiment._pick_recommended_profile({"none": 99, "weak": 1}) == "weak"
-    )
+    assert snowball_experiment._pick_recommended_profile({"none": 99, "weak": 1}) == "weak"
 
 
 def test_decide_msf_promotion_treatment_forces_treatment_regardless_of_parity():
@@ -1338,4 +1336,3 @@ def test_apply_results_freezes_posture_alternation_when_promotion_locked():
     assert new["last_posture_ab_arm"] == "control"
     # MSF unlocked -> counter bumped from default 0 to 1.
     assert new["msf_ab_alternation"] == 1
-

@@ -92,9 +92,7 @@ def test_run_repro_baseline_check_appends_when_called_twice(tmp_path: Path):
     with artifact_path.open("a", encoding="utf-8") as handle:
         handle.write(second_record_text + "\n")
     contents = [
-        json.loads(line)
-        for line in artifact_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in artifact_path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     assert len(contents) == 2
     assert contents[0]["hash_match"] is True
