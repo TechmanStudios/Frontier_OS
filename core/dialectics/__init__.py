@@ -31,7 +31,8 @@ from Frontier_OS.core.dialectics.synthesis_arbiter import (
 )
 from Frontier_OS.core.dialectics.dialectical_arena import (
     DialecticalArena,
-    ArenaSessionReport
+    ArenaSessionReport,
+    DialecticalDebateCertificate,
 )
 
 __all__ = [
@@ -51,4 +52,5 @@ __all__ = [
     "SynthesisArbiter",
     "DialecticalArena",
     "ArenaSessionReport",
+    "DialecticalDebateCertificate",
 ]
