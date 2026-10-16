@@ -63,6 +63,7 @@ class StageExecutionResult:
     max_condition_number: float
     healed: bool
     latency_ms: float
+    recovery_method: Optional[str] = None
 
 
 @dataclass
@@ -94,6 +95,7 @@ class MetacognitiveExecutionReport:
                 "causal_delta_ei": round(float(s.causal_delta_ei), 4),
                 "max_condition_number": round(float(s.max_condition_number), 2),
                 "healed": bool(s.healed),
+                "recovery_method": s.recovery_method,
                 "latency_ms": round(float(s.latency_ms), 2)
             }
 
@@ -222,6 +224,7 @@ class MetacognitiveOrchestrator:
 
             # 3. Check stability & self-heal if perturbed
             healed = False
+            recovery_method = None
             eval_res = circuit.evaluate(stage_inputs)
 
             needs_healing = (
@@ -232,10 +235,30 @@ class MetacognitiveOrchestrator:
 
             if needs_healing and self.auto_heal:
                 spec = stage.custom_spec or self.canonical_specs.get(stage.spec_name)
-                if spec:
-                    heal_rep = self.metaplasticity_engine.repair_circuit(circuit, spec)
-                    healed = heal_rep.is_healed
-                    eval_res = circuit.evaluate(stage_inputs)
+                if spec is None:
+                    raise RuntimeError(f"Cannot verify recovery for stage {stage_id}: no truth-table specification")
+
+                heal_rep = self.metaplasticity_engine.repair_circuit(circuit, spec)
+                accuracy, _ = circuit.evaluate_truth_table(spec.table)
+                eval_res = circuit.evaluate(stage_inputs)
+                healed = heal_rep.is_healed and accuracy == 1.0 and eval_res.is_stable
+                recovery_method = "metaplasticity"
+
+                if not healed:
+                    # Parameter drift can exceed the local repair loop's reach.
+                    # Try one fresh synthesis, certify the entire specification,
+                    # and stop rather than propagate an unverified decision.
+                    replacement = self.swarm_synthesizer.synthesize_with_swarm(spec)
+                    accuracy, _ = replacement.circuit.evaluate_truth_table(spec.table)
+                    candidate_eval = replacement.circuit.evaluate(stage_inputs)
+                    if not (replacement.verified and accuracy == 1.0 and candidate_eval.is_stable):
+                        raise RuntimeError(f"Circuit recovery failed verification for stage {stage_id}")
+                    circuit = replacement.circuit
+                    self.circuit_cache.store_circuit(stage.spec_name, circuit)
+                    kuramoto_orders[-1] = replacement.kuramoto_order_parameter
+                    eval_res = candidate_eval
+                    healed = True
+                    recovery_method = "resynthesis"
 
             # 4. Measure Causal Emergence for this stage
             causal_report = circuit.compute_causal_emergence(noise_sigma=0.04)
@@ -263,7 +286,8 @@ class MetacognitiveOrchestrator:
                 causal_delta_ei=delta_ei,
                 max_condition_number=eval_res.max_condition_number,
                 healed=healed,
-                latency_ms=t_stage_elapsed_ms
+                latency_ms=t_stage_elapsed_ms,
+                recovery_method=recovery_method
             )
 
         # 6. Extract global outputs
