@@ -76,7 +76,10 @@ class AutonomousConjectureEngine:
         self.axioms = build_axiom_library()
         self.canonical_specs = build_canonical_specs()
 
-    def generate_conjecture_catalog(self) -> List[MathematicalConjecture]:
+    def generate_conjecture_catalog(
+        self,
+        include_false_conjectures: bool = True,
+    ) -> List[MathematicalConjecture]:
         """
         Compiles the foundational catalogue of candidate mathematical conjectures.
         Includes sound algebraic dualities, topological invariants, and falsifiable hypotheses.
@@ -248,6 +251,8 @@ class AutonomousConjectureEngine:
             is_deliberately_false=True
         ))
 
+        if not include_false_conjectures:
+            return [c for c in conjectures if not c.is_deliberately_false]
         return conjectures
 
     def _compute_spec_entropy(self, spec: TruthTableSpec) -> float:
