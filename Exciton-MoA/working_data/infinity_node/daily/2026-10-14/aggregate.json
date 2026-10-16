@@ -1,0 +1,24 @@
+{
+  "day": "2026-10-14",
+  "files_observed": 4,
+  "generated_utc": "2026-10-14T05:47:49Z",
+  "kind": "infinity_node_daily_aggregate",
+  "overall_status": "pass",
+  "run_tokens": [
+    "20261014T054749Z"
+  ],
+  "runs_observed": 1,
+  "schema_version": 1,
+  "status_counts": {
+    "pass": 1
+  },
+  "totals": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 1488,
+    "skipped": 8,
+    "suites": 4,
+    "tests": 1496,
+    "time": 360.777
+  }
+}

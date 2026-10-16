@@ -1,0 +1,132 @@
+name: Infinity Node Daily Aggregate
+
+on:
+  schedule:
+    # 05:37 UTC keeps this independent from the SOL snowball/consumer cadence.
+    - cron: "37 5 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: infinity-node-results-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  precheck:
+    name: daily infinity-node pytest (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: Exciton-MoA/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Exciton-MoA/requirements.txt
+          pip install pytest
+
+      - name: Run infinity-node pre-check tests
+        working-directory: Exciton-MoA
+        run: >-
+          pytest blank_manifold/pre_check_tests -q
+          --junitxml infinity-node-junit-${{ matrix.os }}-py${{ matrix.python-version }}.xml
+
+      - name: Upload infinity-node JUnit result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infinity-node-junit-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: Exciton-MoA/infinity-node-junit-${{ matrix.os }}-py${{ matrix.python-version }}.xml
+          retention-days: 30
+          if-no-files-found: warn
+
+  daily_aggregate:
+    name: apply daily infinity-node aggregate
+    if: always()
+    needs: precheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Download infinity-node JUnit artifacts
+        uses: actions/download-artifact@v4.1.3
+        continue-on-error: true
+        with:
+          pattern: infinity-node-junit-*
+          path: /tmp/infinity-node-results
+          merge-multiple: true
+
+      - name: Apply daily infinity-node aggregate to system state
+        working-directory: Exciton-MoA
+        run: |
+          python scripts/infinity_node_results.py \
+            --junit-root /tmp/infinity-node-results \
+            --status "${{ needs.precheck.result }}" \
+            --run-id "${{ github.run_id }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --sha "${{ github.sha }}" \
+            --branch "${{ github.ref_name }}"
+
+      - name: Commit applied daily infinity-node state
+        run: |
+          git config user.name "infinity-node-results[bot]"
+          git config user.email "infinity-node-results@users.noreply.github.com"
+          git add -f Exciton-MoA/working_data/infinity_node || true
+          git add -f Exciton-MoA/working_data/snowball/state.json || true
+          if git diff --cached --quiet; then
+            echo "No infinity-node state changes to commit"
+            exit 0
+          fi
+          git commit -m "infinity-node(daily): run=${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            if git push; then break; fi
+            echo "Push attempt $attempt failed, rebasing..."
+            git pull --rebase
+          done
+
+      - name: Upload daily infinity-node aggregate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infinity-node-daily-aggregate-${{ github.run_id }}
+          path: |
+            Exciton-MoA/working_data/infinity_node
+            Exciton-MoA/working_data/snowball/state.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f Exciton-MoA/working_data/infinity_node/latest_daily_summary.md ]; then
+            cat Exciton-MoA/working_data/infinity_node/latest_daily_summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No infinity-node daily summary produced." >> "$GITHUB_STEP_SUMMARY"
+          fi

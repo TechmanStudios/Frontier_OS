@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -37,6 +38,32 @@ class HippocampalReplay:
                     continue
                 records.append(json.loads(line))
         return records
+
+    def load_dream_consolidation_records(self) -> list[dict[str, object]]:
+        """Loads all crystallized dream cycle records from hippocampal long term storage."""
+        records = self.load_long_term_records()
+        return [r for r in records if r.get("crystallized") is True]
+
+    def summarize_dream_crystallization(self) -> dict[str, object]:
+        """Summarizes geodesic memory consolidation and absorbed dissipation energy."""
+        records = self.load_dream_consolidation_records()
+        if not records:
+            return {
+                "crystallized_nodes": 0,
+                "total_absorbed_dissipation": 0.0,
+                "mean_consensus_confidence": 0.0,
+                "dominant_crystal_nodes": [],
+            }
+
+        absorbed = [float(r.get("absorbed_dissipation", r.get("h_total", 0.0))) for r in records]
+        confidences = [float(r.get("consensus_confidence", 1.0)) for r in records]
+        sorted_records = sorted(records, key=lambda x: float(x.get("h_total", 0.0)), reverse=True)
+        return {
+            "crystallized_nodes": len(records),
+            "total_absorbed_dissipation": sum(absorbed),
+            "mean_consensus_confidence": float(np.mean(confidences)),
+            "dominant_crystal_nodes": [str(r.get("node_id")) for r in sorted_records[:5]],
+        }
 
     def load_pair_telemetry_records(self, pair_id: str | None = None) -> list[dict[str, object]]:
         history_path = self.working_dir / "adaptive_tau_history.jsonl"
@@ -836,11 +863,7 @@ class HippocampalReplay:
         can distinguish guard-off vs guard-on runs without needing the config
         column. Returns zeroed defaults when no MSF-bearing records exist.
         """
-        msf_records = [
-            record
-            for record in telemetry_records
-            if "entangler_nudge_msf_status" in record
-        ]
+        msf_records = [record for record in telemetry_records if "entangler_nudge_msf_status" in record]
         if not msf_records:
             return {
                 "tick_count": 0,
@@ -868,10 +891,8 @@ class HippocampalReplay:
                 enabled_tick_count += 1
             lam = record.get("entangler_nudge_msf_lambda_hat")
             if lam is not None:
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     lambda_values.append(float(lam))
-                except (TypeError, ValueError):
-                    pass
             if (
                 status == "unstable"
                 and str(record.get("entangler_nudge_rejection_reason", "")) == "msf_unstable"
@@ -890,9 +911,7 @@ class HippocampalReplay:
                 lambda_p95 = float(sorted_lambda[lower])
             else:
                 frac = idx - lower
-                lambda_p95 = float(
-                    sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac
-                )
+                lambda_p95 = float(sorted_lambda[lower] * (1.0 - frac) + sorted_lambda[upper] * frac)
         else:
             lambda_max = 0.0
             lambda_mean = 0.0

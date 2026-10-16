@@ -8,9 +8,9 @@ import csv
 import hashlib
 import json
 import shutil
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
-from itertools import product
+from itertools import chain, product
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +36,14 @@ PAIR_RUNTIME_PRESETS: dict[str, dict[str, object]] = {
         "embedding_drift": 0.06,
     }
 }
+INFINITY_CHANNEL_TOTAL_EPSILON = 1e-12
+# Cap channel activity so dense/shear/vorticity magnitude cannot swamp repeated
+# cross-manifold and memory-role evidence in the learning advisory score.
+INFINITY_CHANNEL_TOTAL_CAP = 10.0
+INFINITY_LEARNING_TOP_N = 3
+INFINITY_PROMOTION_EVENT_THRESHOLD = 3
+INFINITY_PROMOTION_STABILITY_FLOOR = 0.05
+DEFAULT_AMBIENT_GIANT = "Ambient Basin"
 
 
 class PairRuntimeArgumentParser(argparse.ArgumentParser):
@@ -670,6 +678,363 @@ class EntangledSOLPair:
             "gate_reason_counts": _count_values(gate_reason_history),
         }
 
+    def build_infinity_node_identity_scan(
+        self,
+        results: Sequence[dict[str, object]],
+    ) -> dict[str, object]:
+        """Summarize wormhole-node identity evidence from completed tick results.
+
+        ``results`` is the list returned by ``tick`` / ``run_live_cycles``; each
+        entry may contain ``pair_metrics`` with ``bilateral_node_ids`` and
+        ``phase_coherence``. The scan also reads the pair's tick traces and
+        phonon bundle histories that were produced during the same run.
+
+        Returns a dictionary with ``scan_type``, run-level fields such as
+        ``pair_id`` and ``mean_phase_coherence``, and a ranked ``nodes`` list
+        containing per-wormhole identity, topology, channel, burst, and memory
+        evidence. If the run did not populate tick traces or phonon bundles, the
+        method still returns a passive baseline census with zero-valued dynamic
+        evidence rather than feeding anything back into live control.
+        """
+        node_summaries = []
+        tick_count = len(results)
+        mean_phase_coherence = 0.0
+        if self.tick_trace_history:
+            mean_phase_coherence = _mean_float_values(
+                float(trace.get("phase_coherence", 0.0)) for trace in self.tick_trace_history
+            )
+        bilateral_by_result = [
+            (
+                set((result.get("pair_metrics", {}) or {}).get("bilateral_node_ids", [])),
+                float((result.get("pair_metrics", {}) or {}).get("phase_coherence", 0.0)),
+            )
+            for result in results
+        ]
+        # Materialize once because every wormhole node is compared against the same bundle history.
+        all_bundles = tuple(chain(self.phonon_bundles, self.local_phonon_bundles))
+
+        for node_id in self.wormhole_nodes:
+            manifold_profiles = {
+                self.manifold_ids[0]: self._build_infinity_node_manifold_profile(self.manifold_a, node_id),
+                self.manifold_ids[1]: self._build_infinity_node_manifold_profile(self.manifold_b, node_id),
+            }
+            channel_values = {"density": [], "shear": [], "vorticity": []}
+            dominant_giant_counts: dict[str, int] = {}
+            involvement_phase_values = []
+            bilateral_burst_count = 0
+            source_node_count = 0
+            entry_count = 0
+            exit_count = 0
+            weight_deltas = []
+            stability_values = []
+
+            for bilateral_node_ids, phase_coherence in bilateral_by_result:
+                if node_id in bilateral_node_ids:
+                    bilateral_burst_count += 1
+                    involvement_phase_values.append(phase_coherence)
+
+            for trace in self.tick_trace_history:
+                trace_phase = float(trace.get("phase_coherence", 0.0))
+                trace_weight_delta = float(dict(trace.get("weight_delta_map", {})).get(node_id, 0.0))
+                if trace_weight_delta != 0.0:
+                    weight_deltas.append(trace_weight_delta)
+                    involvement_phase_values.append(trace_phase)
+
+                for manifold_id in self.manifold_ids:
+                    manifold_trace = (trace.get("manifolds", {}) or {}).get(manifold_id, {}) or {}
+                    wormhole_node = (manifold_trace.get("wormhole_nodes", {}) or {}).get(node_id, {}) or {}
+                    if wormhole_node:
+                        channel_values["density"].append(
+                            abs(float(wormhole_node.get("resonance_accumulator", 0.0)))
+                        )
+                        channel_values["shear"].append(
+                            abs(float(wormhole_node.get("semantic_potential", 0.0)))
+                        )
+                        dominant_giant = str(wormhole_node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT)
+                        dominant_giant_counts[dominant_giant] = (
+                            dominant_giant_counts.get(dominant_giant, 0) + 1
+                        )
+
+                    edge_flux_values = []
+                    for edge in list(manifold_trace.get("wormhole_edges", [])):
+                        if node_id in {str(edge.get("left")), str(edge.get("right"))}:
+                            edge_flux_values.append(abs(float(edge.get("residual_flux", 0.0))))
+                    if edge_flux_values:
+                        channel_values["vorticity"].append(float(np.mean(edge_flux_values)))
+
+            for bundle in all_bundles:
+                bundle_nodes = set(bundle.source_nodes)
+                entry_nodes = set(bundle.wormhole_entry_nodes)
+                exit_nodes = set(bundle.wormhole_exit_nodes)
+                weight_delta = float(bundle.weight_delta_map.get(node_id, 0.0))
+                involved = False
+                if node_id in bundle_nodes:
+                    source_node_count += 1
+                    involved = True
+                if node_id in entry_nodes:
+                    entry_count += 1
+                    involved = True
+                if node_id in exit_nodes:
+                    exit_count += 1
+                    involved = True
+                if weight_delta != 0.0:
+                    weight_deltas.append(weight_delta)
+                    involved = True
+                if involved:
+                    involvement_phase_values.append(float(bundle.phase_coherence))
+                    stability_values.append(float(bundle.coherence_signature.get("stability_score", 0.0)))
+                    dominant_giant_counts[bundle.carrier_giant] = (
+                        dominant_giant_counts.get(bundle.carrier_giant, 0) + 1
+                    )
+
+            channel_means = {
+                channel: float(np.mean(values)) if values else 0.0
+                for channel, values in channel_values.items()
+            }
+            dominant_channel = "ambient"
+            if channel_means:
+                # The channel name is a deterministic tie-breaker when mean values match.
+                dominant_channel = max(channel_means.items(), key=lambda item: (item[1], item[0]))[0]
+            channel_total = sum(channel_means.values())
+            if channel_total <= INFINITY_CHANNEL_TOTAL_EPSILON:
+                dominant_channel = "ambient"
+            dominant_giant = DEFAULT_AMBIENT_GIANT
+            if dominant_giant_counts:
+                # The giant name is a deterministic tie-breaker when counts match.
+                dominant_giant = max(dominant_giant_counts.items(), key=lambda item: (item[1], item[0]))[0]
+            average_weight_delta = float(np.mean(weight_deltas)) if weight_deltas else 0.0
+            stability_score = float(np.mean(stability_values)) if stability_values else 0.0
+            phase_coherence_association = (
+                float(np.mean(involvement_phase_values)) if involvement_phase_values else mean_phase_coherence
+            )
+            bilateral_score = 2.0 * bilateral_burst_count
+            memory_role_score = source_node_count + entry_count + exit_count
+            channel_activity_score = min(channel_total, INFINITY_CHANNEL_TOTAL_CAP)
+            control_motion_score = abs(average_weight_delta)
+            identity_score = float(
+                bilateral_score
+                + memory_role_score
+                + channel_activity_score
+                + control_motion_score
+                + phase_coherence_association
+                + stability_score
+            )
+            node_summaries.append(
+                {
+                    "node_id": node_id,
+                    "manifolds": manifold_profiles,
+                    "average_degree": float(
+                        _mean_float_values(float(profile["degree"]) for profile in manifold_profiles.values())
+                    ),
+                    "has_repaired_edge": any(
+                        bool(profile["has_repaired_edge"]) for profile in manifold_profiles.values()
+                    ),
+                    "dominant_channel": dominant_channel,
+                    "channel_means": channel_means,
+                    "dominant_giant": dominant_giant,
+                    "dominant_giant_counts": dict(sorted(dominant_giant_counts.items())),
+                    "bilateral_burst_frequency": bilateral_burst_count / max(tick_count, 1),
+                    "bilateral_burst_count": bilateral_burst_count,
+                    "source_node_count": source_node_count,
+                    "entry_count": entry_count,
+                    "exit_count": exit_count,
+                    "average_weight_delta": average_weight_delta,
+                    "phase_coherence_association": phase_coherence_association,
+                    "stability_score": stability_score,
+                    "identity_score": identity_score,
+                }
+            )
+
+        node_summaries.sort(
+            key=lambda item: (
+                float(item["identity_score"]),
+                float(item["bilateral_burst_frequency"]),
+                str(item["node_id"]),
+            ),
+            reverse=True,
+        )
+        return {
+            "scan_type": "infinity_node_identity_scan",
+            "pair_id": self.pair_id,
+            "tick_count": tick_count,
+            "wormhole_count": len(self.wormhole_nodes),
+            "wormhole_nodes": list(self.wormhole_nodes),
+            "mean_phase_coherence": mean_phase_coherence,
+            "nodes": node_summaries,
+        }
+
+    def _build_infinity_node_manifold_profile(
+        self,
+        manifold: BlankManifoldCore,
+        node_id: str,
+    ) -> dict[str, object]:
+        node = manifold.graph.nodes[node_id]
+        neighbors = sorted(str(neighbor_id) for neighbor_id in manifold.graph.neighbors(node_id))
+        repaired_edges = []
+        for neighbor_id in neighbors:
+            edge = manifold.graph[node_id][neighbor_id]
+            if bool(edge.get("repaired", False)):
+                repaired_edges.append(str(neighbor_id))
+        return {
+            "coords": [round(float(value), 6) for value in list(node.get("coords", []))],
+            "degree": len(neighbors),
+            "neighbors": neighbors,
+            "has_repaired_edge": bool(repaired_edges),
+            "repaired_neighbors": repaired_edges,
+        }
+
+    def render_infinity_node_identity_scan(self, scan: dict[str, object]) -> str:
+        lines = [
+            "[INFINITY NODE IDENTITY SCAN]",
+            f"pair_id={scan.get('pair_id', self.pair_id)}",
+            f"ticks={int(scan.get('tick_count', 0))} wormholes={int(scan.get('wormhole_count', 0))}",
+            f"mean_phase_coherence={float(scan.get('mean_phase_coherence', 0.0)):.6f}",
+            "",
+            (
+                "rank | node | avg_degree | repaired | channel | giant | bilateral_freq | "
+                "source | entry | exit | avg_weight_delta | phase_assoc | stability | score"
+            ),
+        ]
+        for rank, node_dict in enumerate(list(scan.get("nodes", [])), start=1):
+            lines.append(
+                f"{rank} | {node_dict.get('node_id')} | "
+                f"{float(node_dict.get('average_degree', 0.0)):.2f} | "
+                f"{bool(node_dict.get('has_repaired_edge', False))} | "
+                f"{node_dict.get('dominant_channel', 'ambient')} | "
+                f"{node_dict.get('dominant_giant', DEFAULT_AMBIENT_GIANT)} | "
+                f"{float(node_dict.get('bilateral_burst_frequency', 0.0)):.3f} | "
+                f"{int(node_dict.get('source_node_count', 0))} | "
+                f"{int(node_dict.get('entry_count', 0))} | "
+                f"{int(node_dict.get('exit_count', 0))} | "
+                f"{float(node_dict.get('average_weight_delta', 0.0)):.6f} | "
+                f"{float(node_dict.get('phase_coherence_association', 0.0)):.6f} | "
+                f"{float(node_dict.get('stability_score', 0.0)):.6f} | "
+                f"{float(node_dict.get('identity_score', 0.0)):.6f}"
+            )
+        return "\n".join(lines)
+
+    def persist_infinity_node_identity_scan(
+        self,
+        results: Sequence[dict[str, object]],
+        scan: dict[str, object] | None = None,
+    ) -> dict[str, Path]:
+        """Persist a scan built from ``results`` or a pre-built scan from the caller."""
+        scan = scan or self.build_infinity_node_identity_scan(results)
+        json_path = self.working_dir / "infinity_node_identity_scan.json"
+        txt_path = self.working_dir / "infinity_node_identity_scan.txt"
+        json_path.write_text(
+            json.dumps(self._jsonable_payload(scan), sort_keys=True, indent=2), encoding="utf-8"
+        )
+        txt_path.write_text(self.render_infinity_node_identity_scan(scan), encoding="utf-8")
+        return {"infinity_node_scan_json": json_path, "infinity_node_scan": txt_path}
+
+    def build_infinity_node_learning_advisory(self, scan: dict[str, object]) -> dict[str, object]:
+        """Convert a scan into read-only learning guidance for future runs.
+
+        Returns a dictionary with ``scan_type``, ``learning_status``,
+        ``promotion_guardrail``, and ranked ``candidates``. Each candidate
+        records the node identity, evidence count, promotion readiness, and
+        recommended future experiment focus. Only the top ranked scan nodes are
+        included so the artifact stays bounded and points the next experiment at
+        a small, reviewable set of candidate infinity connectors.
+        """
+        nodes = list(scan.get("nodes", []))
+        candidates = []
+        ready_count = 0
+        # Slicing safely returns all available nodes when fewer than INFINITY_LEARNING_TOP_N exist.
+        for rank, node_dict in enumerate(nodes[:INFINITY_LEARNING_TOP_N], start=1):
+            evidence_events = (
+                int(node_dict.get("bilateral_burst_count", 0))
+                + int(node_dict.get("source_node_count", 0))
+                + int(node_dict.get("entry_count", 0))
+                + int(node_dict.get("exit_count", 0))
+                + (
+                    1
+                    if abs(float(node_dict.get("average_weight_delta", 0.0))) > INFINITY_CHANNEL_TOTAL_EPSILON
+                    else 0
+                )
+            )
+            stability_score = float(node_dict.get("stability_score", 0.0))
+            promotion_ready = (
+                evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD
+                and stability_score >= INFINITY_PROMOTION_STABILITY_FLOOR
+            )
+            if promotion_ready:
+                ready_count += 1
+            dominant_channel = str(node_dict.get("dominant_channel", "ambient"))
+            candidates.append(
+                {
+                    "rank": rank,
+                    "node_id": str(node_dict.get("node_id", "unknown")),
+                    "dominant_channel": dominant_channel,
+                    "dominant_giant": str(node_dict.get("dominant_giant", DEFAULT_AMBIENT_GIANT)),
+                    "evidence_events": evidence_events,
+                    "promotion_ready": promotion_ready,
+                    "recommended_use": _infinity_channel_recommendation(dominant_channel),
+                    "next_experiment_focus": _infinity_next_focus(node_dict, evidence_events),
+                    "phase_coherence_association": float(node_dict.get("phase_coherence_association", 0.0)),
+                    "stability_score": stability_score,
+                    "identity_score": float(node_dict.get("identity_score", 0.0)),
+                }
+            )
+
+        learning_status = "ready_for_working_mind" if ready_count else "needs_more_corroboration"
+        return {
+            "scan_type": "infinity_node_learning_advisory",
+            "source_scan_type": scan.get("scan_type", "infinity_node_identity_scan"),
+            "pair_id": scan.get("pair_id", self.pair_id),
+            "tick_count": int(scan.get("tick_count", 0)),
+            "telemetry_feedback_mode": "read_only",
+            "learning_status": learning_status,
+            "promotion_guardrail": (
+                "Promote to working_mind only when a node has repeated source/entry/exit/"
+                "bilateral/weight evidence and a non-trivial stability score."
+            ),
+            "ready_candidate_count": ready_count,
+            "candidate_count": len(candidates),
+            "candidates": candidates,
+        }
+
+    def render_infinity_node_learning_advisory(self, advisory: dict[str, object]) -> str:
+        lines = [
+            "[INFINITY NODE LEARNING ADVISORY]",
+            f"pair_id={advisory.get('pair_id', self.pair_id)}",
+            f"status={advisory.get('learning_status', 'needs_more_corroboration')}",
+            f"telemetry_feedback_mode={advisory.get('telemetry_feedback_mode', 'read_only')}",
+            f"promotion_guardrail={advisory.get('promotion_guardrail', '')}",
+            "",
+            "rank | node | channel | giant | events | promote | recommended_use | next_focus",
+        ]
+        for candidate_dict in list(advisory.get("candidates", [])):
+            lines.append(
+                f"{int(candidate_dict.get('rank', 0))} | "
+                f"{candidate_dict.get('node_id', 'unknown')} | "
+                f"{candidate_dict.get('dominant_channel', 'ambient')} | "
+                f"{candidate_dict.get('dominant_giant', DEFAULT_AMBIENT_GIANT)} | "
+                f"{int(candidate_dict.get('evidence_events', 0))} | "
+                f"{bool(candidate_dict.get('promotion_ready', False))} | "
+                f"{candidate_dict.get('recommended_use', '')} | "
+                f"{candidate_dict.get('next_experiment_focus', '')}"
+            )
+        return "\n".join(lines)
+
+    def persist_infinity_node_learning_advisory(
+        self,
+        scan: dict[str, object],
+        advisory: dict[str, object] | None = None,
+    ) -> dict[str, Path]:
+        advisory = advisory or self.build_infinity_node_learning_advisory(scan)
+        json_path = self.working_dir / "infinity_node_learning_advisory.json"
+        txt_path = self.working_dir / "infinity_node_learning_advisory.txt"
+        json_path.write_text(
+            json.dumps(self._jsonable_payload(advisory), sort_keys=True, indent=2), encoding="utf-8"
+        )
+        txt_path.write_text(self.render_infinity_node_learning_advisory(advisory), encoding="utf-8")
+        return {
+            "infinity_node_learning_advisory_json": json_path,
+            "infinity_node_learning_advisory": txt_path,
+        }
+
     def _build_manifold_checkpoint(self, manifold: BlankManifoldCore) -> dict[str, object]:
         nodes = []
         for node_id in sorted(manifold.graph.nodes()):
@@ -799,7 +1164,7 @@ class EntangledSOLPair:
                 "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                 "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
                 "consensus_clock": int(node.get("consensus_clock", 0)),
-                "dominant_giant": str(node.get("dominant_giant") or "Ambient Basin"),
+                "dominant_giant": str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT),
             }
 
         wormhole_edges = self._capture_wormhole_edge_snapshot(manifold)
@@ -926,7 +1291,7 @@ class EntangledSOLPair:
                     "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                     "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
                     "consensus_clock": int(node.get("consensus_clock", 0)),
-                    "dominant_giant": str(node.get("dominant_giant", "Ambient Basin")),
+                    "dominant_giant": str(node.get("dominant_giant", DEFAULT_AMBIENT_GIANT)),
                 }
             snapshots[manifold_id] = per_node
         return snapshots
@@ -951,7 +1316,7 @@ class EntangledSOLPair:
                 "resonance_accumulator": float(node.get("resonance_accumulator", 0.0)),
                 "consensus_confidence": float(node.get("consensus_confidence", 0.0)),
                 "consensus_entropy": float(node.get("consensus_entropy", 0.0)),
-                "dominant_giant": str(node.get("dominant_giant") or "Ambient Basin"),
+                "dominant_giant": str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT),
             }
         return snapshot
 
@@ -1104,7 +1469,7 @@ class EntangledSOLPair:
             current_resonance = float(node.get("resonance_accumulator", 0.0))
             consensus_confidence = float(node.get("consensus_confidence", 0.0))
             consensus_entropy = float(node.get("consensus_entropy", 0.0))
-            dominant_giant = str(node.get("dominant_giant") or "Ambient Basin")
+            dominant_giant = str(node.get("dominant_giant") or DEFAULT_AMBIENT_GIANT)
             if baseline_snapshot is not None:
                 baseline = dict(baseline_snapshot.get(node_id, {}))
                 baseline_vector = self._pad_vector(baseline.get("state_vector", []))
@@ -1143,7 +1508,7 @@ class EntangledSOLPair:
             mean_vector = np.zeros(3, dtype=float)
             mean_confidence = 0.0
             mean_entropy = 0.0
-            carrier_giant = "Ambient Basin"
+            carrier_giant = DEFAULT_AMBIENT_GIANT
             source_nodes = ()
 
         amplitude = float(np.linalg.norm(mean_vector))
@@ -1497,6 +1862,7 @@ def run_pair_runtime(
     embedding_scale: float,
     embedding_drift: float,
     clean_run_reset: bool = False,
+    infinity_node_scan: bool = False,
 ) -> dict[str, object]:
     if clean_run_reset:
         if working_dir is None:
@@ -1540,6 +1906,15 @@ def run_pair_runtime(
     checkpoint_path = pair.working_dir / "run_checkpoint.json"
     checkpoint_path.write_text(json.dumps(checkpoint, sort_keys=True, indent=2), encoding="utf-8")
     output_paths["checkpoint"] = checkpoint_path
+    infinity_scan: dict[str, object] | None = None
+    infinity_learning_advisory: dict[str, object] | None = None
+    if infinity_node_scan:
+        infinity_scan = pair.build_infinity_node_identity_scan(results)
+        output_paths.update(pair.persist_infinity_node_identity_scan(results, scan=infinity_scan))
+        infinity_learning_advisory = pair.build_infinity_node_learning_advisory(infinity_scan)
+        output_paths.update(
+            pair.persist_infinity_node_learning_advisory(infinity_scan, advisory=infinity_learning_advisory)
+        )
 
     return {
         "pair": pair,
@@ -1547,6 +1922,8 @@ def run_pair_runtime(
         "summaries": summaries,
         "output_paths": output_paths,
         "checkpoint": checkpoint,
+        "infinity_node_scan": infinity_scan,
+        "infinity_node_learning_advisory": infinity_learning_advisory,
     }
 
 
@@ -1564,6 +1941,7 @@ def run_pair_runtime_repeated(
     embedding_drift: float,
     repeat_run_count: int,
     clean_run_reset: bool,
+    infinity_node_scan: bool = False,
 ) -> dict[str, object]:
     base_dir = Path(working_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -1585,6 +1963,7 @@ def run_pair_runtime_repeated(
             embedding_scale=embedding_scale,
             embedding_drift=embedding_drift,
             clean_run_reset=clean_run_reset,
+            infinity_node_scan=infinity_node_scan,
         )
         runs.append(run_result)
         checkpoints.append(dict(run_result["checkpoint"]))
@@ -1718,6 +2097,7 @@ def run_pair_runtime_repeated_from_args(args: argparse.Namespace) -> dict[str, o
         embedding_drift=float(args.embedding_drift),
         repeat_run_count=int(args.repeat_run_count),
         clean_run_reset=bool(args.clean_run_reset),
+        infinity_node_scan=bool(args.infinity_node_scan),
     )
     if result["comparisons"]:
         print(render_run_checkpoint_comparison(result["comparisons"][0]))
@@ -1737,6 +2117,7 @@ def run_pair_runtime_from_args(args: argparse.Namespace) -> dict[str, object]:
         embedding_scale=float(args.embedding_scale),
         embedding_drift=float(args.embedding_drift),
         clean_run_reset=bool(args.clean_run_reset),
+        infinity_node_scan=bool(args.infinity_node_scan),
     )
     print(result["summaries"]["comparative"])
     print(result["summaries"]["replay"])
@@ -1801,6 +2182,7 @@ def run_pair_runtime_sweep(args: argparse.Namespace) -> dict[str, object]:
             embedding_scale=float(variant.embedding_scale),
             embedding_drift=float(variant.embedding_drift),
             clean_run_reset=bool(args.clean_run_reset),
+            infinity_node_scan=bool(args.infinity_node_scan),
         )
         runs.append({"variant": variant, "result": run_result})
         records.append(
@@ -2989,6 +3371,38 @@ def _count_values(values: Sequence[str]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _mean_float_values(values: Iterable[float]) -> float:
+    """Return the mean of float values, using 0.0 as the empty-evidence default."""
+    array = np.fromiter(values, dtype=float)
+    return float(np.mean(array)) if array.size else 0.0
+
+
+def _infinity_channel_recommendation(dominant_channel: str) -> str:
+    """Map a dominant infinity-node channel to human-readable future-use guidance."""
+    channel = str(dominant_channel)
+    if channel == "density":
+        return "treat as a density gate candidate for future embedding-center probes"
+    if channel == "shear":
+        return "treat as a shear bridge candidate for cross-manifold coupling probes"
+    if channel == "vorticity":
+        return "treat as a cycle carrier candidate for perturbation and phase-offset probes"
+    return "keep as an ambient baseline until repeated activity separates it from passive boundary nodes"
+
+
+def _infinity_next_focus(node: dict[str, object], evidence_events: int) -> str:
+    """Choose the next scan focus from topology and evidence.
+
+    Repaired-edge nodes first need topology checks, high-evidence nodes need
+    fixed-seed and perturbation corroboration, and low-evidence nodes stay in
+    evidence-collection mode.
+    """
+    if bool(node.get("has_repaired_edge", False)):
+        return "rerun with repaired-edge-aware topology checks before promotion"
+    if evidence_events >= INFINITY_PROMOTION_EVENT_THRESHOLD:
+        return "repeat fixed-seed and perturbation scans to corroborate identity persistence"
+    return "collect more source, entry, exit, bilateral, and weight-delta evidence"
+
+
 def _normalize_state_loads(state_loads: object) -> dict[str, object]:
     normalized: dict[str, object] = {}
     for channel_id, payload in dict(state_loads or {}).items():
@@ -3113,6 +3527,7 @@ def build_pair_runtime_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-n", type=int, default=6)
     parser.add_argument("--live-embeddings", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--persist-summaries", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--infinity-node-scan", action=argparse.BooleanOptionalAction, default=False)
     parser.remember_base_defaults()
     return parser
 
@@ -3139,18 +3554,14 @@ def _parse_coupling_posture_profile_args(
         if not spec:
             continue
         if ":" not in spec:
-            raise ValueError(
-                f"--coupling-posture-profile spec must be 'name:conf,reliab,msf' (got {spec!r})"
-            )
+            raise ValueError(f"--coupling-posture-profile spec must be 'name:conf,reliab,msf' (got {spec!r})")
         name_part, _, value_part = spec.partition(":")
         name = name_part.strip()
         if not name:
             raise ValueError(f"--coupling-posture-profile spec missing posture name: {spec!r}")
         slots = list(value_part.split(","))
         if len(slots) != 3:
-            raise ValueError(
-                f"--coupling-posture-profile spec must have exactly 3 slots (got {spec!r})"
-            )
+            raise ValueError(f"--coupling-posture-profile spec must have exactly 3 slots (got {spec!r})")
         profiles.append(
             CouplingPostureGateProfile(
                 posture_name=name,

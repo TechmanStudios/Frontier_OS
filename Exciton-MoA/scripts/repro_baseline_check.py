@@ -97,7 +97,7 @@ def _run_phase_coherence_history(
         working_dir=working_dir,
     )
     history: list[float] = []
-    for embedding_a, embedding_b in zip(embeddings_a, embeddings_b):
+    for embedding_a, embedding_b in zip(embeddings_a, embeddings_b, strict=True):
         result = pair.tick(embedding_a=embedding_a, embedding_b=embedding_b)
         history.append(float(result["pair_metrics"]["phase_coherence"]))
     return history
@@ -139,9 +139,7 @@ def run_repro_baseline_check(
         for idx in range(repeats):
             run_dir = tmp_root_path / f"run_{idx}"
             run_dir.mkdir(parents=True, exist_ok=True)
-            history = _run_phase_coherence_history(
-                config, run_dir, embeddings_a, embeddings_b
-            )
+            history = _run_phase_coherence_history(config, run_dir, embeddings_a, embeddings_b)
             histories_lengths.append(len(history))
             hashes.append(hash_phase_coherence_history(history))
 

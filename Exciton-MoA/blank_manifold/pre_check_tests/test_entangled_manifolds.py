@@ -67,7 +67,7 @@ def test_entangled_pair_phase_coherence_history_is_reproducible(tmp_path: Path):
             working_dir=working_dir,
         )
         history: list[float] = []
-        for embedding_a, embedding_b in zip(embeddings_a, embeddings_b):
+        for embedding_a, embedding_b in zip(embeddings_a, embeddings_b, strict=True):
             result = pair.tick(embedding_a=embedding_a, embedding_b=embedding_b)
             history.append(float(result["pair_metrics"]["phase_coherence"]))
         return history
@@ -873,6 +873,100 @@ def test_run_pair_runtime_persists_reproducibility_checkpoint(tmp_path: Path):
     assert len(checkpoint["gate_reason_history"]) == 2
 
 
+def test_infinity_node_identity_scan_ranks_wormhole_identities(tmp_path: Path):
+    config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
+    controls = EntanglementControls(wormhole_count=4, seed=19)
+    pair = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path)
+    results = pair.run_live_cycles(
+        cycle_count=2,
+        embedding_a_loc=0.49,
+        embedding_b_loc=0.57,
+        embedding_scale=0.08,
+        embedding_drift=0.03,
+    )
+
+    scan = pair.build_infinity_node_identity_scan(results)
+    rendered = pair.render_infinity_node_identity_scan(scan)
+    paths = pair.persist_infinity_node_identity_scan(results)
+    persisted = json.loads(paths["infinity_node_scan_json"].read_text(encoding="utf-8"))
+
+    assert scan["scan_type"] == "infinity_node_identity_scan"
+    assert scan["tick_count"] == 2
+    assert scan["wormhole_nodes"] == pair.wormhole_nodes
+    assert len(scan["nodes"]) == len(pair.wormhole_nodes)
+    assert [node["identity_score"] for node in scan["nodes"]] == sorted(
+        [node["identity_score"] for node in scan["nodes"]],
+        reverse=True,
+    )
+    top_node = scan["nodes"][0]
+    assert top_node["node_id"] in pair.wormhole_nodes
+    assert top_node["dominant_channel"] in {"density", "shear", "vorticity", "ambient"}
+    assert set(top_node["manifolds"]) == {"primary", "secondary"}
+    assert "coords" in top_node["manifolds"]["primary"]
+    assert "neighbors" in top_node["manifolds"]["primary"]
+    assert "rank | node | avg_degree" in rendered
+    assert paths["infinity_node_scan"].exists()
+    assert persisted["nodes"][0]["node_id"] == top_node["node_id"]
+
+
+def test_infinity_node_learning_advisory_turns_scan_into_read_only_guidance(tmp_path: Path):
+    config = BlankManifoldConfig(base_node_count=96, dimensionality=3)
+    controls = EntanglementControls(wormhole_count=4, seed=23)
+    pair = EntangledSOLPair(config_a=config, config_b=config, controls=controls, working_dir=tmp_path)
+    results = pair.run_live_cycles(
+        cycle_count=2,
+        embedding_a_loc=0.49,
+        embedding_b_loc=0.57,
+        embedding_scale=0.08,
+        embedding_drift=0.03,
+    )
+    scan = pair.build_infinity_node_identity_scan(results)
+
+    advisory = pair.build_infinity_node_learning_advisory(scan)
+    rendered = pair.render_infinity_node_learning_advisory(advisory)
+    paths = pair.persist_infinity_node_learning_advisory(scan, advisory=advisory)
+    persisted = json.loads(paths["infinity_node_learning_advisory_json"].read_text(encoding="utf-8"))
+
+    assert advisory["scan_type"] == "infinity_node_learning_advisory"
+    assert advisory["source_scan_type"] == "infinity_node_identity_scan"
+    assert advisory["telemetry_feedback_mode"] == "read_only"
+    assert advisory["learning_status"] in {"needs_more_corroboration", "ready_for_working_mind"}
+    assert advisory["candidate_count"] == min(3, len(scan["nodes"]))
+    assert advisory["candidates"]
+    assert advisory["candidates"][0]["node_id"] == scan["nodes"][0]["node_id"]
+    assert "recommended_use" in advisory["candidates"][0]
+    assert "promotion_guardrail" in advisory
+    assert "[INFINITY NODE LEARNING ADVISORY]" in rendered
+    assert paths["infinity_node_learning_advisory"].exists()
+    assert persisted["telemetry_feedback_mode"] == "read_only"
+
+
+def test_run_pair_runtime_persists_infinity_node_scan_when_enabled(tmp_path: Path):
+    controls = EntanglementControls(wormhole_count=4, seed=31)
+
+    result = run_pair_runtime(
+        controls=controls,
+        working_dir=tmp_path / "runtime",
+        cycles=1,
+        top_n=3,
+        live_embeddings=True,
+        persist_summaries=False,
+        embedding_a_loc=0.48,
+        embedding_b_loc=0.57,
+        embedding_scale=0.08,
+        embedding_drift=0.03,
+        clean_run_reset=True,
+        infinity_node_scan=True,
+    )
+
+    assert result["infinity_node_scan"]["scan_type"] == "infinity_node_identity_scan"
+    assert result["infinity_node_learning_advisory"]["scan_type"] == "infinity_node_learning_advisory"
+    assert result["output_paths"]["infinity_node_scan"].exists()
+    assert result["output_paths"]["infinity_node_scan_json"].exists()
+    assert result["output_paths"]["infinity_node_learning_advisory"].exists()
+    assert result["output_paths"]["infinity_node_learning_advisory_json"].exists()
+
+
 def test_compare_run_checkpoints_reports_first_divergence():
     left = {
         "seed": 83,
@@ -1062,6 +1156,13 @@ def test_pair_runtime_parser_accepts_sweep_lists():
     assert args.sweep_embedding_drifts == [0.02, 0.05]
     assert args.sweep_cycle_counts == [4, 7]
     assert args.sweep_seeds == [13, 21]
+
+
+def test_pair_runtime_parser_accepts_infinity_node_scan_flag():
+    parser = build_pair_runtime_parser()
+    args = parser.parse_args(["--infinity-node-scan"])
+
+    assert args.infinity_node_scan is True
 
 
 def test_build_pair_sweep_variants_is_deterministic_and_isolates_dirs(tmp_path: Path):

@@ -30,13 +30,14 @@ A dimensional compression engine. Instead of forcing 1,536-dimensional embedding
 
 The MoA itself. The 7 Giants do not run discrete algorithms; they execute continuous differential geometry. They manipulate the semantic state field $u(x,t) \= (\\rho(x,t), v(x,t), \\phi(x,t))$.
 
-* **The Statistician:** Governs the equation of state to manage semantic pressure, providing a physics-based mechanism for crowding control without hard truncation.  
-* **The Optimizer:** Carves the potential gradient $\\phi(x,t)$ to accelerate flow toward low-error states.  
+* **The Statistician:** Governs the equation of state to manage semantic pressure, providing a physics-based mechanism for crowding control without hard truncation. Natively performs active node capacitance tuning (`statistician_tune_capacitance`) to prevent pressure saturation and harmonic distortion.  
+* **The Optimizer:** Carves the potential gradient $\phi(x,t)$ to accelerate flow toward low-error states.  
 * **The N-Body Solver:** Triggers Jeans Mass gravitational collapses to form dense attractor basins.  
-* **The Graph Navigator:** Operates entirely within the divergence-free component $w$ to inject magnetic curl, processing recursive loops without stack overflows.  
+* **The Graph Navigator:** Operates entirely within the divergence-free component $w$ to inject magnetic curl, processing recursive loops without stack overflows. Natively performs active waveguide isolation (`graph_navigator_isolate_waveguides`) to dampen background cycles and eliminate multipath scattering/reflections.  
 * **The Linear Algebraist:** Executes anisotropic metric scaling to natively flatten redundant dimensions (PCA via gravity).  
 * **The Integrator:** Manipulates the local Jacobian volume to resolve Bayesian probability prior to collapse.  
-* **The Aligner:** Dilates and constricts topological channels based on semantic phase synchronization.
+* **The Aligner:** Dilates and constricts topological channels based on semantic phase synchronization. Natively performs active phase alignment for In-Conduit Analog Computing (ICAC), calculating shortest-path delay corrections between sources and mixers to guarantee coherent constructive interference.
+
 
 ## **4\. The Telemetry: OntologicalOrchestrator**
 
@@ -81,3 +82,6 @@ The repo runs a continuous, self-tuning entangled-pair experiment via two GitHub
 
 Both call `scripts/snowball_experiment.py`, which loads `state.json`, asks `decide_next_config()` for the next regime (`hold` / `explore` / `exploit` / `policy_probe`) using only existing `entangled_manifolds.py` flags, runs the engine, parses sweep paper diagnostics, then commits the updated `state.json`, `ledger.jsonl`, and `latest_report.md` back to `main`. Reports are also exposed in each workflow's job summary. A pulse-only signal cannot promote the regime to `exploit` — that requires daily confirmation. Run the loop locally with `python Exciton-MoA/scripts/snowball_experiment.py --tier pulse --dry-run`.
 
+## **Infinity-node daily aggregate**
+
+The `Infinity Node Daily Aggregate` workflow runs once per day (and on manual dispatch), executes the canonical pre-check suite across the same Linux/Windows and Python 3.11/3.12 matrix as CI, uploads each JUnit XML result, then rolls the result into `working_data/infinity_node/daily/<YYYY-MM-DD>/` with `scripts/infinity_node_results.py`. The workflow writes the latest read-only CI health snapshot into `working_data/snowball/state.json` under `infinity_node_test_results` and the daily rollup under `infinity_node_daily_aggregate`, so system consumers can observe daily test health without letting test analytics change snowball control policy.

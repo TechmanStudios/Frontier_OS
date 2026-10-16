@@ -1,7 +1,13 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
+from dataclasses import dataclass
+
 import numpy as np
+from entangled_manifolds import (
+    CouplingPostureGateProfile,
+    _parse_coupling_posture_profile_args,
+)
 from entangler import EntanglerGiant
 
 
@@ -916,13 +922,6 @@ def test_entangler_msf_guard_disabled_does_not_set_lambda_hat():
 # ---------------------------------------------------------------------------
 
 
-from dataclasses import dataclass, field
-from entangled_manifolds import (
-    CouplingPostureGateProfile,
-    _parse_coupling_posture_profile_args,
-)
-
-
 @dataclass
 class _W4Policy:
     enabled: bool = True
@@ -1136,5 +1135,3 @@ def test_no_profiles_configured_marks_inactive_and_keeps_baseline_thresholds():
     assert gate["coupling_posture_profiles_active"] is False
     assert gate["coupling_posture_profile_used"] == "none"
     assert gate["confidence_threshold_effective"] == 0.80
-
-

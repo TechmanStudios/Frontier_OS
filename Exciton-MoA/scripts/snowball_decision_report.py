@@ -87,25 +87,15 @@ def build_summary(
         "generated_utc": utcnow_iso(),
         "ledger_rows_considered": len(ledger_rows),
         "regime_counts": dict(regime_counts),
-        "top_natural_entries": [
-            {"started_utc": s, "natural_entries": n} for s, n in top_natural
-        ],
+        "top_natural_entries": [{"started_utc": s, "natural_entries": n} for s, n in top_natural],
         "msf_promotion": {
             "status": (msf_block or {}).get("status") if isinstance(msf_block, dict) else None,
-            "default_arm": (msf_block or {}).get("default_arm")
-            if isinstance(msf_block, dict)
-            else None,
-            "mean_delta": (msf_block or {}).get("mean_delta")
-            if isinstance(msf_block, dict)
-            else None,
-            "paired_count": (msf_block or {}).get("paired_count")
-            if isinstance(msf_block, dict)
-            else None,
+            "default_arm": (msf_block or {}).get("default_arm") if isinstance(msf_block, dict) else None,
+            "mean_delta": (msf_block or {}).get("mean_delta") if isinstance(msf_block, dict) else None,
+            "paired_count": (msf_block or {}).get("paired_count") if isinstance(msf_block, dict) else None,
         },
         "posture_promotion": {
-            "status": (posture_block or {}).get("status")
-            if isinstance(posture_block, dict)
-            else None,
+            "status": (posture_block or {}).get("status") if isinstance(posture_block, dict) else None,
             "default_arm": (posture_block or {}).get("default_arm")
             if isinstance(posture_block, dict)
             else None,
@@ -262,7 +252,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     outcome = run_decision_report(ledger_tail=args.ledger_tail, dry_run=args.dry_run)
-    print(json.dumps({k: v for k, v in outcome.items() if k != "report_md"}, sort_keys=True, indent=2, default=str))
+    print(
+        json.dumps(
+            {k: v for k, v in outcome.items() if k != "report_md"}, sort_keys=True, indent=2, default=str
+        )
+    )
     return 0 if outcome.get("status") in {"ok", "dry_run", "noop"} else 1
 
 
