@@ -1600,8 +1600,7 @@ def test_summarize_msf_guard_outcomes_counts_status_and_vetoes(tmp_path):
 
 def test_summarize_msf_guard_outcomes_disabled_run_has_no_lambda_signal(tmp_path):
     records = [
-        _msf_record(enabled=False, status="disabled", lambda_hat=None, sample_count=0)
-        for _ in range(5)
+        _msf_record(enabled=False, status="disabled", lambda_hat=None, sample_count=0) for _ in range(5)
     ]
     replay = HippocampalReplay(working_dir=tmp_path)
     out = replay.summarize_msf_guard_outcomes(records)
