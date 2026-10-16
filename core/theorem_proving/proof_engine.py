@@ -75,6 +75,11 @@ class TheoremProofCertificate:
     proof_duration_ms: float
     is_crystallized: bool
 
+    @property
+    def counterexample_witness(self) -> Optional[Dict[str, Any]]:
+        """Alias for counter_example_witness."""
+        return self.counter_example_witness
+
     def to_dict(self) -> Dict[str, Any]:
         """Serializes certificate to dictionary."""
         return {
@@ -87,10 +92,14 @@ class TheoremProofCertificate:
             "minimal_causal_kernel_nodes": self.minimal_causal_kernel_nodes,
             "causal_emergence_gain": round(float(self.causal_emergence_gain), 4),
             "counter_example_witness": self.counter_example_witness,
+            "counterexample_witness": self.counter_example_witness,
             "hegelian_consensus_order": round(float(self.hegelian_consensus_order), 4),
             "proof_duration_ms": round(float(self.proof_duration_ms), 2),
             "is_crystallized": self.is_crystallized
         }
+
+
+FormalProofCertificate = TheoremProofCertificate
 
 
 class AutomatedProofEngine:
