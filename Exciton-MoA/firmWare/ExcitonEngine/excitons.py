@@ -1,9 +1,76 @@
 # Copyright (c) 2026 Techman Studios.
 # Licensed under the GNU Affero General Public License v3.0 or later.
 # See LICENSE in the repository root for details.
+import importlib.util
+import sys
 from collections.abc import Sequence
+from contextlib import contextmanager
+from pathlib import Path
 
+import networkx as nx
 import numpy as np
+
+
+def _load_sol_telemetry():
+    curr = Path(__file__).resolve()
+    for parent in curr.parents:
+        potential_file = parent / "tools" / "sol-core" / "telemetry.py"
+        if potential_file.exists():
+            try:
+                spec = importlib.util.spec_from_file_location("sol_telemetry", potential_file)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    sys.modules["sol_telemetry"] = mod
+                    spec.loader.exec_module(mod)
+                    return mod
+            except Exception:
+                pass
+    return None
+
+
+sol_telemetry = _load_sol_telemetry()
+
+if sol_telemetry:
+    telemetry = sol_telemetry
+else:
+
+    class local_telemetry:
+        @staticmethod
+        @contextmanager
+        def trace_span(name, attributes=None, service_name="sol-system"):
+            yield None
+
+        @staticmethod
+        def get_tracer(service_name="sol-system"):
+            class DummyTracer:
+                def start_as_current_span(self, name, *args, **kwargs):
+                    class DummySpan:
+                        def __enter__(self):
+                            return self
+
+                        def __exit__(self, exc_type, exc_val, exc_tb):
+                            pass
+
+                        def set_attribute(self, k, v):
+                            pass
+
+                    return DummySpan()
+
+            return DummyTracer()
+
+        @staticmethod
+        def get_meter(service_name="sol-system"):
+            class DummyMeter:
+                def create_gauge(self, name, unit="", description=""):
+                    class DummyGauge:
+                        def set(self, val, attrs=None):
+                            pass
+
+                    return DummyGauge()
+
+            return DummyMeter()
+
+    telemetry = local_telemetry
 
 
 class ExcitonEngine:
@@ -12,12 +79,156 @@ class ExcitonEngine:
     Executes computations via non-Euclidean fluid dynamics.
     """
 
-    def __init__(self, manifold_core, mediator=None):
+    def __init__(self, manifold_core, mediator=None, geodesic_navigator=None):
         self.manifold_core = manifold_core
         self.manifold = manifold_core.graph
-        self.jeans_mass_threshold = manifold_core.config.base_jeans_mass
+        self.jeans_mass_threshold = getattr(getattr(manifold_core, "config", None), "base_jeans_mass", 1.0)
         self.pressure_constant = 1.0
         self.mediator = mediator
+        dim = getattr(getattr(manifold_core, "config", None), "dimensionality", 4)
+        if geodesic_navigator is not None:
+            self.geodesic_navigator = geodesic_navigator
+        else:
+            try:
+                from .geodesic_navigator import RiemannianGeodesicNavigator
+
+                self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+            except Exception:
+                try:
+                    from geodesic_navigator import RiemannianGeodesicNavigator
+
+                    self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+                except Exception:
+                    try:
+                        from Frontier_OS.core.geodesic_navigator import RiemannianGeodesicNavigator
+
+                        self.geodesic_navigator = RiemannianGeodesicNavigator(dim=dim)
+                    except Exception:
+                        self.geodesic_navigator = None
+
+    def dispatch_geodesic_exciton(
+        self,
+        start_coords: np.ndarray,
+        initial_velocity: np.ndarray,
+        target_coords: np.ndarray,
+        steps: int = 20,
+        g_ij: np.ndarray = None,
+        metric_evaluator=None,
+    ):
+        """
+        Dispatches an Exciton agent through the continuous Riemannian manifold along curved geodesics,
+        integrating Christoffel acceleration, adaptive damping, and potential forces.
+        """
+        if self.geodesic_navigator is None:
+            raise RuntimeError("RiemannianGeodesicNavigator is not configured on ExcitonEngine.")
+
+        dim = len(start_coords)
+        if g_ij is None:
+            g_ij = np.eye(dim)
+
+        trajectory = []
+        x = np.asarray(start_coords, dtype=np.float64).copy()
+        v = np.asarray(initial_velocity, dtype=np.float64).copy()
+
+        for _ in range(steps):
+            step_res = self.geodesic_navigator.step_agent(
+                x=x, v=v, g_ij=g_ij, target_coords=target_coords, metric_evaluator=metric_evaluator
+            )
+            trajectory.append(step_res)
+            x = step_res.position
+            v = step_res.velocity
+
+        return trajectory
+
+    def dispatch_exciton_swarm(self, agents: list, clusters: list, steps: int = 50, dt: float = 0.02):
+        """
+        Dispatches a collective swarm of Exciton agents across semantic clusters,
+        coordinating mutual repulsion, velocity alignment, and stigmergic Riemannian routing.
+        """
+        try:
+            from Frontier_OS.core.swarm_router import AutonomousSwarmRouter
+        except Exception:
+            try:
+                from core.swarm_router import AutonomousSwarmRouter
+            except Exception:
+                from swarm_router import AutonomousSwarmRouter
+
+        dim = len(agents[0].position) if agents else 4
+        router = AutonomousSwarmRouter(dim=dim, dt=dt)
+        for cluster in clusters:
+            router.add_cluster(
+                cluster_id=cluster.cluster_id,
+                centroid=cluster.centroid,
+                radius=cluster.radius,
+                capacity=cluster.capacity,
+                semantic_density=cluster.semantic_density,
+            )
+        for agent in agents:
+            router.add_agent(
+                agent_id=agent.agent_id,
+                role=agent.role,
+                position=agent.position,
+                velocity=agent.velocity,
+                mass=agent.mass,
+                charge=agent.charge,
+                target_cluster=agent.target_cluster,
+            )
+
+        reports = router.run_routing_mission(max_steps=steps)
+        return router, reports
+
+    def dispatch_seven_giants(
+        self,
+        clusters: list | None = None,
+        target_cluster: str | None = "core_nexus",
+        base_origin: np.ndarray | None = None,
+        steps: int = 50,
+        dt: float = 0.02,
+    ):
+        """
+        Dispatches the complete 7 Giants MoA ensemble on the continuous Riemannian manifold,
+        coordinating differential-geometric operators (pressure regulation, potential gradient,
+        Jeans Mass collapse, symplectic curl, PCA compression, Kuramoto alignment, and volume invariance).
+        """
+        try:
+            from Frontier_OS.core.seven_giants import SevenGiantsEnsemble
+            from Frontier_OS.core.swarm_router import AutonomousSwarmRouter
+        except Exception:
+            try:
+                from core.seven_giants import SevenGiantsEnsemble
+                from core.swarm_router import AutonomousSwarmRouter
+            except Exception:
+                from seven_giants import SevenGiantsEnsemble
+                from swarm_router import AutonomousSwarmRouter
+
+        dim = getattr(getattr(self.manifold_core, "config", None), "dimensionality", 4)
+        router = AutonomousSwarmRouter(dim=dim, dt=dt)
+
+        if clusters is None:
+            # Default target cluster
+            centroid = np.zeros(dim)
+            centroid[0] = 3.5
+            router.add_cluster(
+                cluster_id=target_cluster or "core_nexus",
+                centroid=centroid,
+                radius=1.8,
+                capacity=7,
+                semantic_density=1.5,
+            )
+        else:
+            for cluster in clusters:
+                router.add_cluster(
+                    cluster_id=cluster.cluster_id,
+                    centroid=cluster.centroid,
+                    radius=cluster.radius,
+                    capacity=cluster.capacity,
+                    semantic_density=cluster.semantic_density,
+                )
+
+        ensemble = SevenGiantsEnsemble(dim=dim)
+        ensemble.deploy_giants(router, target_cluster=target_cluster, base_origin=base_origin)
+        mission_report = ensemble.run_giants_mission(router, max_steps=steps)
+        return router, mission_report
 
     def ignite_excitons(self, target_coords: np.ndarray):
         active_nodes = [
@@ -27,14 +238,19 @@ class ExcitonEngine:
         if not active_nodes:
             return
 
-        print(f"\n[EXCITON IGNITION] {len(active_nodes)} nodes resonating. Deploying Giants...")
+        with telemetry.trace_span(
+            "exciton_moa.ignite_excitons",
+            {"exciton.active_nodes_count": len(active_nodes), "service.name": "exciton-moa"},
+            service_name="exciton-moa",
+        ):
+            print(f"\n[EXCITON IGNITION] {len(active_nodes)} nodes resonating. Deploying Giants...")
 
-        for node_id in active_nodes:
-            self._execute_giant_operators(node_id, target_coords)
+            for node_id in active_nodes:
+                self._execute_giant_operators(node_id, target_coords)
 
-        self.manifold_core.solve_semantic_potential()
-        if self.mediator is not None:
-            self.mediator.persist_state()
+            self.manifold_core.solve_semantic_potential()
+            if self.mediator is not None:
+                self.mediator.persist_state()
 
     def _execute_giant_operators(self, node_id: str, target_coords: np.ndarray):
         node_data = self.manifold.nodes[node_id]
@@ -276,3 +492,66 @@ class ExcitonEngine:
                 )
 
         self.manifold_core.solve_semantic_potential()
+
+    def aligner_icac_phase_alignment(
+        self, sources: list[str], mixer: str, omega: float, dt: float
+    ) -> dict[str, float]:
+        """
+        Active Aligner Giant operator for ICAC:
+        Calculates the propagation phase delay from each source to the mixer based on
+        unweighted shortest path lengths (hop count) in the manifold, returning the
+        necessary phase correction (+delay) for coherent wave interference.
+        """
+        corrections = {}
+        for src in sources:
+            try:
+                # Calculate shortest path in terms of hop count (discrete time steps)
+                hops = nx.shortest_path_length(self.manifold, source=src, target=mixer)
+                # Phase shift = hops * omega * dt
+                delay = hops * omega * dt
+                # To align phases constructively, we advance the source phase by +delay
+                corrections[src] = delay
+            except nx.NetworkXNoPath:
+                # If no path exists, default correction to 0
+                corrections[src] = 0.0
+        return corrections
+
+    def graph_navigator_isolate_waveguides(
+        self, sources: list[str], mixer: str, background_weight: float = 0.01
+    ) -> int:
+        """
+        Active Graph Navigator Giant operator for ICAC:
+        Identifies all edges that lie on the shortest path(s) between the input sources and the mixer.
+        Dampens all other edges in the manifold to a minimal background_weight to prevent multipath
+        scattering, reflections, and phase leakage, returning the count of isolated background edges.
+        """
+        path_edges = set()
+        for src in sources:
+            try:
+                # Find all shortest paths between src and mixer
+                paths = list(nx.all_shortest_paths(self.manifold, source=src, target=mixer))
+                for path in paths:
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i + 1]
+                        # Store edges as sorted tuples to be direction-independent
+                        path_edges.add(tuple(sorted((u, v))))
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                continue
+
+        dampened_count = 0
+        for u, v in self.manifold.edges():
+            edge_key = tuple(sorted((u, v)))
+            if edge_key not in path_edges:
+                self.manifold[u][v]["weight"] = background_weight
+                dampened_count += 1
+        return dampened_count
+
+    def statistician_tune_capacitance(self, nodes: list[str], target_mass: float = 10.0) -> None:
+        """
+        Active Statistician Giant operator for ICAC:
+        Tunes the semantic mass (capacitance) of the specified nodes to regulate pressure
+        dynamics and prevent non-linear saturation or signal distortion along wave propagation conduits.
+        """
+        for node in nodes:
+            if node in self.manifold.nodes:
+                self.manifold.nodes[node]["semanticMass"] = target_mass
