@@ -1,7 +1,7 @@
 {
   "branch": "main",
   "files_observed": 4,
-  "generated_utc": "2026-10-17T05:45:51Z",
+  "generated_utc": "2026-10-18T05:46:14Z",
   "junit_files": [
     {
       "errors": 0,
@@ -11,7 +11,7 @@
       "skipped": 2,
       "suites": 1,
       "tests": 374,
-      "time": 46.059
+      "time": 53.166
     },
     {
       "errors": 0,
@@ -21,7 +21,7 @@
       "skipped": 2,
       "suites": 1,
       "tests": 374,
-      "time": 96.539
+      "time": 59.442
     },
     {
       "errors": 0,
@@ -31,7 +31,7 @@
       "skipped": 2,
       "suites": 1,
       "tests": 374,
-      "time": 59.11
+      "time": 102.948
     },
     {
       "errors": 0,
@@ -41,16 +41,16 @@
       "skipped": 2,
       "suites": 1,
       "tests": 374,
-      "time": 99.569
+      "time": 97.556
     }
   ],
   "kind": "infinity_node_test_result",
   "overall_status": "pass",
-  "run_id": "39007284955",
-  "run_token": "20261017T054551Z",
-  "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/39007284955",
+  "run_id": "39101522591",
+  "run_token": "20261018T054614Z",
+  "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/39101522591",
   "schema_version": 1,
-  "sha": "3f91f10ec91601ee7019bd62862a9977029932da",
+  "sha": "108d894e959a30551f53c5a1b4deb53b09fc7d23",
   "status": "success",
   "totals": {
     "errors": 0,
@@ -59,6 +59,6 @@
     "skipped": 8,
     "suites": 4,
     "tests": 1496,
-    "time": 301.277
+    "time": 313.112
   }
 }
