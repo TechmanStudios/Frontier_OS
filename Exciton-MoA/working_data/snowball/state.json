@@ -3,9 +3,9 @@
   "arm_promotion": null,
   "best_pocket_tilt": null,
   "coupling_posture_profile_usage_counts": {
-    "none": 8321
+    "none": 8322
   },
-  "diagnosis_streak_count": 1068,
+  "diagnosis_streak_count": 1069,
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
@@ -97,7 +97,7 @@
   "last_config_pulse": [
     "--sweep",
     "--sweep-root-dir",
-    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20261020T041958Z",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20261020T082333Z",
     "--clean-run-reset",
     "--enable-hint-gate",
     "--enable-bounded-nudges",
@@ -126,7 +126,7 @@
   ],
   "last_coupling_posture": "strained",
   "last_msf_ab_arm": "treatment",
-  "last_paper_trigger": "basin_fragility",
+  "last_paper_trigger": "none",
   "last_posture_ab_arm": "treatment",
   "msf_ab_alternation": 154,
   "observe_only_streak": 0,
@@ -154,10 +154,10 @@
     0
   ],
   "regime": "explore",
-  "regime_streak": 1065,
+  "regime_streak": 1066,
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-10-20T07:05:40Z",
+  "updated_utc": "2026-10-20T08:24:04Z",
   "weak_synchrony_streak": 0
 }
