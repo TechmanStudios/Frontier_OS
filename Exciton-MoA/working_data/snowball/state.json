@@ -3,23 +3,23 @@
   "arm_promotion": null,
   "best_pocket_tilt": null,
   "coupling_posture_profile_usage_counts": {
-    "none": 8106
+    "none": 8322
   },
-  "diagnosis_streak_count": 1041,
+  "diagnosis_streak_count": 1069,
   "diagnosis_streak_label": "low_variance_candidate",
   "history_window": 8,
   "infinity_node_daily_aggregate": {
-    "aggregate_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-10-16/aggregate.json",
-    "day": "2026-10-16",
+    "aggregate_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-10-20/aggregate.json",
+    "day": "2026-10-20",
     "files_observed": 4,
-    "generated_utc": "2026-10-16T05:48:00Z",
+    "generated_utc": "2026-10-20T05:48:08Z",
     "overall_status": "pass",
     "runs_observed": 1,
     "schema_version": 1,
     "status_counts": {
       "pass": 1
     },
-    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-10-16/summary.md",
+    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/daily/2026-10-20/summary.md",
     "totals": {
       "errors": 0,
       "failures": 0,
@@ -27,22 +27,22 @@
       "skipped": 8,
       "suites": 4,
       "tests": 1496,
-      "time": 366.731
+      "time": 299.668
     }
   },
   "infinity_node_test_results": {
     "branch": "main",
     "files_observed": 4,
-    "generated_utc": "2026-10-16T05:48:00Z",
+    "generated_utc": "2026-10-20T05:48:08Z",
     "overall_status": "pass",
-    "result_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20261016T054800Z/result.json",
-    "run_id": "38857422296",
-    "run_token": "20261016T054800Z",
-    "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/38857422296",
+    "result_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20261020T054808Z/result.json",
+    "run_id": "39376609122",
+    "run_token": "20261020T054808Z",
+    "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/39376609122",
     "schema_version": 1,
-    "sha": "70a325260639b659249560a240300ad477f2e2e4",
+    "sha": "afdac4e25f7e3773e470d6ebbb3fe62f50cd5215",
     "status": "success",
-    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20261016T054800Z/summary.md",
+    "summary_path": "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/infinity_node/runs/20261020T054808Z/summary.md",
     "totals": {
       "errors": 0,
       "failures": 0,
@@ -50,13 +50,13 @@
       "skipped": 8,
       "suites": 4,
       "tests": 1496,
-      "time": 366.731
+      "time": 299.668
     }
   },
   "last_config_daily": [
     "--sweep",
     "--sweep-root-dir",
-    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/daily/20261016T063948Z",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/daily/20261020T063910Z",
     "--clean-run-reset",
     "--enable-hint-gate",
     "--enable-bounded-nudges",
@@ -97,7 +97,7 @@
   "last_config_pulse": [
     "--sweep",
     "--sweep-root-dir",
-    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20261016T082323Z",
+    "/home/runner/work/Frontier_OS/Frontier_OS/Exciton-MoA/working_data/snowball/runs/pulse/20261020T082333Z",
     "--clean-run-reset",
     "--enable-hint-gate",
     "--enable-bounded-nudges",
@@ -128,11 +128,11 @@
   "last_msf_ab_arm": "treatment",
   "last_paper_trigger": "none",
   "last_posture_ab_arm": "treatment",
-  "msf_ab_alternation": 150,
+  "msf_ab_alternation": 154,
   "observe_only_streak": 0,
   "paper_basin_fragility_delta": null,
   "policy_probe_alternation": 0,
-  "posture_ab_alternation": 150,
+  "posture_ab_alternation": 154,
   "recent_yields_daily": [
     9,
     9,
@@ -154,10 +154,10 @@
     0
   ],
   "regime": "explore",
-  "regime_streak": 1038,
+  "regime_streak": 1066,
   "safety_clamp": null,
   "safety_clamp_incident_id": null,
   "schema_version": 1,
-  "updated_utc": "2026-10-16T08:23:54Z",
+  "updated_utc": "2026-10-20T08:24:04Z",
   "weak_synchrony_streak": 0
 }

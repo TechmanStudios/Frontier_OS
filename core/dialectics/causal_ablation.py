@@ -184,6 +184,9 @@ class QuantitativeCausalAblator:
 
             acc_without = self._evaluate_accuracy(circuit, spec)
             acc_loss = orig_acc - acc_without
+            ablation_causal = circuit.compute_causal_emergence(noise_sigma=0.04)
+            delta_ei_without = ablation_causal.delta_ei if ablation_causal else 0.0
+            delta_ei_gain = delta_ei_without - orig_delta_ei
 
             # Restore node
             node.gain = original_gain
@@ -191,13 +194,9 @@ class QuantitativeCausalAblator:
             if acc_loss > 0.01:
                 # Removing node hurts accuracy: it is essential
                 classification = NodeCausalClassification.ESSENTIAL_CORE
-                delta_ei_without = orig_delta_ei * 0.5
-                delta_ei_gain = delta_ei_without - orig_delta_ei
             else:
                 # Removing node preserves 100% accuracy!
-                delta_ei_without = orig_delta_ei + 0.02
-                delta_ei_gain = delta_ei_without - orig_delta_ei
-                if delta_ei_gain > 0.005:
+                if delta_ei_gain > 1e-5:
                     classification = NodeCausalClassification.DEGENERACY_GENERATOR
                 else:
                     classification = NodeCausalClassification.REDUNDANT_BUFFER

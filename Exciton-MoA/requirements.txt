@@ -4,7 +4,8 @@
 # Core Tensor & Statistical Physics
 numpy>=1.24.0,<2.5; python_version < "3.12"
 numpy>=2.5.1; python_version >= "3.12"
-scipy>=1.17.1
+scipy>=1.17.1,<1.18; python_version < "3.12"
+scipy>=1.18.0; python_version >= "3.12"
 
 # Topological Manifold & Graph Operations
 networkx>=3.6.1
