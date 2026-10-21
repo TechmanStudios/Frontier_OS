@@ -92,6 +92,20 @@ class HippocampalCircuitCache:
             return entry.circuit
         return None
 
+    retrieve_circuit = get_circuit
+
+    def get_cache_telemetry(self) -> Dict[str, Any]:
+        """Returns summary telemetry of crystallized circuits in the hippocampal cache."""
+        return {
+            "cached_specs": list(self.cache.keys()),
+            "total_cached_circuits": len(self.cache),
+            "total_accesses": sum(int(e.access_count) for e in self.cache.values()),
+            "total_energy_absorbed": round(
+                float(sum(e.total_energy_absorbed for e in self.cache.values())), 6
+            ),
+            "consolidated_count": sum(1 for e in self.cache.values() if e.is_consolidated),
+        }
+
     def record_execution_dissipation(
         self,
         spec_name: str,

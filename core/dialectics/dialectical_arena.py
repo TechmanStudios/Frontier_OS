@@ -72,6 +72,9 @@ class ArenaSessionReport:
         }
 
 
+DialecticalDebateCertificate = ArenaSessionReport
+
+
 class DialecticalArena:
     """
     Autonomous Multi-Agent Dialectical Reasoning Arena.
