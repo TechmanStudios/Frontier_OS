@@ -8,7 +8,8 @@ scipy>=1.17.1,<1.18; python_version < "3.12"
 scipy>=1.18.0; python_version >= "3.12"
 
 # Topological Manifold & Graph Operations
-networkx>=3.6.1
+networkx>=3.6.1,<3.7; python_version < "3.12"
+networkx>=3.7; python_version >= "3.12"
 
 # (Optional) Backend API Server for Edge/Browser Streaming
 fastapi>=0.100.0
