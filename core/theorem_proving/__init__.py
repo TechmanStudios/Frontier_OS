@@ -20,6 +20,7 @@ from Frontier_OS.core.theorem_proving.proof_engine import (
     ProofVerdict,
     ProofStep,
     TheoremProofCertificate,
+    FormalProofCertificate,
     AutomatedProofEngine
 )
 from Frontier_OS.core.theorem_proving.theorem_corpus import (
@@ -37,6 +38,7 @@ __all__ = [
     "ProofVerdict",
     "ProofStep",
     "TheoremProofCertificate",
+    "FormalProofCertificate",
     "AutomatedProofEngine",
     "TheoremRecord",
     "TheoremCorpus",
