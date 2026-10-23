@@ -189,3 +189,8 @@ class TheoremCorpus:
                 f.write(doc)
 
         return doc
+
+    def export_markdown_corpus(self, filepath: Optional[str] = None) -> str:
+        """Alias for `export_corpus_markdown()`."""
+        return self.export_corpus_markdown(filepath=filepath)
+

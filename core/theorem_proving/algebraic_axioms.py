@@ -17,6 +17,9 @@ class MathematicalDomain(str, Enum):
     METRIC_GEOMETRY = "METRIC_GEOMETRY"         # Lie algebra generators, Ricci curvature, geodesics
     CAUSAL_INFORMATION = "CAUSAL_INFORMATION"   # Hoel Effective Information, degeneracy, coarse-graining
     ARITHMETIC_ALGEBRA = "ARITHMETIC_ALGEBRA"   # Ripple carry, modular groups, 2's complement
+    RIEMANNIAN_GEOMETRY = "RIEMANNIAN_GEOMETRY" # Mitotic foliation, topological surgery, Hawking mass continuity
+    WAVEGUIDE_FABRIC = "WAVEGUIDE_FABRIC"       # Coprime quadrature STWM, hierarchical prefix carry
+    META_PLASTICITY = "META_PLASTICITY"         # Governed compiler pass admission & replay idempotence
 
 
 @dataclass
@@ -121,4 +124,38 @@ def build_axiom_library() -> Dict[str, AxiomDefinition]:
         description="Geometric coupling between destructive collision and constructive majority lensing."
     )
 
+    # Frontier R: Mitotic Foliation & Hawking Mass Continuity Axiom
+    axioms["AXIOM_MITOTIC_MASS_CONTINUITY"] = AxiomDefinition(
+        axiom_id="AXIOM_MITOTIC_MASS_CONTINUITY",
+        domain=MathematicalDomain.RIEMANNIAN_GEOMETRY,
+        name="Mitotic Dual-Path Hawking Mass Continuity",
+        formula_latex=r"\text{Tr}(\rho_{A} + \rho_{B}) = \text{Tr}(\rho_{\text{in}}) - \Delta E_{\text{Hawking}}",
+        statement="Dual-path mitotic fission across a 2D toroidal surface conserves total density trace after subtracting Hippocampal Hawking radiation dissipation.",
+        description="Guarantees lossless topological splitting across S^1 x S^1 handles when excess dissonance is absorbed by the Hippocampal Hawking sink."
+    )
+
+    # Frontier S: Coprime Quadrature STWM Orthogonality & Prefix Carry Axiom
+    axioms["AXIOM_COPRIME_QUADRATURE_ORTHOGONALITY"] = AxiomDefinition(
+        axiom_id="AXIOM_COPRIME_QUADRATURE_ORTHOGONALITY",
+        domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+        name="Coprime Quadrature STWM Orthogonality & Prefix Carry",
+        formula_latex=r"\forall (p, q) \text{ coprime},\; \langle \Psi_p \mid \Psi_q \rangle = \delta_{p,q} \;\wedge\; G_{i:j} = G_{k+1:j} \lor (P_{k+1:j} \land G_{i:k})",
+        statement="Coprime quadrature phase-division multiplexed STWM lanes remain mutually orthogonal while associative Brent-Kung/Kogge-Stone group generate-propagate operators preserve carry recurrence.",
+        description="Couples coprime phase-lane orthogonality with parallel prefix carry propagation across hierarchical waveguide fabrics."
+    )
+
+    # Frontier T: Governed Compiler Pass Admission & Replay Idempotence Axiom
+    axioms["AXIOM_GOVERNED_PASS_REPLAY_IDEMPOTENCE"] = AxiomDefinition(
+        axiom_id="AXIOM_GOVERNED_PASS_REPLAY_IDEMPOTENCE",
+        domain=MathematicalDomain.META_PLASTICITY,
+        name="Governed Compiler Pass Admission & Replay Idempotence",
+        formula_latex=r"\text{Replay}(\text{Admit}(\Pi, x)) = \text{Admit}(\Pi, x) \implies H_{\text{trace}}(x^{(1)}) = H_{\text{trace}}(x^{(0)})",
+        statement="Deterministic pass replay of an admitted compiler pass sequence is idempotent and preserves cryptographic trace digest equality.",
+        description="Ensures recursive self-improvement (RSI) compiler passes cannot mutate capability boundaries or diverge under deterministic replay."
+    )
+
     return axioms
+
+
+build_canonical_axiom_system = build_axiom_library
+

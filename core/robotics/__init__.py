@@ -19,6 +19,15 @@ from Frontier_OS.core.robotics.safety_arbiter import (
     RoboticSafetyAuditReport,
     RoboticSafetyArbiter
 )
+from Frontier_OS.core.robotics.swarm_cohomology import (
+    SharedPayloadSpec,
+    MultiRobotFleetManifold,
+    ClosedKinematicChainSheaf,
+    SwarmCohomologyAuditReport,
+    SwarmTrajectoryExecutionReport,
+    SwarmCohomologySafetyArbiter,
+    BimanualCooperativeController,
+)
 
 __all__ = [
     "Obstacle3D",
@@ -30,5 +39,13 @@ __all__ = [
     "GeodesicActuationController",
     "SafetyViolation",
     "RoboticSafetyAuditReport",
-    "RoboticSafetyArbiter"
+    "RoboticSafetyArbiter",
+    "SharedPayloadSpec",
+    "MultiRobotFleetManifold",
+    "ClosedKinematicChainSheaf",
+    "SwarmCohomologyAuditReport",
+    "SwarmTrajectoryExecutionReport",
+    "SwarmCohomologySafetyArbiter",
+    "BimanualCooperativeController",
 ]
+

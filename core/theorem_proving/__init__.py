@@ -9,7 +9,8 @@ algebraic and geometric invariance verification, and formal theorem corpus cryst
 from Frontier_OS.core.theorem_proving.algebraic_axioms import (
     MathematicalDomain,
     AxiomDefinition,
-    build_axiom_library
+    build_axiom_library,
+    build_canonical_axiom_system,
 )
 from Frontier_OS.core.theorem_proving.conjecture_engine import (
     ConjectureType,
@@ -32,6 +33,7 @@ __all__ = [
     "MathematicalDomain",
     "AxiomDefinition",
     "build_axiom_library",
+    "build_canonical_axiom_system",
     "ConjectureType",
     "MathematicalConjecture",
     "AutonomousConjectureEngine",
@@ -43,3 +45,4 @@ __all__ = [
     "TheoremRecord",
     "TheoremCorpus",
 ]
+

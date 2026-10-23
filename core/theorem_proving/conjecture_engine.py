@@ -251,9 +251,136 @@ class AutonomousConjectureEngine:
             is_deliberately_false=True
         ))
 
+        # 8. Frontier R: Mitotic Dual-Path Hawking Mass Conservation
+        mitotic_spec = TruthTableSpec(
+            name="MITOTIC_HAWKING_CONSERVATION",
+            inputs=["PATH_A", "PATH_B", "HAWKING_SINK"],
+            outputs=["CONSERVED"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Dual-path mitotic routing conservation with Hippocampal Hawking radiation sink"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_mitotic_hawking_conservation",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.RIEMANNIAN_GEOMETRY,
+            title="Mitotic Dual-Path Hawking Mass Conservation",
+            statement="Dual-path mitotic routing preserves energy-momentum conservation across S^1 x S^1 toroidal handles when excess dissonance is absorbed by the Hippocampal Hawking sink.",
+            latex_formula=r"\text{Tr}(\rho_{A} + \rho_{B}) = \text{Tr}(\rho_{\text{in}}) - \Delta E_{\text{Hawking}}",
+            target_spec=mitotic_spec,
+            axioms_referenced=["AXIOM_MITOTIC_MASS_CONTINUITY", "AXIOM_GEODESIC_LEVI_CIVITA"],
+            entropy_score=self._compute_spec_entropy(mitotic_spec),
+            is_deliberately_false=False
+        ))
+
+        # 9. Frontier S: Coprime STWM Prefix Carry Orthogonality & Isomorphism
+        stwm_carry_spec = TruthTableSpec(
+            name="COPRIME_STWM_PREFIX_CARRY",
+            inputs=["G", "P", "CIN"],
+            outputs=["COUT"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Brent-Kung / Kogge-Stone prefix carry operator over coprime quadrature STWM lanes"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_coprime_stwm_prefix_carry",
+            conjecture_type=ConjectureType.ALGEBRAIC_IDENTITY,
+            domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+            title="Coprime STWM Prefix Carry Orthogonality",
+            statement="Brent-Kung and Kogge-Stone group generate-propagate operators G v (P ^ Cin) commute with coprime quadrature STWM phase lanes without inter-lane crosstalk.",
+            latex_formula=r"C_{\text{out}} = G \lor (P \land C_{\text{in}}) \;\wedge\; \langle \Psi_p \mid \Psi_q \rangle = \delta_{p,q}",
+            target_spec=stwm_carry_spec,
+            axioms_referenced=["AXIOM_COPRIME_QUADRATURE_ORTHOGONALITY", "AXIOM_FULL_ADDER_DECOMPOSITION"],
+            entropy_score=self._compute_spec_entropy(stwm_carry_spec),
+            is_deliberately_false=False
+        ))
+
+        # 10. Frontier T: Governed Compiler Pass Admission & Replay Idempotence
+        compiler_pass_spec = TruthTableSpec(
+            name="GOVERNED_COMPILER_PASS_IDEMPOTENCE",
+            inputs=["ADMITTED", "REPLAY_OK", "CAPABILITY_BOUND"],
+            outputs=["ELIGIBLE"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Governed compiler pass admission and deterministic replay idempotence gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_governed_compiler_pass_idempotence",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.META_PLASTICITY,
+            title="Governed Compiler Pass Admission & Replay Idempotence",
+            statement="Governed compiler pass admission combined with deterministic pass replay preserves digest equality and blocks unverified capability mutations.",
+            latex_formula=r"\text{Replay}(\text{Admit}(\Pi, x)) = \text{Admit}(\Pi, x) \implies H_{\text{trace}}(x^{(1)}) = H_{\text{trace}}(x^{(0)})",
+            target_spec=compiler_pass_spec,
+            axioms_referenced=["AXIOM_GOVERNED_PASS_REPLAY_IDEMPOTENCE", "AXIOM_OCCAM_CAUSAL_EMERGENCE"],
+            entropy_score=self._compute_spec_entropy(compiler_pass_spec),
+            is_deliberately_false=False
+        ))
+
+        # 11. Falsifiable Hypothesis: Resonant Wall Linear PDM Carry Preservation
+        flawed_resonant_wall_spec = TruthTableSpec(
+            name="FLAWED_RESONANT_WALL_LINEAR_PDM",
+            inputs=["G", "P", "CIN"],
+            outputs=["COUT"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (0,),  # Corrupted: 10x resonant wall attenuation collapses carry
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Flawed Claim: Resonant Wall (10x attenuation) preserves linear byte-slice PDM carry"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_false_resonant_wall_linear_pdm",
+            conjecture_type=ConjectureType.FALSIFIABLE_HYPOTHESIS,
+            domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+            title="Hypothetical Resonant Wall Linear PDM Carry Preservation",
+            statement="A resonant cavity wall (RESONANT_WALL, attenuation 10x) preserves linear byte-slice carry propagation without signal collapse.",
+            latex_formula=r"\text{Carry}_{\text{PDM}}(\text{RESONANT\_WALL}, x) \stackrel{?}{=} \text{Carry}_{\text{PDM}}(\text{FREE}, x)",
+            target_spec=flawed_resonant_wall_spec,
+            axioms_referenced=["AXIOM_COPRIME_QUADRATURE_ORTHOGONALITY"],
+            entropy_score=self._compute_spec_entropy(flawed_resonant_wall_spec),
+            is_deliberately_false=True
+        ))
+
         if not include_false_conjectures:
             return [c for c in conjectures if not c.is_deliberately_false]
         return conjectures
+
+    def discover_conjectures(
+        self,
+        include_false_conjectures: bool = True,
+    ) -> List[MathematicalConjecture]:
+        """Alias for `generate_conjecture_catalog()` returning candidate mathematical conjectures."""
+        return self.generate_conjecture_catalog(include_false_conjectures=include_false_conjectures)
 
     def _compute_spec_entropy(self, spec: TruthTableSpec) -> float:
         """Computes output Shannon entropy H(Y) to measure non-triviality."""
@@ -265,3 +392,4 @@ class AutonomousConjectureEngine:
             return 0.0
         p = np.array([cnt / total for cnt in out_counts.values()], dtype=np.float64)
         return compute_entropy(p, base=2.0)
+
