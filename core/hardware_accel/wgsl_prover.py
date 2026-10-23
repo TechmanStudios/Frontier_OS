@@ -109,7 +109,11 @@ class WGSLProofEngine:
         "conj_full_adder_sum": 2,
         "conj_half_adder_soundness": 2,
         "conj_majority_transitivity": 3,
-        "conj_flawed_parity_contradiction": 4
+        "conj_mitotic_hawking_conservation": 3,
+        "conj_coprime_stwm_prefix_carry": 3,
+        "conj_governed_compiler_pass_idempotence": 3,
+        "conj_flawed_parity_contradiction": 4,
+        "conj_false_resonant_wall_linear_pdm": 4,
     }
 
     def __init__(self, shader_dir: Optional[Path] = None):
