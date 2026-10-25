@@ -1,0 +1,64 @@
+{
+  "branch": "main",
+  "files_observed": 4,
+  "generated_utc": "2026-10-25T05:47:27Z",
+  "junit_files": [
+    {
+      "errors": 0,
+      "failures": 0,
+      "passed": 372,
+      "path": "/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.11.xml",
+      "skipped": 2,
+      "suites": 1,
+      "tests": 374,
+      "time": 83.336
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "passed": 372,
+      "path": "/tmp/infinity-node-results/infinity-node-junit-ubuntu-latest-py3.12.xml",
+      "skipped": 2,
+      "suites": 1,
+      "tests": 374,
+      "time": 95.124
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "passed": 372,
+      "path": "/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.11.xml",
+      "skipped": 2,
+      "suites": 1,
+      "tests": 374,
+      "time": 96.285
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "passed": 372,
+      "path": "/tmp/infinity-node-results/infinity-node-junit-windows-latest-py3.12.xml",
+      "skipped": 2,
+      "suites": 1,
+      "tests": 374,
+      "time": 105.003
+    }
+  ],
+  "kind": "infinity_node_test_result",
+  "overall_status": "pass",
+  "run_id": "40166628318",
+  "run_token": "20261025T054727Z",
+  "run_url": "https://github.com/TechmanStudios/Frontier_OS/actions/runs/40166628318",
+  "schema_version": 1,
+  "sha": "9627fcf2ddb78d2291101e7e0cba12f2e2578e29",
+  "status": "success",
+  "totals": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 1488,
+    "skipped": 8,
+    "suites": 4,
+    "tests": 1496,
+    "time": 379.748
+  }
+}
