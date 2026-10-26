@@ -371,6 +371,246 @@ class AutonomousConjectureEngine:
             is_deliberately_false=True
         ))
 
+        # 12. Frontier U: HCAM Associative Reduction & Cross-Shard Quorum Consensus Isomorphism
+        hcam_quorum_spec = TruthTableSpec(
+            name="HCAM_CROSS_SHARD_QUORUM_GC",
+            inputs=["BANK_REDUCTION_OK", "LOCAL_QUORUM", "GLOBAL_QUORUM"],
+            outputs=["COMMIT_ELIGIBLE"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="HCAM associative reduction and cross-shard majority quorum commit gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_hcam_cross_shard_consensus_gc",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.CAUSAL_INFORMATION,
+            title="HCAM Associative Reduction & Cross-Shard Quorum Consensus Isomorphism",
+            statement="Logarithmic HCAM bank reduction trees and cross-shard quorum voting preserve word-assembly equivalence and reachability-safe manifold garbage collection without reclaiming live transaction references.",
+            latex_formula=r"\bigoplus_{b=0}^{B-1} \text{Bank}_b(q) = \text{Word}(q) \;\wedge\; \text{Quorum}_{\text{global}}(\mathcal{S}) \implies \text{Live}(\mathcal{R}) \cap \text{GC}_{\text{reclaimed}} = \emptyset",
+            target_spec=hcam_quorum_spec,
+            axioms_referenced=["AXIOM_HCAM_REDUCTION_QUORUM_ISOMORPHISM", "AXIOM_FULL_ADDER_DECOMPOSITION"],
+            entropy_score=self._compute_spec_entropy(hcam_quorum_spec),
+            is_deliberately_false=False
+        ))
+
+        # 13. Frontier V: Waveguide Predicated Diamond & Scoreboard Serial Equivalence
+        waveguide_simd_spec = TruthTableSpec(
+            name="WAVEGUIDE_PREDICATED_SCOREBOARD_SIMD",
+            inputs=["PRED_SAFE", "ALIAS_BARRIERED", "SIMD_ORACLE_OK"],
+            outputs=["SERIAL_EQUIV"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Waveguide predicated branch diamond and barriered scoreboard serial equivalence gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_waveguide_predicated_scoreboard_simd",
+            conjecture_type=ConjectureType.ALGEBRAIC_IDENTITY,
+            domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+            title="Waveguide Predicated Diamond & Scoreboard Serial Equivalence",
+            statement="Predicated diamond execution with hidden architectural flags and RAW/WAW/WAR barriered scoreboard scheduling is strictly state-equivalent to sequential execution across assembled SIMD waveguide cores.",
+            latex_formula=r"\text{Exec}_{\text{pred}}(P, T, F) = (P \land T) \lor (\neg P \land F) \;\wedge\; \text{Barrier}(\text{RAW},\text{WAW},\text{WAR}) \implies \sigma_{\text{SIMD}} \equiv \sigma_{\text{serial}}",
+            target_spec=waveguide_simd_spec,
+            axioms_referenced=["AXIOM_PREDICATED_SCOREBOARD_SERIAL_EQUIVALENCE", "AXIOM_COPRIME_QUADRATURE_ORTHOGONALITY"],
+            entropy_score=self._compute_spec_entropy(waveguide_simd_spec),
+            is_deliberately_false=False
+        ))
+
+        # 14. Frontier W: Sovereign Burn-In Stability Ledger & Offline Digest Attestation Closure
+        burnin_attestation_spec = TruthTableSpec(
+            name="BURNIN_STABILITY_OFFLINE_ATTESTATION",
+            inputs=["BURNIN_STABLE", "DIGEST_MATCH", "OFFLINE_SAFE"],
+            outputs=["ATTESTATION_CLOSED"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Sovereign burn-in stability ledger and offline package digest attestation closure gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_burnin_stability_offline_attestation",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.META_PLASTICITY,
+            title="Sovereign Burn-In Stability Ledger & Offline Digest Attestation Closure",
+            statement="Multi-step sovereign burn-in stability with zero unrecovered regressions and local SHA-256 archive digest equivalence guarantees offline consumer verification closure without private-key or network dependencies.",
+            latex_formula=r"\Delta_{\text{reg}} = 0 \;\wedge\; H_{\text{SHA256}}(\mathcal{A}_{\text{recomputed}}) = H_{\text{SHA256}}(\mathcal{A}_{\text{recorded}}) \implies \text{OfflineReady}(\mathcal{A}) \land \neg\text{RealSigClaimed}",
+            target_spec=burnin_attestation_spec,
+            axioms_referenced=["AXIOM_BURNIN_LEDGER_ATTESTATION_CLOSURE", "AXIOM_GOVERNED_PASS_REPLAY_IDEMPOTENCE"],
+            entropy_score=self._compute_spec_entropy(burnin_attestation_spec),
+            is_deliberately_false=False
+        ))
+
+        # 15. Falsifiable Hypothesis: Unbarriered RAW/WAW/WAR Alias Reorder Equivalence
+        flawed_alias_reorder_spec = TruthTableSpec(
+            name="FLAWED_UNBARRIERED_ALIAS_REORDER",
+            inputs=["RAW_HAZARD", "WAW_HAZARD", "NO_BARRIER"],
+            outputs=["SERIAL_EQUIV"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (0,),  # Corrupted: unbarriered overlapping alias reorder violates serial state equivalence
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Flawed Claim: Unbarriered overlapping RAW/WAW/WAR memory accesses commute under out-of-order waveguide scheduling"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_false_unbarriered_alias_reorder_equivalence",
+            conjecture_type=ConjectureType.FALSIFIABLE_HYPOTHESIS,
+            domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+            title="Hypothetical Unbarriered Alias Reorder Equivalence",
+            statement="Overlapping waveguide memory accesses with RAW/WAW/WAR hazards can be freely reordered without scoreboard barriers while preserving serial state equivalence.",
+            latex_formula=r"\text{Reorder}_{\text{unbarriered}}(\text{Store}(a, v_1), \text{Load}(a)) \stackrel{?}{\equiv} \text{Serial}(\text{Store}(a, v_1), \text{Load}(a))",
+            target_spec=flawed_alias_reorder_spec,
+            axioms_referenced=["AXIOM_PREDICATED_SCOREBOARD_SERIAL_EQUIVALENCE"],
+            entropy_score=self._compute_spec_entropy(flawed_alias_reorder_spec),
+            is_deliberately_false=True
+        ))
+
+        # 16. Frontier X: Entangled Multi-Manifold Cadence & Wavefront Alignment Coherence
+        entangled_cadence_spec = TruthTableSpec(
+            name="ENTANGLED_CADENCE_WAVEFRONT_SYNC",
+            inputs=["COMMIT_BARRIER_OK", "AUTONOMY_BOUNDED", "WAVEFRONT_STABLE"],
+            outputs=["COHERENT"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Entangled multi-manifold commit barrier, autonomous cadence guard, and wavefront alignment coherence gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_entangled_cadence_wavefront_sync",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.RIEMANNIAN_GEOMETRY,
+            title="Entangled Multi-Manifold Cadence & Wavefront Alignment Coherence",
+            statement="Satisfied entangled atomic/commit barriers, bounded autonomous cadence adjustment, and uncertainty-bounded wavefront stabilization preserve cross-manifold phase coherence.",
+            latex_formula=r"(\text{Prepare} \land \text{Consensus} \land \text{Calibration}) \;\wedge\; |\Delta \omega| \le \tau_{\text{guard}} \;\wedge\; \sigma_{\text{wf}} \le \tau_{\text{window}} \implies C_{\text{group}} \ge 0.95",
+            target_spec=entangled_cadence_spec,
+            axioms_referenced=["AXIOM_ENTANGLED_CADENCE_WAVEFRONT_COHERENCE", "AXIOM_GEODESIC_LEVI_CIVITA"],
+            entropy_score=self._compute_spec_entropy(entangled_cadence_spec),
+            is_deliberately_false=False
+        ))
+
+        # 17. Frontier Y: Waveguide Channel Kernel Compaction & No-Op Dry-Run Staging Equivalence
+        channel_staging_spec = TruthTableSpec(
+            name="WAVEGUIDE_CHANNEL_COMPACTION_STAGING",
+            inputs=["CHANNEL_BATCH_SAFE", "COMPACTION_EQUIV", "NOOP_DRY_RUN_VALID"],
+            outputs=["STAGING_SAFE"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Waveguide 5-kernel channel dependency safety, trace-equivalent microcode compaction, and no-op dry-run local staging gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_waveguide_channel_compaction_staging",
+            conjecture_type=ConjectureType.ALGEBRAIC_IDENTITY,
+            domain=MathematicalDomain.WAVEGUIDE_FABRIC,
+            title="Waveguide Channel Kernel Compaction & No-Op Dry-Run Staging Equivalence",
+            statement="Dependency-safe recognition of all 5 canonical channel kernels, trace-equivalent MUL/DIV pipeline compaction, and physical execution gate no-op enforcement guarantee safe local package staging.",
+            latex_formula=r"\text{Safe}_{\text{chan}}(\mathcal{K}_{5}) \;\wedge\; (T_{\text{compact}} \equiv T_{\text{serial}}) \;\wedge\; (\text{PhysExec} = 0) \implies \text{SafeStaging}(\mathcal{P})",
+            target_spec=channel_staging_spec,
+            axioms_referenced=["AXIOM_CHANNEL_KERNEL_COMPACTION_NOOP_BOUNDARY", "AXIOM_PREDICATED_SCOREBOARD_SERIAL_EQUIVALENCE"],
+            entropy_score=self._compute_spec_entropy(channel_staging_spec),
+            is_deliberately_false=False
+        ))
+
+        # 18. Frontier Z: Sovereign Court-Supervised Promotion & System Lockdown Closure
+        court_lockdown_spec = TruthTableSpec(
+            name="SOVEREIGN_COURT_LOCKDOWN_CLOSURE",
+            inputs=["SHADOW_TOKEN_VALID", "COURT_DOCKET_COMPLETE", "LOCKDOWN_SEALED"],
+            outputs=["CLOSURE_ELIGIBLE"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (1,),
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Scoped shadow token validation, 26-Frontier court promotion docket completeness, and final system lockdown closure gate"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_sovereign_court_lockdown_closure",
+            conjecture_type=ConjectureType.TOPOLOGICAL_INVARIANT,
+            domain=MathematicalDomain.META_PLASTICITY,
+            title="Sovereign Court-Supervised Promotion & System Lockdown Closure",
+            statement="Scoped shadow token verification, complete 26-Frontier court promotion docket evidence, and zero governance freeze or system lockdown violations seal the A-Z organism without live self-authorization.",
+            latex_formula=r"\text{ValidToken}_{\text{shadow}}(\tau) \;\wedge\; (\Delta_{\text{freeze}} = 0 \land \Delta_{\text{lockdown}} = 0) \;\wedge\; \text{Docket}_{\text{A..Z}} \implies \text{Sealed}(\Omega_{26}) \land \neg\text{LiveExec}",
+            target_spec=court_lockdown_spec,
+            axioms_referenced=["AXIOM_COURT_SUPERVISED_LOCKDOWN_CLOSURE", "AXIOM_BURNIN_LEDGER_ATTESTATION_CLOSURE"],
+            entropy_score=self._compute_spec_entropy(court_lockdown_spec),
+            is_deliberately_false=False
+        ))
+
+        # 19. Falsifiable Hypothesis: Unbounded Autonomous Cadence Guard Bypass
+        flawed_cadence_bypass_spec = TruthTableSpec(
+            name="FLAWED_UNBOUNDED_AUTONOMOUS_CADENCE_BYPASS",
+            inputs=["RESONANT_FEEDBACK", "GUARD_BYPASSED", "PHASE_SKEW_HIGH"],
+            outputs=["COHERENT"],
+            table={
+                (0, 0, 0): (0,),
+                (0, 0, 1): (0,),
+                (0, 1, 0): (0,),
+                (0, 1, 1): (0,),  # Corrupted: bypassing autonomy guard under resonant feedback causes phase decoherence
+                (1, 0, 0): (0,),
+                (1, 0, 1): (1,),
+                (1, 1, 0): (1,),
+                (1, 1, 1): (1,),
+            },
+            description="Flawed Claim: Unbounded autonomous cadence adjustment without autonomy guard preserves cross-manifold coherence"
+        )
+        conjectures.append(MathematicalConjecture(
+            conjecture_id="conj_false_unbounded_autonomous_cadence_bypass",
+            conjecture_type=ConjectureType.FALSIFIABLE_HYPOTHESIS,
+            domain=MathematicalDomain.RIEMANNIAN_GEOMETRY,
+            title="Hypothetical Unbounded Autonomous Cadence Guard Bypass",
+            statement="Bypassing the autonomous cadence guard under positive resonant feedback preserves multi-manifold phase coherence and entangled commit barrier safety.",
+            latex_formula=r"\text{Coherence}(\text{BypassGuard}(\Delta \omega \gg \tau_{\text{guard}})) \stackrel{?}{\ge} 0.95",
+            target_spec=flawed_cadence_bypass_spec,
+            axioms_referenced=["AXIOM_ENTANGLED_CADENCE_WAVEFRONT_COHERENCE"],
+            entropy_score=self._compute_spec_entropy(flawed_cadence_bypass_spec),
+            is_deliberately_false=True
+        ))
+
         if not include_false_conjectures:
             return [c for c in conjectures if not c.is_deliberately_false]
         return conjectures
@@ -380,6 +620,13 @@ class AutonomousConjectureEngine:
         include_false_conjectures: bool = True,
     ) -> List[MathematicalConjecture]:
         """Alias for `generate_conjecture_catalog()` returning candidate mathematical conjectures."""
+        return self.generate_conjecture_catalog(include_false_conjectures=include_false_conjectures)
+
+    def generate_canonical_conjectures(
+        self,
+        include_false_conjectures: bool = True,
+    ) -> List[MathematicalConjecture]:
+        """Alias for `generate_conjecture_catalog()` returning the canonical conjecture catalogue."""
         return self.generate_conjecture_catalog(include_false_conjectures=include_false_conjectures)
 
     def _compute_spec_entropy(self, spec: TruthTableSpec) -> float:
@@ -392,4 +639,15 @@ class AutonomousConjectureEngine:
             return 0.0
         p = np.array([cnt / total for cnt in out_counts.values()], dtype=np.float64)
         return compute_entropy(p, base=2.0)
+
+
+def generate_canonical_conjectures(
+    include_false_conjectures: bool = True,
+) -> List[MathematicalConjecture]:
+    """Top-level helper returning the canonical 19-conjecture catalogue."""
+    return AutonomousConjectureEngine().generate_conjecture_catalog(
+        include_false_conjectures=include_false_conjectures
+    )
+
+
 

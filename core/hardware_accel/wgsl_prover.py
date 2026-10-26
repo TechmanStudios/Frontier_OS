@@ -108,12 +108,26 @@ class WGSLProofEngine:
         "conj_modus_ponens": 1,
         "conj_full_adder_sum": 2,
         "conj_half_adder_soundness": 2,
+        "conj_xor_associativity": 2,
         "conj_majority_transitivity": 3,
+        "conj_majority_self_duality": 3,
+        "conj_adder_carry_majority": 3,
+        "conj_causal_emergence_arbiter": 3,
         "conj_mitotic_hawking_conservation": 3,
         "conj_coprime_stwm_prefix_carry": 3,
         "conj_governed_compiler_pass_idempotence": 3,
+        "conj_hcam_cross_shard_consensus_gc": 3,
+        "conj_waveguide_predicated_scoreboard_simd": 3,
+        "conj_burnin_stability_offline_attestation": 3,
+        "conj_entangled_cadence_wavefront_sync": 3,
+        "conj_waveguide_channel_compaction_staging": 3,
+        "conj_sovereign_court_lockdown_closure": 3,
         "conj_flawed_parity_contradiction": 4,
+        "conj_flawed_xor_linear": 4,
+        "conj_flawed_even_majority": 4,
         "conj_false_resonant_wall_linear_pdm": 4,
+        "conj_false_unbarriered_alias_reorder_equivalence": 4,
+        "conj_false_unbounded_autonomous_cadence_bypass": 4,
     }
 
     def __init__(self, shader_dir: Optional[Path] = None):
@@ -162,7 +176,10 @@ class WGSLProofEngine:
             rule_idx = 4
 
         # State space configuration
-        if rule_idx in (2, 3):
+        spec_inputs = getattr(getattr(conjecture, "target_spec", None), "inputs", None)
+        if spec_inputs and len(spec_inputs) >= 2:
+            num_inputs = len(spec_inputs)
+        elif rule_idx in (2, 3):
             num_inputs = 3
         elif rule_idx in (0, 1, 4):
             num_inputs = 2
