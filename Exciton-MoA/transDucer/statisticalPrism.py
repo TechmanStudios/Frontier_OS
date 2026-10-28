@@ -88,13 +88,13 @@ class StatisticalPrism:
 
         moments_3d = self.extract_moments(arr)
         normed = centered / std_dev
-        kurtosis = float(np.mean(normed ** 4) - 3.0)
+        kurtosis = float(np.mean(normed**4) - 3.0)
 
         even_len = (arr.size // 2) * 2
         if even_len >= 2:
             pairs = normed[:even_len].reshape(-1, 2)
             haar_detail = (pairs[:, 0] - pairs[:, 1]) / np.sqrt(2.0)
-            haar_energy = float(np.mean(haar_detail ** 2))
+            haar_energy = float(np.mean(haar_detail**2))
         else:
             haar_energy = 0.0
 
