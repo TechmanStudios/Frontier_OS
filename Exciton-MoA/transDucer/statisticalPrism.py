@@ -328,22 +328,12 @@ class StatisticalPrism:
         batch_mat = np.vstack(batch_rows)
 
         prism_batch_6d = self.extract_spectral_prism_batch(batch_mat)
-        seq_batch_6d = np.vstack(
-            [self.extract_spectral_prism_fingerprint(row) for row in batch_mat]
-        )
+        seq_batch_6d = np.vstack([self.extract_spectral_prism_fingerprint(row) for row in batch_mat])
         max_batch_err = float(np.max(np.abs(prism_batch_6d - seq_batch_6d)))
 
         raw_attenuation = (qf**q_steps) if auto_decollide else 1.0
-        collapsed_retention = (
-            0.0
-            if (auto_decollide and raw_attenuation < 0.02)
-            else float(raw_attenuation)
-        )
-        stream_supp_db = (
-            float(-10.0 * np.log10(max(raw_attenuation, 1e-12)))
-            if auto_decollide
-            else 0.0
-        )
+        collapsed_retention = 0.0 if (auto_decollide and raw_attenuation < 0.02) else float(raw_attenuation)
+        stream_supp_db = float(-10.0 * np.log10(max(raw_attenuation, 1e-12))) if auto_decollide else 0.0
 
         regimes_out: list[dict[str, Any]] = []
         l2_3d_list: list[float] = []
@@ -362,19 +352,13 @@ class StatisticalPrism:
             m3_a = s6_a[:3]
             m3_b = s6_b[:3]
 
-            cosine = float(
-                np.dot(va, vb) / max(float(np.linalg.norm(va) * np.linalg.norm(vb)), 1e-12)
-            )
+            cosine = float(np.dot(va, vb) / max(float(np.linalg.norm(va) * np.linalg.norm(vb)), 1e-12))
             l2_3d = float(np.linalg.norm(m3_a - m3_b))
             l2_4d = float(np.linalg.norm(s6_a[:4] - s6_b[:4]))
             l2_6d = float(np.linalg.norm(s6_a - s6_b))
 
-            coords_a = self.extract_decollided_coords(
-                va, use_spectral_prism=bool(auto_decollide)
-            )
-            coords_b = self.extract_decollided_coords(
-                vb, use_spectral_prism=bool(auto_decollide)
-            )
+            coords_a = self.extract_decollided_coords(va, use_spectral_prism=bool(auto_decollide))
+            coords_b = self.extract_decollided_coords(vb, use_spectral_prism=bool(auto_decollide))
             l2_decollided = float(np.linalg.norm(coords_a - coords_b))
 
             s_on = float(0.5 * (s6_a[4] / 2.0 + s6_a[5]))
@@ -428,15 +412,9 @@ class StatisticalPrism:
         total_streams = len(s_on_list) + len(s_off_list)
         accuracy = float(total_streams - flips) / float(max(total_streams, 1))
         legacy_3d_flips = int(legacy_collisions)
-        legacy_3d_accuracy = float(total_streams - legacy_3d_flips) / float(
-            max(total_streams, 1)
-        )
+        legacy_3d_accuracy = float(total_streams - legacy_3d_flips) / float(max(total_streams, 1))
 
-        collapsed_quenched_count = (
-            sum(1 for s in s_off_list if s <= prism_tau_star)
-            if auto_decollide
-            else 0
-        )
+        collapsed_quenched_count = sum(1 for s in s_off_list if s <= prism_tau_star) if auto_decollide else 0
         surviving_healthy_count = sum(1 for s in s_on_list if s > prism_tau_star)
         spectral_purity = float(surviving_healthy_count) / float(
             max(
