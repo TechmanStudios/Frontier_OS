@@ -43,16 +43,19 @@ class StatisticalPrism:
             return np.zeros(3, dtype=np.float64)
         arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # 1. Mean (Central Tendency) -> Base spatial location
-        raw_mean = float(np.mean(arr))
+        # 1. Mean (Central Tendency) -> Base spatial location (two-pass reference-shifted)
+        ref = float(arr[0])
+        shifted = arr - ref
+        mean_shift = float(np.mean(shifted))
+        raw_mean = ref + mean_shift
         mu = raw_mean * self.scale_mean
 
         # 2. Variance (Dispersion) -> Angular spread / uncertainty
-        centered = arr - raw_mean
+        centered = shifted - mean_shift
         raw_var = float(np.mean(centered**2))
         var = raw_var * self.scale_var
         std_dev = float(np.sqrt(max(0.0, raw_var)))
-        std_tol = 1e-12 * max(1.0, abs(raw_mean))
+        std_tol = max(1e-30, 1e-14 * abs(raw_mean))
 
         # 3. Skewness (Asymmetry) -> Phase-shift / Z-axis offset
         if arr.size < 3 or std_dev <= std_tol:
@@ -85,11 +88,14 @@ class StatisticalPrism:
             return np.zeros(6, dtype=np.float64)
         arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
 
-        mean = float(np.mean(arr))
-        centered = arr - mean
+        ref = float(arr[0])
+        shifted = arr - ref
+        mean_shift = float(np.mean(shifted))
+        mean = ref + mean_shift
+        centered = shifted - mean_shift
         variance = float(np.mean(centered**2))
         std_dev = float(np.sqrt(max(0.0, variance)))
-        std_tol = 1e-12 * max(1.0, abs(mean))
+        std_tol = max(1e-30, 1e-14 * abs(mean))
 
         if arr.size < 2 or std_dev <= std_tol:
             return np.array(
@@ -97,8 +103,12 @@ class StatisticalPrism:
                 dtype=np.float64,
             )
 
-        moments_3d = self.extract_moments(arr)
         normed = centered / std_dev
+        if arr.size >= 3:
+            raw_sk = float(np.mean(normed**3))
+            skewness = (raw_sk * self.scale_skew) if np.isfinite(raw_sk) else 0.0
+        else:
+            skewness = 0.0
         kurtosis = float(np.mean(normed**4) - 3.0)
 
         even_len = (arr.size // 2) * 2
@@ -120,9 +130,9 @@ class StatisticalPrism:
 
         return np.array(
             [
-                float(moments_3d[0]),
-                float(moments_3d[1]),
-                float(moments_3d[2]),
+                mean * self.scale_mean,
+                variance * self.scale_var,
+                skewness,
                 kurtosis,
                 haar_energy,
                 spectral_centroid,
@@ -184,11 +194,14 @@ class StatisticalPrism:
             return np.zeros((b_rows, 6), dtype=np.float64)
         mat = np.nan_to_num(mat, nan=0.0, posinf=0.0, neginf=0.0)
 
-        means = np.mean(mat, axis=1)
-        centered = mat - means[:, None]
+        ref = mat[:, :1]
+        shifted = mat - ref
+        mean_shift = np.mean(shifted, axis=1, keepdims=True)
+        means = (ref + mean_shift).ravel()
+        centered = shifted - mean_shift
         variances = np.mean(centered**2, axis=1)
         std_devs = np.sqrt(np.maximum(0.0, variances))
-        std_tols = 1e-12 * np.maximum(1.0, np.abs(means))
+        std_tols = np.maximum(1e-30, 1e-14 * np.abs(means))
 
         out = np.zeros((b_rows, 6), dtype=np.float64)
         out[:, 0] = means * self.scale_mean
