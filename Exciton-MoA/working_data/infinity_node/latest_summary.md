@@ -2,10 +2,10 @@
 
 - overall status: pass
 - workflow status: success
-- run id: 43562680534
+- run id: 43682102035
 - branch: main
-- sha: 327cea3e0392692ff93cf904c777d08df65255b4
-- generated (UTC): 2026-11-14T05:43:19Z
+- sha: b7775c9f4b8a1880836a89d3a49d1e73e02662c0
+- generated (UTC): 2026-11-15T05:42:54Z
 
 ## Aggregate
 
@@ -16,7 +16,7 @@
 - failures: 0
 - errors: 0
 - skipped: 8
-- time: 308.079
+- time: 259.524
 
 ## JUnit files
 
