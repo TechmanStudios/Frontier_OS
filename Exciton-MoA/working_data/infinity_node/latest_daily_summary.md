@@ -1,10 +1,10 @@
 # Infinity-node daily aggregate
 
-- day: 2026-11-19
+- day: 2026-11-20
 - overall status: pass
 - runs observed: 1
 - files observed: 4
-- generated (UTC): 2026-11-19T05:43:25Z
+- generated (UTC): 2026-11-20T05:42:43Z
 
 ## Aggregate totals
 
@@ -14,7 +14,7 @@
 - failures: 0
 - errors: 0
 - skipped: 8
-- time: 241.677
+- time: 262.02
 
 ## Status counts
 
